@@ -1,0 +1,6 @@
+dataset/**/
+dataset/*.csv
+evaluation/*
+mamba_training/*
+titans_training/*
+xlstm_training/*
