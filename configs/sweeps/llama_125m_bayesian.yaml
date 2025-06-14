@@ -1,0 +1,20 @@
+program: src/main/sallm/main.py
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - --config_path=configs/llama_125m_sweep_base.yaml
+  - ${args}
+method: bayes
+metric:
+  name: eval_loss
+  goal: minimize
+parameters:
+  learning_rate:
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 1e-3
+  weight_decay:
+    distribution: uniform
+    min: 0.0
+    max: 0.1

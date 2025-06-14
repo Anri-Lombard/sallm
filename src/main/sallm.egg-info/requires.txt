@@ -1,0 +1,14 @@
+torch
+transformers
+datasets
+wandb
+pydantic
+pyyaml
+numpy
+scipy
+
+[dev]
+black
+mypy
+pytest
+types-PyYAML

@@ -1,0 +1,44 @@
+wandb:
+  project: "sallm-llama"
+  name: "125m"
+
+model:
+  architecture: "llama"
+  config:
+    hidden_size: 768
+    intermediate_size: 3072
+    num_hidden_layers: 12
+    num_attention_heads: 12
+    rms_norm_eps: 1e-5
+    rope_theta: 10000.0
+  param_validation:
+    min_params_m: 120.0
+    max_params_m: 130.0
+
+data:
+  path: "..."
+  train_split: "train"
+  eval_split: "validation"
+  test_split: "test"
+
+tokenizer:
+  path: "./tokenizer/"
+
+training:
+  output_dir: "./checkpoints/sallm-llama-125m"
+  learning_rate: 3e-4
+  weight_decay: 0.01
+  num_train_epochs: 3
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  warmup_ratio: 0.03
+  lr_scheduler_type: "cosine"
+  bf16: true
+  logging_dir: "./logs/sallm-llama-125m"
+  logging_steps: 10
+  evaluation_strategy: "steps"
+  eval_steps: 500
+  save_strategy: "steps"
+  save_steps: 500
+  save_total_limit: 2
+  report_to: "wandb"

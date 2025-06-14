@@ -1,0 +1,18 @@
+dataset_preparation:
+  paths:
+    source_directory: "data/filtered_data"
+    output_directory: "data/sallm_dataset"
+
+  splits:
+    validation_size: 0.1
+    test_size: 0.1
+
+    capping:
+      # For validation/test splits, cap any single language at this many tokens.
+      # This prevents high-resource languages from dominating evaluation metrics.
+      # Excess data is moved to the training set.
+      max_tokens: 2000000
+      chars_per_token_estimate: 4
+
+  settings:
+    seed: 42
