@@ -3,6 +3,7 @@ import yaml
 import argparse
 from pathlib import Path
 import os
+from typing import Any, Dict, Iterator
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -18,21 +19,25 @@ from tokenizers.processors import TemplateProcessing
 
 
 # TODO restructure library to use pydantic models for loading configs
-def load_config(config_path: Path) -> dict:
+def load_config(config_path: Path) -> Dict[str, Any]:
     with config_path.open("r") as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise TypeError("Config file is not a dictionary.")
+        return data
 
-def train_tokenizer(config: dict):
+
+def train_tokenizer(config: dict) -> None:
     """
     Orchestrate the tokenizer training process based on a config dict.
     """
-    model_config = config['tokenizer_training']['bpe_model']
-    path_config = config['tokenizer_training']['paths']
+    model_config = config["tokenizer_training"]["bpe_model"]
+    path_config = config["tokenizer_training"]["paths"]
 
-    vocab_size = model_config['vocab_size']
-    special_tokens = model_config['special_tokens']
-    train_dir = Path(path_config['train_data_dir'])
-    output_dir = Path(path_config['output_dir'])
+    vocab_size = model_config["vocab_size"]
+    special_tokens = model_config["special_tokens"]
+    train_dir = Path(path_config["train_data_dir"])
+    output_dir = Path(path_config["output_dir"])
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
     # TODO these necessary/useful according to research?
@@ -55,7 +60,7 @@ def train_tokenizer(config: dict):
 
     hf_dataset = datasets.load_from_disk(str(train_dir))
 
-    def batch_iterator(batch_size=1000):
+    def batch_iterator(batch_size: int = 1000) -> Iterator[list[str]]:
         for i in range(0, len(hf_dataset), batch_size):
             yield hf_dataset[i : i + batch_size]["text"]
 
@@ -95,18 +100,21 @@ def train_tokenizer(config: dict):
     encoded = reloaded_tokenizer.encode(text)
 
     print(f"Original: {text}")
-    print(f"Encoded (tokens): {encoded.tokens}")
-    print(f"Encoded (IDs): {encoded.ids}")
-    decoded = reloaded_tokenizer.decode(encoded.ids)
+    print(f"Encoded (tokens): {reloaded_tokenizer.convert_ids_to_tokens(encoded)}")
+    print(f"Encoded (IDs): {encoded}")
+    decoded = reloaded_tokenizer.decode(encoded)
     print(f"Decoded: {decoded}")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a BPE tokenizer from a YAML config.")
+    parser = argparse.ArgumentParser(
+        description="Train a BPE tokenizer from a YAML config."
+    )
     parser.add_argument(
         "--config",
         type=str,
         default="configs/tokenizers/bpe.yaml",
-        help="Path to the tokenizer training configuration YAML file."
+        help="Path to the tokenizer training configuration YAML file.",
     )
     args = parser.parse_args()
 
