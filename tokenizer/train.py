@@ -36,7 +36,7 @@ def train_tokenizer(config: dict):
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
     # TODO these necessary/useful according to research?
-    tokenizer.normalizer = Sequence([NFD(), Lowercase(), StripAccents()])
+    tokenizer.normalizer = Sequence([NFD()])
 
     # Sentencepiece is language agnostic, this is an attempt to mimic their behaviour
     # without needing to change libraries. Tokens will now be bytes which has been

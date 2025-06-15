@@ -7,6 +7,7 @@ from transformers import (
 from datasets import Dataset
 
 from sallm.config import ExperimentConfig
+from sallm.training.callbacks import PerLanguageEvalCallback
 from sallm.utils import compute_metrics
 
 
@@ -17,8 +18,8 @@ def build_trainer(
     train_dataset: Dataset,
     eval_dataset: Dataset,
 ) -> Trainer:
-    """Builds and returns a Hugging Face Trainer instance."""
     training_args = TrainingArguments(**config.training.model_dump())
+    callbacks = [PerLanguageEvalCallback()]
 
     return Trainer(
         model=model,
@@ -27,4 +28,5 @@ def build_trainer(
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
+        callbacks=callbacks,
     )
