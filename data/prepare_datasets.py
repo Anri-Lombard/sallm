@@ -1,4 +1,3 @@
-import os
 import json
 import argparse
 import random
@@ -6,8 +5,9 @@ import yaml
 from pathlib import Path
 from collections import defaultdict
 from itertools import groupby
-from typing import List, Dict, NamedTuple
+from typing import List, Dict, NamedTuple, Generator, Any
 from tqdm import tqdm
+import datasets
 
 
 class FilePointer(NamedTuple):
@@ -47,7 +47,6 @@ class DataProcessor:
 
         self.root_dir = Path(paths["source_directory"])
         self.output_dir = Path(paths["output_directory"])
-        self.temp_dir = self.output_dir / "tmp"
 
         self.val_size = splits["validation_size"]
         self.test_size = splits["test_size"]
@@ -63,20 +62,19 @@ class DataProcessor:
                 f"Source directory not found: {self.root_dir}\n"
                 "Please update the 'source_directory' path in your config file."
             )
+
         self._prepare_directories()
 
         language_indexes = self._build_index()
         split_pointers = self._calculate_splits(language_indexes)
-        temp_train_path = self._write_unshuffled_splits(split_pointers)
-        self._external_shuffle(temp_train_path)
+        self._create_and_save_splits(split_pointers)
 
-        self._cleanup(temp_train_path)
         print("\nProcessing complete.")
         print(f"Final dataset saved to: {self.output_dir}")
 
     def _prepare_directories(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.temp_dir.mkdir(exist_ok=True)
+
         for split in ["train", "validation", "test"]:
             (self.output_dir / split).mkdir(exist_ok=True)
 
@@ -154,75 +152,48 @@ class DataProcessor:
 
         return split_pointers
 
-    def _write_unshuffled_splits(
-        self, split_pointers: Dict[str, List[FilePointer]]
-    ) -> Path:
-        print("Phase 3: Writing splits via sorted index...")
-        temp_train_path = self.temp_dir / "train.tmp.jsonl"
+    # --- Step 2: Create a Data Generator Method ---
+    # WHY: This generator function is the key to memory efficiency. It `yield`s
+    # one sample at a time, meaning the entire dataset is never loaded into
+    # RAM. It reads from the original source files based on the pre-built index.
+    # The `datasets.Dataset.from_generator` will consume this stream.
+    def _generate_samples(
+        self, pointers: List[FilePointer]
+    ) -> Generator[Dict[str, Any], None, None]:
+        # WHY: Sorting by file path is a critical I/O optimization. It ensures
+        # we open each source file only once and read all required lines
+        # sequentially, minimizing disk head seeks.
+        pointers.sort(key=lambda p: (p.file_path, p.offset))
 
+        for file_path, group in groupby(pointers, key=lambda p: p.file_path):
+            with file_path.open("rb") as in_f:
+                for pointer in group:
+                    in_f.seek(pointer.offset)
+                    line = in_f.readline()
+                    data = json.loads(line)
+                    lang = self._normalize_lang_code(
+                        pointer.file_path, data.get("file", "")
+                    )
+                    yield {"text": data["text"], "lang": lang}
+
+    def _create_and_save_splits(
+        self, split_pointers: Dict[str, List[FilePointer]]
+    ) -> None:
+        print("Phase 3: Generating and saving Hugging Face datasets...")
         for split_name, pointers in split_pointers.items():
-            pointers.sort(key=lambda p: (p.file_path, p.offset))
-            output_path = (
-                temp_train_path
-                if split_name == "train"
-                else self.output_dir / split_name / "data-00000-of-00001.jsonl"
+            print(f"  - Generating '{split_name}' split...")
+
+            dataset = datasets.Dataset.from_generator(
+                self._generate_samples, gen_kwargs={"pointers": pointers}
             )
 
-            with (
-                output_path.open("wb") as out_f,
-                tqdm(total=len(pointers), desc=f"Writing {split_name} split") as pbar,
-            ):
-                for file_path, group in groupby(pointers, key=lambda p: p.file_path):
-                    with file_path.open("rb") as in_f:
-                        for pointer in group:
-                            in_f.seek(pointer.offset)
-                            line = in_f.readline()
-                            data = json.loads(line)
-                            lang = self._normalize_lang_code(
-                                pointer.file_path, data.get("file", "")
-                            )
-                            output_data = {"text": data["text"], "lang": lang}
-                            out_f.write(
-                                (json.dumps(output_data) + "\n").encode("utf-8")
-                            )
-                            pbar.update(1)
-        return temp_train_path
+            if split_name == "train":
+                print("  - Shuffling training set...")
+                dataset = dataset.shuffle(seed=self.seed)
 
-    def _external_shuffle(self, temp_train_path: Path) -> None:
-        print("Phase 4: Performing external shuffle on training set...")
-        line_offsets = []
-        file_size = temp_train_path.stat().st_size
-        with (
-            temp_train_path.open("rb") as f,
-            tqdm(
-                total=file_size,
-                desc="  - Indexing train.tmp",
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as pbar,
-        ):
-            offset = 0
-            for line in f:
-                line_offsets.append(offset)
-                line_len = len(line)
-                offset += line_len
-                pbar.update(line_len)
-
-        final_train_path = self.output_dir / "train" / "data-00000-of-00001.jsonl"
-        with final_train_path.open("wb") as out_f, temp_train_path.open("rb") as in_f:
-            random.shuffle(line_offsets)
-            for offset in tqdm(line_offsets, desc="  - Shuffling train set"):
-                in_f.seek(offset)
-                out_f.write(in_f.readline())
-
-    def _cleanup(self, temp_train_path: Path) -> None:
-        print("Cleaning up temporary files...")
-        temp_train_path.unlink()
-        try:
-            self.temp_dir.rmdir()
-        except OSError:
-            pass
+            output_path = self.output_dir / split_name
+            print(f"  - Saving '{split_name}' split to {output_path}")
+            dataset.save_to_disk(str(output_path))
 
 
 def main() -> None:
@@ -241,7 +212,7 @@ def main() -> None:
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found at: {config_path}")
 
-    # TODO restructure library to use pydantic models for loading configs
+    # TODO load in dynamically/automatically or have utils file
     print(f"Loading configuration from: {config_path}")
     with config_path.open("r") as f:
         config_data = yaml.safe_load(f)
