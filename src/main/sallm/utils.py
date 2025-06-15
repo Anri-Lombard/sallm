@@ -1,8 +1,9 @@
-import numpy as np
-from transformers import EvalPrediction
-from enum import Enum
 import logging
+from enum import Enum
+
+import numpy as np
 from torch import nn
+from transformers import EvalPrediction
 
 logger = logging.getLogger(__name__)
 

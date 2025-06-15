@@ -17,5 +17,5 @@ tokenizer_training:
       - "[UNK]"
 
   paths:
-    train_data_file: "data/sallm_dataset/train/data-00000-of-00001.jsonl"
-    output_file: "tokenizer/tokenizer.json"
+    train_data_dir: "data/sallm_dataset/train"
+    output_dir: "tokenizer/sallm_bpe_tokenizer"

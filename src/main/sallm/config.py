@@ -1,7 +1,9 @@
-# [File: src/main/sallm/config.py]
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from sallm.models.registry import MODEL_CONFIG_REGISTRY
 
 
 class ParamRangeConfig(BaseModel):
@@ -24,6 +26,16 @@ class ModelConfig(BaseModel):
     architecture: str
     config: Dict[str, Any]
     param_validation: Optional[ParamRangeConfig] = None
+
+    @field_validator("architecture")
+    def validate_architecture(cls, v: str) -> str:
+        """Ensure the requested architecture is available in the registry."""
+        if v not in MODEL_CONFIG_REGISTRY:
+            raise ValueError(
+                f"Unsupported architecture '{v}'. "
+                f"Available options are: {list(MODEL_CONFIG_REGISTRY.keys())}"
+            )
+        return v
 
 
 class DataConfig(BaseModel):

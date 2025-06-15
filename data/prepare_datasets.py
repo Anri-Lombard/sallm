@@ -1,3 +1,4 @@
+# TODO split into modular files as part of restructuring
 import json
 import argparse
 import random

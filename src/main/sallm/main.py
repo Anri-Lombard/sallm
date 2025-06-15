@@ -1,8 +1,8 @@
 import argparse
 import logging
 
-from sallm.train import run as run_train
 from sallm.config import load_experiment_config
+from sallm.training.run import run as run_train
 from sallm.utils import RunMode
 
 logging.basicConfig(
@@ -26,7 +26,7 @@ def main() -> None:
         type=RunMode,
         required=True,
         choices=list(RunMode),
-        help="The operational mode: 'train' for training/HPO, or future modes like 'evaluate'.",
+        help="The operational mode: 'train' for training/HPO, or future modes.",
     )
     parser.add_argument(
         "--resume_from_checkpoint",
@@ -45,9 +45,12 @@ def main() -> None:
     if cli_args.mode == RunMode.TRAIN:
         run_train(config, cli_args)
     elif cli_args.mode == RunMode.FINETUNE:
+        # TODO implement
         raise NotImplementedError("Finetune mode is not yet implemented.")
     elif cli_args.mode == RunMode.EVALUATE:
+        # TODO implement
         raise NotImplementedError("Evaluate mode is not yet implemented.")
+
 
 if __name__ == "__main__":
     main()

@@ -4,23 +4,22 @@ from argparse import Namespace
 import wandb
 
 from sallm.config import ExperimentConfig
-from sallm.factories import (
-    build_datasets,
-    build_model,
-    build_tokenizer,
-    build_trainer,
-)
+from sallm.data.factory import build_datasets
+from sallm.models.factory import build_model, build_tokenizer
+from sallm.training.factory import build_trainer
 
 logger = logging.getLogger(__name__)
 
 
+# TODO add perplexity if it's not here
+# TODO measure validation and/or train metrics on a per language basis
 def run(config: ExperimentConfig, cli_args: Namespace) -> None:
     """
     Executes a training run, which can be a standalone run or part of an HPO sweep.
     """
-    run = wandb.init(**config.wandb.model_dump(exclude_none=True))
+    run_instance = wandb.init(**config.wandb.model_dump(exclude_none=True))
 
-    is_hpo_run = run.sweep_id is not None
+    is_hpo_run = run_instance.sweep_id is not None
     if is_hpo_run:
         logger.info("Detected HPO run (part of a wandb sweep).")
         for key, value in wandb.config.items():
@@ -41,7 +40,6 @@ def run(config: ExperimentConfig, cli_args: Namespace) -> None:
         config, is_hpo=is_hpo_run
     )
 
-    # TODO: these should be in tokens, not len
     logger.info(f"Train dataset size: {len(train_dataset)}")
     logger.info(f"Evaluation dataset size: {len(eval_dataset)}")
     if test_dataset:
