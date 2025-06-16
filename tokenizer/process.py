@@ -1,4 +1,5 @@
 # TODO reorganize tokenizer code to be DRY across files
+# TODO calculate tokenization distribution
 import yaml
 import argparse
 from pathlib import Path

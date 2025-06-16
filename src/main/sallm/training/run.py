@@ -1,5 +1,4 @@
 import logging
-from argparse import Namespace
 
 import wandb
 
@@ -11,9 +10,7 @@ from sallm.training.factory import build_trainer
 logger = logging.getLogger(__name__)
 
 
-# TODO add perplexity if it's not here
-# TODO measure validation and/or train metrics on a per language basis
-def run(config: ExperimentConfig, cli_args: Namespace) -> None:
+def run(config: ExperimentConfig) -> None:
     """
     Executes a training run, which can be a standalone run or part of an HPO sweep.
     """
@@ -51,7 +48,7 @@ def run(config: ExperimentConfig, cli_args: Namespace) -> None:
     trainer = build_trainer(config, model, tokenizer, train_dataset, eval_dataset)
 
     logger.info("Starting training...")
-    trainer.train(resume_from_checkpoint=cli_args.resume_from_checkpoint)
+    trainer.train(resume_from_checkpoint=config.training.resume_from_checkpoint)
     logger.info("Training finished.")
 
     final_model_path = f"{config.training.output_dir}/final_model"

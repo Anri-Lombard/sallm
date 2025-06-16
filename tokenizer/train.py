@@ -5,7 +5,7 @@ from pathlib import Path
 import os
 from typing import Any, Dict, Iterator
 
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 import datasets
 from transformers import PreTrainedTokenizerFast
@@ -13,7 +13,7 @@ from transformers import PreTrainedTokenizerFast
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
-from tokenizers.normalizers import Sequence, NFD, Lowercase, StripAccents
+from tokenizers.normalizers import Sequence, NFD
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.processors import TemplateProcessing
 
@@ -102,7 +102,7 @@ def train_tokenizer(config: dict) -> None:
     print(f"Original: {text}")
     print(f"Encoded (tokens): {reloaded_tokenizer.convert_ids_to_tokens(encoded)}")
     print(f"Encoded (IDs): {encoded}")
-    decoded = reloaded_tokenizer.decode(encoded)
+    decoded = reloaded_tokenizer.decode(encoded, skip_special_tokens=True)
     print(f"Decoded: {decoded}")
 
 

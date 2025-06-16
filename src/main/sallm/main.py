@@ -21,33 +21,19 @@ def main() -> None:
         required=True,
         help="Path to the main YAML experiment config file.",
     )
-    parser.add_argument(
-        "--mode",
-        type=RunMode,
-        required=True,
-        choices=list(RunMode),
-        help="The operational mode: 'train' for training/HPO, or future modes.",
-    )
-    parser.add_argument(
-        "--resume_from_checkpoint",
-        nargs="?",
-        const=True,
-        default=False,
-        help="Resume from the last checkpoint. Pass a path to resume from a specific one.",
-    )
     cli_args = parser.parse_args()
 
     logger.info(f"Loading experiment configuration from: {cli_args.config_path}")
     config = load_experiment_config(cli_args.config_path)
 
-    logger.info(f"Starting run in '{cli_args.mode.value}' mode.")
+    logger.info(f"Starting run in '{config.mode.value}' mode.")
 
-    if cli_args.mode == RunMode.TRAIN:
-        run_train(config, cli_args)
-    elif cli_args.mode == RunMode.FINETUNE:
+    if config.mode == RunMode.TRAIN:
+        run_train(config)
+    elif config.mode == RunMode.FINETUNE:
         # TODO implement
         raise NotImplementedError("Finetune mode is not yet implemented.")
-    elif cli_args.mode == RunMode.EVALUATE:
+    elif config.mode == RunMode.EVALUATE:
         # TODO implement
         raise NotImplementedError("Evaluate mode is not yet implemented.")
 

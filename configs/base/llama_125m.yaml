@@ -1,3 +1,5 @@
+mode: "train"
+
 wandb:
   project: "sallm-llama"
   name: "125m"
@@ -16,7 +18,7 @@ model:
     max_params_m: 130.0
 
 data:
-  path: "..."
+  path: "data/sallm_processed"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
@@ -42,3 +44,4 @@ training:
   save_steps: 500
   save_total_limit: 2
   report_to: "wandb"
+  resume_from_checkpoint: null

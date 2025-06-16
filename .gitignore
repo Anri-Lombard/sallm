@@ -1,3 +1,5 @@
 data/**/
 trash/
 .*
+*.json
+__pycache__

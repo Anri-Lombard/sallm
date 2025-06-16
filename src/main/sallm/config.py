@@ -1,9 +1,10 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
 from sallm.models.registry import MODEL_CONFIG_REGISTRY
+from sallm.utils import RunMode
 
 
 class ParamRangeConfig(BaseModel):
@@ -71,12 +72,14 @@ class TrainingConfig(BaseModel):
     save_steps: int
     save_total_limit: int
     report_to: str
+    resume_from_checkpoint: Union[bool, str, None] = None
 
     class Config:
         extra = "allow"
 
 
 class ExperimentConfig(BaseModel):
+    mode: RunMode
     wandb: WandbConfig
     model: ModelConfig
     data: DataConfig
