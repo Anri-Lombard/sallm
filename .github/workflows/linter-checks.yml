@@ -1,6 +1,6 @@
 name: Linter and Formatter Checks
 
-on: [push, pull_request]
+'on': [push, pull_request]
 
 jobs:
   lint-and-format:

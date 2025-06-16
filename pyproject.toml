@@ -49,6 +49,7 @@ minversion = "6.0"
 testpaths = [
     "tests",
 ]
+# TODO update when/if we add tests
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
