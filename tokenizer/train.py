@@ -1,3 +1,4 @@
+from typing import Any
 import yaml
 import argparse
 from pathlib import Path
@@ -15,11 +16,11 @@ from tokenizers.processors import TemplateProcessing
 from .dataset import stream_training_data
 
 # TODO restructure library to use pydantic models for loading configs
-def load_config(config_path: Path) -> dict:
+def load_config(config_path: Path) -> Any:
     with config_path.open("r") as f:
         return yaml.safe_load(f)
 
-def train_tokenizer(config: dict):
+def train_tokenizer(config: dict) -> None:
     """
     Orchestrate the tokenizer training process based on a config dict.
     """
