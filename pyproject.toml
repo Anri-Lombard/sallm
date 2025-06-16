@@ -29,6 +29,7 @@ dev = [
     "mypy",
     "pytest",
     "types-PyYAML",
+    "yamllint"
 ]
 
 [tool.setuptools.package-dir]
