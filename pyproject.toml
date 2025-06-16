@@ -10,7 +10,7 @@ authors = [
   { name="Anri Lombard", email="anri.m.lombard@gamil.com" },
 ]
 license = { file="LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 dependencies = [
     "torch",
@@ -37,11 +37,10 @@ dev = [
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py312']
 
 [tool.mypy]
-mypy_path = "src/main/sallm"
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
