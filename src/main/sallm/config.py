@@ -8,19 +8,16 @@ from sallm.utils import RunMode
 
 
 class ParamRangeConfig(BaseModel):
-    """Specifies an acceptable range for model parameters in millions."""
-
     min_params_m: float = Field(..., description="Minimum parameters in millions.")
     max_params_m: float = Field(..., description="Maximum parameters in millions.")
 
 
 class WandbConfig(BaseModel):
-    """Configuration for Weights & Biases."""
-
     project: str
     entity: Optional[str] = None
     group: Optional[str] = None
     name: Optional[str] = None
+    id: Optional[str] = None
 
 
 class ModelConfig(BaseModel):
@@ -40,8 +37,6 @@ class ModelConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
-    """Configuration for loading datasets."""
-
     path: str
     train_split: str = "train"
     eval_split: str = "validation"
@@ -53,8 +48,6 @@ class TokenizerConfig(BaseModel):
 
 
 class TrainingConfig(BaseModel):
-    """Configuration for Hugging Face TrainingArguments."""
-
     output_dir: str
     learning_rate: float
     num_train_epochs: int
@@ -72,8 +65,10 @@ class TrainingConfig(BaseModel):
     save_steps: int
     save_total_limit: int
     report_to: str
+    max_grad_norm: Optional[float] = None
     resume_from_checkpoint: Union[bool, str, None] = None
 
+    # TODO be more specific?
     class Config:
         extra = "allow"
 
@@ -87,8 +82,8 @@ class ExperimentConfig(BaseModel):
     training: TrainingConfig
 
 
+# TODO load automatically
 def load_experiment_config(path: str) -> ExperimentConfig:
-    """Loads a YAML config file and parses it into an ExperimentConfig object."""
     with open(path, "r") as f:
         config_dict = yaml.safe_load(f)
     return ExperimentConfig(**config_dict)
