@@ -1,3 +1,15 @@
 data/**/
 trash/
-.*
+
+__pycache__/
+*.pyc
+.mypy_cache/
+/src/sallm.egg-info/
+build/
+dist/
+
+.idea/
+.vscode/
+.env
+
+.DS_Store

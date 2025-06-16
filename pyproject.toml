@@ -7,10 +7,10 @@ name = "sallm"
 version = "0.1.0"
 description = "A modular framework for training small language models."
 authors = [
-  { name="Your Name", email="your.email@example.com" },
+  { name="Anri Lombard", email="anri.m.lombard@gamil.com" },
 ]
 license = { file="LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 dependencies = [
     "torch",
@@ -29,6 +29,7 @@ dev = [
     "mypy",
     "pytest",
     "types-PyYAML",
+    "yamllint"
 ]
 
 [tool.setuptools.package-dir]
@@ -36,19 +37,21 @@ dev = [
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py312']
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
+exclude = ["trash"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
     "tests",
 ]
+# TODO update when/if we add tests
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"

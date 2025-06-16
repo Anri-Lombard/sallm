@@ -49,5 +49,6 @@ def main() -> None:
     elif cli_args.mode == RunMode.EVALUATE:
         raise NotImplementedError("Evaluate mode is not yet implemented.")
 
+
 if __name__ == "__main__":
     main()
