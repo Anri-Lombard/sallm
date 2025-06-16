@@ -51,10 +51,13 @@ def run(config: ExperimentConfig) -> None:
     trainer.train(resume_from_checkpoint=config.training.resume_from_checkpoint)
     logger.info("Training finished.")
 
-    final_model_path = f"{config.training.output_dir}/final_model"
-    logger.info(f"Saving final model to {final_model_path}...")
-    trainer.save_model(final_model_path)
-    logger.info("Model saved.")
+    if not is_hpo_run:
+        final_model_path = f"{config.training.output_dir}/final_model"
+        logger.info(f"Saving final model to {final_model_path}...")
+        trainer.save_model(final_model_path)
+        logger.info("Model saved.")
+    else:
+        logger.info("HPO trial finished. Skipping final model save to conserve space.")
 
     if test_dataset:
         logger.info("Starting final evaluation on the test set...")

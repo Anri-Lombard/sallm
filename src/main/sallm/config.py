@@ -1,5 +1,7 @@
+import os
 from typing import Any, Dict, Optional, Union
 
+from regex import re
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
@@ -84,6 +86,23 @@ class ExperimentConfig(BaseModel):
 
 # TODO load automatically
 def load_experiment_config(path: str) -> ExperimentConfig:
+    """Loads a YAML config file, expanding any environment variables."""
+    path_matcher = re.compile(r"\$\{([^}]+)\}")
+
+    def path_constructor(loader, node):
+        value = loader.construct_scalar(node)
+        match = path_matcher.search(value)
+        if match:
+            env_var = match.group(1)
+            return value.replace(f'${{{env_var}}}', os.environ.get(env_var, ''))
+        return value
+
+    class EnvVarLoader(yaml.SafeLoader):
+        pass
+
+    EnvVarLoader.add_constructor('tag:yaml.org,2002:str', path_constructor)
+
     with open(path, "r") as f:
-        config_dict = yaml.safe_load(f)
+        config_dict = yaml.load(f, Loader=EnvVarLoader)
+        
     return ExperimentConfig(**config_dict)
