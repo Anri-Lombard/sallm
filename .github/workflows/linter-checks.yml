@@ -25,7 +25,7 @@ jobs:
 
       - name: Run mypy
         run: |
-          mypy src/
+          mypy .
 
       - name: Run black
         run: |
