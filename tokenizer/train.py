@@ -15,22 +15,24 @@ from tokenizers.processors import TemplateProcessing
 
 from .dataset import stream_training_data
 
+
 # TODO restructure library to use pydantic models for loading configs
 def load_config(config_path: Path) -> Any:
     with config_path.open("r") as f:
         return yaml.safe_load(f)
 
+
 def train_tokenizer(config: dict) -> None:
     """
     Orchestrate the tokenizer training process based on a config dict.
     """
-    model_config = config['tokenizer_training']['bpe_model']
-    path_config = config['tokenizer_training']['paths']
+    model_config = config["tokenizer_training"]["bpe_model"]
+    path_config = config["tokenizer_training"]["paths"]
 
-    vocab_size = model_config['vocab_size']
-    special_tokens = model_config['special_tokens']
-    train_file = Path(path_config['train_data_file'])
-    output_file = Path(path_config['output_file'])
+    vocab_size = model_config["vocab_size"]
+    special_tokens = model_config["special_tokens"]
+    train_file = Path(path_config["train_data_file"])
+    output_file = Path(path_config["output_file"])
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
     # TODO is this needed?
@@ -75,13 +77,16 @@ def train_tokenizer(config: dict) -> None:
     decoded = reloaded_tokenizer.decode(encoded.ids)
     print(f"Decoded: {decoded}")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a BPE tokenizer from a YAML config.")
+    parser = argparse.ArgumentParser(
+        description="Train a BPE tokenizer from a YAML config."
+    )
     parser.add_argument(
         "--config",
         type=str,
         default="configs/tokenizers/bpe.yaml",
-        help="Path to the tokenizer training configuration YAML file."
+        help="Path to the tokenizer training configuration YAML file.",
     )
     args = parser.parse_args()
 
