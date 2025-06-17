@@ -7,21 +7,19 @@ command:
   - -m
   - ${program}
   - --config_path
-  - configs/base/llama_125m.yaml
+  - configs/base/mamba2_125m.yaml
   - ${args}
 method: bayes
 metric:
   name: eval/loss
   goal: minimize
 parameters:
+  # TODO: update for mamba2
   # TODO: architectural bayesian sweep
   learning_rate:
-    distribution: log_uniform
-    # TODO fix this to use log_uniform_values if possible
-    # min: ln(1e-5) ≈ -11.51
-    # max: ln(6e-4) ≈ -7.42
-    min: -11.51
-    max: -7.42
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 6e-4
   weight_decay:
     distribution: uniform
     min: 0.01

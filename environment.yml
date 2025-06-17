@@ -4,11 +4,11 @@ channels:
   - nvidia
   - conda-forge
 dependencies:
-  - python=3.9
+  - python=3.12
   - pip
   - pytorch::pytorch>=2.0.0
   - pytorch::pytorch-cuda=12.1
-  - transformers
+  - transformers>=4.40.0
   - datasets
   - wandb
   - pyyaml

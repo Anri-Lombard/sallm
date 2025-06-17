@@ -3,3 +3,4 @@ trash/
 .*
 *.json
 __pycache__
+sallm.egg-info/
