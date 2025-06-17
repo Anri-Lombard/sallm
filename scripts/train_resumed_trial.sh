@@ -9,7 +9,7 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-set -e
+# set -e
 
 CONFIG_PATH="$1"
 WANDB_RUN_ID="$2"
@@ -24,6 +24,8 @@ fi
 
 echo "Setting up environment for resumed run ${WANDB_RUN_ID}..."
 module load python/miniconda3-py3.12
+CONDA_BASE=$(conda info --base)
+source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate sallm-ner
 
 echo "Launching resumed training run..."

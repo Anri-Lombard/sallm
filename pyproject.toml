@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sallm"
 version = "0.1.0"
-description = "A modular framework for training small language models."
+description = "A modular framework for training small language models for South African languages."
 authors = [
-  { name="Your Name", email="your.email@example.com" },
+  { name="Anri Lombard", email="anri.m.lombard@gmail.com" },
 ]
 license = { file="LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 dependencies = [
     "torch",
@@ -21,6 +21,9 @@ dependencies = [
     "pyyaml",
     "numpy",
     "scipy",
+    "accelerate",
+    "regex",
+    "tokenizers",
 ]
 
 [project.optional-dependencies]
@@ -31,15 +34,17 @@ dev = [
     "types-PyYAML",
 ]
 
-[tool.setuptools.package-dir]
-"" = "src/main"
+[tool.setuptools.packages.find]
+where = ["src/main"]
+include = ["sallm*"]
+namespaces = false
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py312']
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 ignore_missing_imports = true
 disallow_untyped_defs = true

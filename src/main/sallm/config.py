@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict, Optional, Union
 
-from regex import re
+import regex as re
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
@@ -94,15 +94,15 @@ def load_experiment_config(path: str) -> ExperimentConfig:
         match = path_matcher.search(value)
         if match:
             env_var = match.group(1)
-            return value.replace(f'${{{env_var}}}', os.environ.get(env_var, ''))
+            return value.replace(f"${{{env_var}}}", os.environ.get(env_var, ""))
         return value
 
     class EnvVarLoader(yaml.SafeLoader):
         pass
 
-    EnvVarLoader.add_constructor('tag:yaml.org,2002:str', path_constructor)
+    EnvVarLoader.add_constructor("tag:yaml.org,2002:str", path_constructor)
 
     with open(path, "r") as f:
         config_dict = yaml.load(f, Loader=EnvVarLoader)
-        
+
     return ExperimentConfig(**config_dict)
