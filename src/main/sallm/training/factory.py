@@ -1,14 +1,13 @@
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    Trainer,
+    DataCollatorForLanguageModeling,
     TrainingArguments,
 )
 from datasets import Dataset
 
 from sallm.config import ExperimentConfig
-from sallm.training.callbacks import PerLanguageEvalCallback
-from sallm.utils import compute_metrics
+from sallm.training.trainer import CustomTrainer
 
 
 def build_trainer(
@@ -17,16 +16,15 @@ def build_trainer(
     tokenizer: AutoTokenizer,
     train_dataset: Dataset,
     eval_dataset: Dataset,
-) -> Trainer:
-    training_args = TrainingArguments(**config.training.model_dump())
-    callbacks = [PerLanguageEvalCallback()]
+) -> CustomTrainer:
+    training_args = TrainingArguments(**config.training)
 
-    return Trainer(
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+    return CustomTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-        callbacks=callbacks,
+        data_collator=data_collator,
     )

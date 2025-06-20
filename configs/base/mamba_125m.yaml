@@ -40,7 +40,7 @@ training:
   lr_scheduler_type: "cosine"
   bf16: true
   logging_steps: 10
-  evaluation_strategy: "steps"
+  eval_strategy: "steps"
   eval_steps: 500
   save_strategy: "steps"
   save_steps: 500

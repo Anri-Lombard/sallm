@@ -1,16 +1,19 @@
 mode: "train"
 
 wandb:
+  # TODO set all wand info and make sure it's passed
   project: "sallm-llama"
   name: "125m"
 
 model:
   architecture: "llama"
+  # TODO: find research on these params
+  # TODO: different architectural params?
   config:
-    hidden_size: 768
-    intermediate_size: 3072
-    num_hidden_layers: 12
-    num_attention_heads: 12
+    hidden_size: 512
+    intermediate_size: 1344
+    num_hidden_layers: 20
+    num_attention_heads: 8
     rms_norm_eps: 1e-5
     rope_theta: 10000.0
   param_validation:
@@ -31,17 +34,24 @@ training:
   logging_dir: "${SCRATCH}/masters/sallm/logs/sallm-llama-125m"
   learning_rate: 3e-4
   weight_decay: 0.01
-  num_train_epochs: 3
-  per_device_train_batch_size: 8
+  num_train_epochs: 1 # TODO change back after hpo
+  per_device_train_batch_size: 12
   per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
   warmup_ratio: 0.03
   lr_scheduler_type: "cosine"
   bf16: true
+  bf16_full_eval: true
   logging_steps: 10
-  evaluation_strategy: "steps"
-  eval_steps: 500
+  eval_strategy: "steps"
+  eval_steps: 200
   save_strategy: "steps"
   save_steps: 500
+  eval_accumulation_steps: 8
   save_total_limit: 2
   report_to: "wandb"
   resume_from_checkpoint: null
+  ddp_find_unused_parameters: false
+  prediction_loss_only: true
+  torch_compile: true
+  dataloader_num_workers: 8

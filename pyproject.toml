@@ -1,45 +1,40 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "sallm"
 version = "0.1.0"
 description = "A modular framework for training small language models for South African languages."
-authors = [
-  { name="Anri Lombard", email="anri.m.lombard@gmail.com" },
-]
-license = { file="LICENSE" }
-requires-python = ">=3.12"
+authors = ["Anri Lombard <anri.m.lombard@gmail.com>"]
+license = "MIT"
+packages = [{include = "sallm", from = "src/main"}]
 
-dependencies = [
-    "torch",
-    "transformers>=4.40.0",
-    "datasets",
-    "wandb",
-    "pydantic",
-    "pyyaml",
-    "numpy",
-    "scipy",
-    "accelerate",
-    "regex",
-    "tokenizers",
-    "mamba-ssm",
-    "causal-conv1d>=1.2.0"
-]
+[tool.poetry.dependencies]
+python = "^3.12"
+torch = "^2.7.1"
+transformers = "^4.52.4"
+datasets = "^3.6.0"
+wandb = "^0.20.1"
+pydantic = "^2.11.7"
+pyyaml = "^6.0.2"
+numpy = "^2.3.0"
+scipy = "1.15.3"
+accelerate = "^1.7.0"
+regex = "^2024.11.6"
+tokenizers = "^0.21.1"
+flash-attn = "^2.8.0.post2"
 
-[project.optional-dependencies]
-dev = [
-    "black",
-    "mypy",
-    "pytest",
-    "types-PyYAML",
-]
+# [tool.poetry.group.gpu.dependencies]
+# mamba-ssm = ">=2.2.4"
+# causal-conv1d = ">=1.5.0.post8"
 
-[tool.setuptools.packages.find]
-where = ["src/main"]
-include = ["sallm*"]
-namespaces = false
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+mypy = "^1.16.1"
+pytest = "^8.4.1"
+types-pyyaml = "^6.0.12.20250516"
 
 [tool.black]
 line-length = 88

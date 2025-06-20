@@ -1,7 +1,7 @@
-import argparse
 import logging
-
-from sallm.config import load_experiment_config
+import os
+from transformers import HfArgumentParser, TrainingArguments
+from sallm.config import ScriptArguments, load_experiment_config
 from sallm.training.run import run as run_train
 from sallm.utils import RunMode
 
@@ -12,39 +12,47 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Modular Language Model Training Framework."
-    )
-    parser.add_argument(
-        "--config_path",
-        type=str,
-        required=True,
-        help="Path to the main YAML experiment config file.",
-    )
-    parser.add_argument(
-        "--wandb_run_id",
-        type=str,
-        default=None,
-        help="Wandb run ID to resume a specific crashed trial.",
-    )
-    cli_args = parser.parse_args()
+    parser = HfArgumentParser((ScriptArguments, TrainingArguments))
+    script_args, training_args_cli = parser.parse_args_into_dataclasses()
 
-    logger.info(f"Loading experiment configuration from: {cli_args.config_path}")
-    config = load_experiment_config(cli_args.config_path)
+    logger.info(
+        f"Loading base experiment configuration from: {script_args.config_path}"
+    )
+    config = load_experiment_config(script_args.config_path)
 
-    if cli_args.wandb_run_id:
-        logger.info(f"Received wandb run ID for resumption: {cli_args.wandb_run_id}")
-        config.wandb.id = cli_args.wandb_run_id
+    final_train_args_dict = config.training.copy()
+
+    default_args = TrainingArguments(output_dir=".")
+    cli_overrides = {
+        key: value
+        for key, value in training_args_cli.to_dict().items()
+        if getattr(training_args_cli, key) != getattr(default_args, key)
+    }
+
+    if cli_overrides:
+        logger.info("Overriding base config with CLI arguments:")
+        for key, value in cli_overrides.items():
+            logger.info(f"  - {key}: {value}")
+        final_train_args_dict.update(cli_overrides)
+
+    is_sweep = "WANDB_SWEEP_ID" in os.environ
+    if not is_sweep and config.wandb.name:
+        final_train_args_dict["run_name"] = config.wandb.name
+
+    config.training = final_train_args_dict
+
+    if script_args.wandb_run_id:
+        logger.info(f"Received wandb run ID for resumption: {script_args.wandb_run_id}")
+        config.wandb.id = script_args.wandb_run_id
+        config.training["resume_from_checkpoint"] = True
 
     logger.info(f"Starting run in '{config.mode.value}' mode.")
 
     if config.mode == RunMode.TRAIN:
         run_train(config)
     elif config.mode == RunMode.FINETUNE:
-        # TODO implement
         raise NotImplementedError("Finetune mode is not yet implemented.")
     elif config.mode == RunMode.EVALUATE:
-        # TODO implement
         raise NotImplementedError("Evaluate mode is not yet implemented.")
 
 

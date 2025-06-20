@@ -3,12 +3,14 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
+  - defaults
 dependencies:
   - python=3.12
   - pip
-  - pytorch::pytorch>=2.0.0
-  - pytorch::pytorch-cuda=12.1
-  - transformers>=4.40.0
+  - pytorch
+  - pytorch-cuda=12.1
+  - transformers
+  - accelerate
   - datasets
   - wandb
   - pyyaml
@@ -20,8 +22,7 @@ dependencies:
   - mypy
   - pytest
   - pip:
-    - "accelerate"
+    - "causal-conv1d"
+    - "mamba-ssm"
     - "types-pyyaml"
     - "tabulate"
-    - "mamba-ssm"
-    - "causal-conv1d>=1.2.0"

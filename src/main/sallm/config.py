@@ -4,9 +4,23 @@ from typing import Any, Dict, Optional, Union
 import regex as re
 import yaml
 from pydantic import BaseModel, Field, field_validator
+from dataclasses import dataclass, field
+
+# from transformers import TrainingArguments
 
 from sallm.models.registry import MODEL_CONFIG_REGISTRY
 from sallm.utils import RunMode
+
+
+@dataclass
+class ScriptArguments:
+    config_path: str = field(
+        metadata={"help": "Path to the main YAML experiment config file."}
+    )
+    wandb_run_id: Optional[str] = field(
+        default=None,
+        metadata={"help": "Wandb run ID to resume a specific crashed trial."},
+    )
 
 
 class ParamRangeConfig(BaseModel):
@@ -49,39 +63,13 @@ class TokenizerConfig(BaseModel):
     path: str
 
 
-class TrainingConfig(BaseModel):
-    output_dir: str
-    learning_rate: float
-    num_train_epochs: int
-    weight_decay: float
-    per_device_train_batch_size: int
-    per_device_eval_batch_size: int
-    warmup_ratio: float
-    lr_scheduler_type: str
-    bf16: bool
-    logging_dir: str
-    logging_steps: int
-    evaluation_strategy: str
-    eval_steps: int
-    save_strategy: str
-    save_steps: int
-    save_total_limit: int
-    report_to: str
-    max_grad_norm: Optional[float] = None
-    resume_from_checkpoint: Union[bool, str, None] = None
-
-    # TODO be more specific?
-    class Config:
-        extra = "allow"
-
-
 class ExperimentConfig(BaseModel):
     mode: RunMode
     wandb: WandbConfig
     model: ModelConfig
     data: DataConfig
     tokenizer: TokenizerConfig
-    training: TrainingConfig
+    training: Dict[str, Any]
 
 
 # TODO load automatically

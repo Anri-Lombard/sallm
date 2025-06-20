@@ -21,12 +21,22 @@ def build_model(
     architecture in the central registry.
     """
     model_conf = config.model
+    model_params = model_conf.config
+
+    # TODO fix this elsewhere and remove
+    if "rms_norm_eps" in model_params and isinstance(model_params["rms_norm_eps"], str):
+        logger.warning(
+            f"Casting `rms_norm_eps` from string ('{model_params['rms_norm_eps']}') to float."
+        )
+        model_params["rms_norm_eps"] = float(model_params["rms_norm_eps"])
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
     model_config_obj = config_class(**model_conf.config)
     model_config_obj.vocab_size = len(tokenizer)
 
-    model = AutoModelForCausalLM.from_config(model_config_obj)
+    model = AutoModelForCausalLM.from_config(
+        model_config_obj, attn_implementation="flash_attention_2"
+    )
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)
