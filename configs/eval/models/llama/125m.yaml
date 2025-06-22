@@ -1,15 +1,12 @@
 mode: "evaluate"
 
 eval_model:
-  checkpoint: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  checkpoint: "${SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news/final_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
 
 evaluation:
-  task_packs: ["masakhanews", "afrisenti"]
-  output_dir: "${SCRATCH}/masters/sallm/eval/llama/125m"
-  overrides: {}
-  wandb:
-    project: "sallm-benchmarks"
-    name: "llama-125m-afrisenti-masakhanews"
+  task_packs: ["masakhanews"]
+  output_dir: "${SCRATCH}/masters/sallm/eval/ft_llama_125m_news"
+  wandb: {project: "sallm-benchmarks", name: "ft-llama-news"}

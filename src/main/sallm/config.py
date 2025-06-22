@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import regex as re
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from dataclasses import dataclass, field
 
 # from transformers import TrainingArguments
@@ -53,15 +53,18 @@ class ModelEvalConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     architecture: str
-    config: Dict[str, Any]
+    config: Optional[Dict[str, Any]] = None
+    init_checkpoint: Optional[str] = None
     param_validation: Optional[ParamRangeConfig] = None
 
-    @field_validator("architecture")
-    def validate_architecture(cls, v: str) -> str:
-        if v not in MODEL_CONFIG_REGISTRY:
+    @field_validator("config", mode="after")
+    def _check_cfg_or_ckpt(cls, v, info: ValidationInfo):
+        cfg = v
+        ckpt = info.data.get("init_checkpoint")
+        if cfg is None and ckpt is None:
             raise ValueError(
-                f"Unsupported architecture '{v}'. "
-                f"Available options are: {list(MODEL_CONFIG_REGISTRY.keys())}"
+                "Either `config` or `init_checkpoint` must be provided "
+                "inside `model`."
             )
         return v
 

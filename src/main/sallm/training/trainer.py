@@ -1,5 +1,6 @@
 import logging
 import math
+from pathlib import Path
 import time
 from typing import Dict, Optional
 
@@ -108,3 +109,12 @@ class CustomTrainer(Trainer):
         self.log(metrics_to_return)
 
         return metrics_to_return
+
+    def save_model(self, output_dir=None, _internal_call=False):
+        out = output_dir or self.args.output_dir
+        Path(out).mkdir(parents=True, exist_ok=True)
+
+        self.model.save_pretrained(out, safe_serialization=False)
+
+        if hasattr(self, "tokenizer"):
+            self.tokenizer.save_pretrained(out)

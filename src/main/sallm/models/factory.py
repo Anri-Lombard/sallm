@@ -16,23 +16,21 @@ def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
 def build_model(
     config: ExperimentConfig, tokenizer: AutoTokenizer
 ) -> AutoModelForCausalLM:
-    """
-    Builds a model from a configuration object by looking up the
-    architecture in the central registry.
-    """
     model_conf = config.model
 
+    if getattr(model_conf, "init_checkpoint", None):
+        return AutoModelForCausalLM.from_pretrained(model_conf.init_checkpoint)
+
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
+    if model_conf.config is None:
+        raise ValueError(
+            "`model.config` is required when `init_checkpoint` is not provided."
+        )
+
     model_config_obj = config_class(**model_conf.config)
     model_config_obj.vocab_size = len(tokenizer)
 
-    if hasattr(model_conf, "init_checkpoint") and model_conf.init_checkpoint:
-        model = AutoModelForCausalLM.from_pretrained(model_conf.init_checkpoint)
-        return model
-
-    model = AutoModelForCausalLM.from_config(
-        model_config_obj, attn_implementation="flash_attention_2"
-    )
+    model = AutoModelForCausalLM.from_config(model_config_obj)
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

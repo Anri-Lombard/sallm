@@ -21,10 +21,15 @@ def build_trainer(
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    return CustomTrainer(
+    trainer = CustomTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         data_collator=data_collator,
     )
+
+    # TODO: depricated, so use a different method eventually
+    trainer.tokenizer = tokenizer
+
+    return trainer

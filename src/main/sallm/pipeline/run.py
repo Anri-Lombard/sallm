@@ -24,7 +24,9 @@ def run(cfg: ExperimentConfig):
         ft_cfg["dataset"]["subset"] = lang
         ft_cfg["wandb"]["name"] = f"ft-{lang}"
 
-        with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        ) as tmp:
             ft_path = _dump(ft_cfg, tmp)
 
         run_ft(load_experiment_config(ft_path))
@@ -40,7 +42,9 @@ def run(cfg: ExperimentConfig):
         ev_cfg["eval_model"]["checkpoint"] = str(final_ckpt)
         ev_cfg["evaluation"]["task_packs"] = [f"masakhanews_{lang}"]
 
-        with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        ) as tmp:
             ev_path = _dump(ev_cfg, tmp)
 
         run_ev(load_experiment_config(ev_path))

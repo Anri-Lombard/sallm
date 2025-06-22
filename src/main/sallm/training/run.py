@@ -32,6 +32,7 @@ def run(config: ExperimentConfig) -> None:
         trainer.save_model(out)
         logger.info(f"Saved model → {out}")
 
+    # TODO: do per language
     if test_ds:
         res = trainer.predict(test_ds)
         logger.info(f"Test metrics: {res.metrics}")

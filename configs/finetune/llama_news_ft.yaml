@@ -1,0 +1,29 @@
+mode: "finetune"
+
+wandb:
+  project: "sallm-ft"
+  name: "llama-125m-news"
+
+model:
+  architecture: "llama"
+  init_checkpoint: "/home/lmbanr001/masters/sallm/trainer_output/final_model"
+
+dataset:
+  hf_name: "masakhane/masakhanews"
+  subset: "eng"
+  text_columns: ["headline_text"]
+  label_column: "label"
+  splits: {train: "train", val: "validation"}
+  templates:
+    - {id: "masakhanews_v1", weight: 1.0}
+  template_choice: "cycle"
+
+tokenizer: {path: "${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+
+training:
+  output_dir: "${SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news"
+  logging_dir: "${SCRATCH}/masters/sallm/logs/ft_llama_125m_news"
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  num_train_epochs: 3
+  bf16: true

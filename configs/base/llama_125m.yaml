@@ -8,6 +8,7 @@ wandb:
 
 model:
   architecture: "llama"
+  attn_implementation: "flash_attention_2"
   # TODO: find research on these params
   # TODO: different architectural params?
   config:
