@@ -1,0 +1,11 @@
+id: "masakhanews_v2"
+prompt: |
+  Determine the topic for the news sentence below.
+  Text: {text}
+  Choices: business, entertainment, politics, sports.
+label_mapping:
+  0: "business"
+  1: "entertainment"
+  2: "politics"
+  3: "sports"
+task: "masakhane_news_classification"

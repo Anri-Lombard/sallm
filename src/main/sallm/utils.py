@@ -13,8 +13,8 @@ class RunMode(str, Enum):
     TRAIN = "train"
     FINETUNE = "finetune"
     EVALUATE = "evaluate"
+    ORCHESTRATE = "orchestrate"
 
 
 def count_trainable_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-

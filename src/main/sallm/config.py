@@ -1,5 +1,6 @@
+from enum import Enum
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import regex as re
 import yaml
@@ -36,6 +37,20 @@ class WandbConfig(BaseModel):
     id: Optional[str] = None
 
 
+class EvaluationConfig(BaseModel):
+    task_packs: list[str]
+    output_dir: str
+    overrides: dict[str, dict] = {}
+    wandb: Optional[WandbConfig] = None
+
+
+class ModelEvalConfig(BaseModel):
+    checkpoint: str
+    adapter: str = "hf"
+    dtype: str = "bfloat16"
+    device: str = "cuda:0"
+
+
 class ModelConfig(BaseModel):
     architecture: str
     config: Dict[str, Any]
@@ -43,7 +58,6 @@ class ModelConfig(BaseModel):
 
     @field_validator("architecture")
     def validate_architecture(cls, v: str) -> str:
-        """Ensure the requested architecture is available in the registry."""
         if v not in MODEL_CONFIG_REGISTRY:
             raise ValueError(
                 f"Unsupported architecture '{v}'. "
@@ -63,34 +77,80 @@ class TokenizerConfig(BaseModel):
     path: str
 
 
+class TemplateChoice(str, Enum):
+    CYCLE = "cycle"
+    RANDOM = "random"
+    ALL = "all"
+    SINGLE = "single"  # TODO‑remove after benchmark sanity‑checks
+
+
+class TemplateRef(BaseModel):
+    id: str
+    weight: float = 1.0
+
+
+class FinetuneDatasetConfig(BaseModel):
+    hf_name: str
+    subset: Optional[str] = None
+    text_columns: List[str]
+    label_column: str
+    splits: Dict[str, str]
+    templates: List[TemplateRef]
+    template_choice: TemplateChoice = TemplateChoice.CYCLE
+
+
+class PipelineConfig(BaseModel):
+    base_checkpoint: str
+    languages: List[str]
+    task_name: str
+    finetune_base_cfg: str
+    eval_stub_cfg: str
+    slurm_array: bool = False
+
+
+class TemplateConfig(BaseModel):
+    prompt: str
+    label_mapping: Dict[Union[int, str], str]
+
+
+class PeftConfig(BaseModel):
+    method: str = "qlora"
+    kwargs: Dict[str, Any] = Field(default_factory=dict)
+
+
 class ExperimentConfig(BaseModel):
     mode: RunMode
-    wandb: WandbConfig
-    model: ModelConfig
-    data: DataConfig
-    tokenizer: TokenizerConfig
-    training: Dict[str, Any]
+    wandb: "WandbConfig"
+    model: Optional["ModelConfig"] = None
+    data: Optional["DataConfig"] = None
+    tokenizer: Optional["TokenizerConfig"] = None
+    training: Optional[Dict[str, Any]] = None
+    evaluation: Optional[Dict[str, Any]] = None
+    eval_model: Optional["ModelEvalConfig"] = None
+    dataset: Optional[FinetuneDatasetConfig] = None
+    peft: Optional["PeftConfig"] = None
+    template: Optional["TemplateConfig"] = None
+    pipeline: Optional[PipelineConfig] = None
 
 
 # TODO load automatically
 def load_experiment_config(path: str) -> ExperimentConfig:
-    """Loads a YAML config file, expanding any environment variables."""
-    path_matcher = re.compile(r"\$\{([^}]+)\}")
-
-    def path_constructor(loader, node):
-        value = loader.construct_scalar(node)
-        match = path_matcher.search(value)
-        if match:
-            env_var = match.group(1)
-            return value.replace(f"${{{env_var}}}", os.environ.get(env_var, ""))
-        return value
+    env_var_pattern = re.compile(r"\$\{([^}]+)\}")
 
     class EnvVarLoader(yaml.SafeLoader):
         pass
 
-    EnvVarLoader.add_constructor("tag:yaml.org,2002:str", path_constructor)
+    def _expand(loader, node):
+        value = loader.construct_scalar(node)
+        match = env_var_pattern.search(value)
+        if match:
+            env = match.group(1)
+            return value.replace(f"${{{env}}}", os.environ.get(env, ""))
+        return value
 
-    with open(path, "r") as f:
-        config_dict = yaml.load(f, Loader=EnvVarLoader)
+    EnvVarLoader.add_constructor("tag:yaml.org,2002:str", _expand)
 
-    return ExperimentConfig(**config_dict)
+    with open(path, "r") as fp:
+        cfg_dict = yaml.load(fp, Loader=EnvVarLoader) or {}
+
+    return ExperimentConfig(**cfg_dict)

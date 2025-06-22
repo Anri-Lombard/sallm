@@ -15,6 +15,7 @@ from transformers import (
 
 logger = logging.getLogger(__name__)
 
+
 # TODO remove vebose comments
 class PerLanguageLossCallback(TrainerCallback):
 
@@ -137,4 +138,3 @@ class PerLanguageLossCallback(TrainerCallback):
                 logger.warning(
                     "No per-language metrics were generated. Nothing to log to wandb."
                 )
-

@@ -21,18 +21,14 @@ def build_model(
     architecture in the central registry.
     """
     model_conf = config.model
-    model_params = model_conf.config
-
-    # TODO fix this elsewhere and remove
-    if "rms_norm_eps" in model_params and isinstance(model_params["rms_norm_eps"], str):
-        logger.warning(
-            f"Casting `rms_norm_eps` from string ('{model_params['rms_norm_eps']}') to float."
-        )
-        model_params["rms_norm_eps"] = float(model_params["rms_norm_eps"])
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
     model_config_obj = config_class(**model_conf.config)
     model_config_obj.vocab_size = len(tokenizer)
+
+    if hasattr(model_conf, "init_checkpoint") and model_conf.init_checkpoint:
+        model = AutoModelForCausalLM.from_pretrained(model_conf.init_checkpoint)
+        return model
 
     model = AutoModelForCausalLM.from_config(
         model_config_obj, attn_implementation="flash_attention_2"

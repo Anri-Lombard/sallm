@@ -1,0 +1,11 @@
+id: "masakhanews_v1"
+prompt: |
+  Classify the topic of the following news text.
+  News: {text}
+  Category (business, entertainment, politics, sports):
+label_mapping:
+  0: "business"
+  1: "entertainment"
+  2: "politics"
+  3: "sports"
+task: "masakhane_news_classification"
