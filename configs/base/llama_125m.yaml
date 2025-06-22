@@ -3,6 +3,7 @@ mode: "train"
 wandb:
   # TODO set all wand info and make sure it's passed
   project: "sallm-llama"
+  # name: "125m"
   name: "125m"
 
 model:
@@ -11,11 +12,13 @@ model:
   # TODO: different architectural params?
   config:
     hidden_size: 512
-    intermediate_size: 1344
-    num_hidden_layers: 20
-    num_attention_heads: 8
-    rms_norm_eps: 1e-5
+    intermediate_size: 1536
+    num_hidden_layers: 30
+    num_attention_heads: 9
+    rms_norm_eps: 1.0e-5
     rope_theta: 10000.0
+    num_key_value_heads: 3
+    tie_word_embeddings: true
   param_validation:
     min_params_m: 120.0
     max_params_m: 130.0
@@ -32,13 +35,16 @@ tokenizer:
 training:
   output_dir: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m"
   logging_dir: "${SCRATCH}/masters/sallm/logs/sallm-llama-125m"
-  learning_rate: 3e-4
+  learning_rate: 4.0e-4
   weight_decay: 0.01
-  num_train_epochs: 1 # TODO change back after hpo
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  num_train_epochs: 5
   per_device_train_batch_size: 12
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 4
-  warmup_ratio: 0.03
+  warmup_steps: 2000
+  max_grad_norm: 1.0
   lr_scheduler_type: "cosine"
   bf16: true
   bf16_full_eval: true
