@@ -33,7 +33,7 @@ def resume_crashed_trials(sweep_id: str, config_path: str) -> None:
         if run.state in ["crashed", "failed"]:
             logger.warning(f"Found a '{run.state}' trial: {run.name} (ID: {run.id}).")
             logger.info(
-                f"Submitting a new SLURM job to resume this trial from its last checkpoint."
+                "Submitting a new SLURM job to resume this trial from its last checkpoint."
             )
 
             resume_script_path = Path(__file__).parent / "train_resumed_trial.sh"

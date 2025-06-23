@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 # TODO remove vebose comments
 class PerLanguageLossCallback(TrainerCallback):
-
     def on_evaluate(
         self,
         args: TrainingArguments,

@@ -1,7 +1,7 @@
 from __future__ import annotations
-import os, logging
+import os
+import logging
 
-from transformers import AutoTokenizer
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets
 from sallm.models.factory import build_model, build_tokenizer

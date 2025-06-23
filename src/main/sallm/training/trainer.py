@@ -18,14 +18,12 @@ logger = logging.getLogger(__name__)
 
 # TODO rename to something more appropriate since different models will use different trainers
 class CustomTrainer(Trainer):
-
     def evaluate(
         self,
         eval_dataset: Optional[datasets.Dataset] = None,
         ignore_keys: Optional[list[str]] = None,
         metric_key_prefix: str = "eval",
     ) -> Dict[str, float]:
-
         eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
         if eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")

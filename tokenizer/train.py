@@ -81,7 +81,7 @@ def train_tokenizer(config: dict) -> None:
         ],
     )
 
-    print(f"Wrapping tokenizer for Hugging Face compatibility...")
+    print("Wrapping tokenizer for Hugging Face compatibility...")
     wrapped_tokenizer = PreTrainedTokenizerFast(
         tokenizer_object=tokenizer,
         bos_token="[BOS]",

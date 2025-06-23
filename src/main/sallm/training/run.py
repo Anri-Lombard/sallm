@@ -1,4 +1,5 @@
-import logging, os
+import logging
+import os
 
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets

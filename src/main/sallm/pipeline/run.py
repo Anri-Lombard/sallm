@@ -1,10 +1,11 @@
 from __future__ import annotations
-import tempfile, yaml, os
+import tempfile
+import yaml
+import os
 from pathlib import Path
 from sallm.config import ExperimentConfig, load_experiment_config
 from sallm.fine_tune.run import run as run_ft
 from sallm.evaluation.run import run as run_ev
-from sallm.templates import registry as tmpl
 
 
 def _dump(cfg, tmp: tempfile.NamedTemporaryFile):
@@ -16,7 +17,6 @@ def _dump(cfg, tmp: tempfile.NamedTemporaryFile):
 def run(cfg: ExperimentConfig):
     pipe = cfg.pipeline
     for lang in pipe.languages:
-
         with open(pipe.finetune_base_cfg, "r") as f:
             ft_cfg = yaml.safe_load(f)
 

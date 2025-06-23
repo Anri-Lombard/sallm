@@ -1,10 +1,7 @@
 import logging
 from enum import Enum
 
-import numpy as np
-import torch
 from torch import nn
-from transformers import EvalPrediction
 
 logger = logging.getLogger(__name__)
 

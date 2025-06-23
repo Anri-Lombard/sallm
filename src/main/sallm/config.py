@@ -7,9 +7,6 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from dataclasses import dataclass, field
 
-# from transformers import TrainingArguments
-
-from sallm.models.registry import MODEL_CONFIG_REGISTRY
 from sallm.utils import RunMode
 
 
@@ -63,8 +60,7 @@ class ModelConfig(BaseModel):
         ckpt = info.data.get("init_checkpoint")
         if cfg is None and ckpt is None:
             raise ValueError(
-                "Either `config` or `init_checkpoint` must be provided "
-                "inside `model`."
+                "Either `config` or `init_checkpoint` must be provided inside `model`."
             )
         return v
 
