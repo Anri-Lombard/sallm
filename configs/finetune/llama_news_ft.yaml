@@ -6,7 +6,7 @@ wandb:
 
 model:
   architecture: "llama"
-  init_checkpoint: "/home/lmbanr001/masters/sallm/trainer_output/final_model"
+  init_checkpoint: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m"
 
 dataset:
   hf_name: "masakhane/masakhanews"

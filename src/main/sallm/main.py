@@ -27,17 +27,6 @@ def main() -> None:
 
     if config.training is None:
         config.training = {}
-    default_args = TrainingArguments(output_dir=".")
-    cli_overrides = {
-        k: v
-        for k, v in training_cli.to_dict().items()
-        if getattr(training_cli, k) != getattr(default_args, k)
-    }
-    if cli_overrides:
-        logger.info("CLI overrides → config.training:")
-        for k, v in cli_overrides.items():
-            logger.info(f"  • {k}: {v}")
-        config.training.update(cli_overrides)
 
     if script_args.wandb_run_id:
         logger.info(f"Resuming WANDB run id {script_args.wandb_run_id}")
