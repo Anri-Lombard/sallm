@@ -27,9 +27,15 @@ def make_example_mapper(
             label_text = template.label_mapping[raw_label]
         full_text = f"{prompt_text} {label_text}{tokenizer.eos_token}"
         enc = tokenizer(
-            full_text, truncation=True, max_length=tokenizer.model_max_length
+            full_text,
+            truncation=True,
+            max_length=ds_cfg.max_seq_length,
+            padding="max_length",
         )
-        enc["labels"] = enc["input_ids"].copy()
+        labels = enc["input_ids"].copy()
+        enc["labels"] = [
+            (tok if tok != tokenizer.pad_token_id else -100) for tok in labels
+        ]
         return enc
 
     if ds_cfg.template_choice == TemplateChoice.ALL:

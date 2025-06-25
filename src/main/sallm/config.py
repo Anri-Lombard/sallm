@@ -96,6 +96,7 @@ class FinetuneDatasetConfig(BaseModel):
     splits: Dict[str, str]
     templates: List[TemplateRef]
     template_choice: TemplateChoice = TemplateChoice.CYCLE
+    max_seq_length: int
 
 
 class PipelineConfig(BaseModel):

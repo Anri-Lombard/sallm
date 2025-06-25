@@ -13,17 +13,25 @@ def build_datasets(
     config: ExperimentConfig, is_hpo: bool
 ) -> Tuple[Dataset, Dataset, Optional[Dataset]]:
     if config.mode == RunMode.FINETUNE:
-        assert config.dataset and config.template, "Finetune requires dataset+template."
+        assert config.dataset, "Finetune mode requires a `dataset` block in the config."
 
         ds_cfg = config.dataset
         split_map = ds_cfg.splits
 
         # TODO: specify split in config rather
         train_raw = load_dataset(
-            ds_cfg.hf_name, ds_cfg.subset, split=split_map["train"]
+            ds_cfg.hf_name,
+            ds_cfg.subset,
+            split=split_map["train"],
+            trust_remote_code=True,
         )
         # TODO: specify split in config rather
-        val_raw = load_dataset(ds_cfg.hf_name, ds_cfg.subset, split=split_map["val"])
+        val_raw = load_dataset(
+            ds_cfg.hf_name,
+            ds_cfg.subset,
+            split=split_map["val"],
+            trust_remote_code=True,
+        )
 
         tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
 
@@ -56,8 +64,7 @@ def _build_finetune_dataset(
     tokenizer: AutoTokenizer,
 ) -> Dataset:
     ds_cfg = cfg.dataset
-    tmpl = cfg.template
-    mapper = make_example_mapper(ds_cfg, tmpl, tokenizer)
+    mapper = make_example_mapper(ds_cfg, tokenizer)
     return raw_ds.map(
         mapper,
         batched=False,

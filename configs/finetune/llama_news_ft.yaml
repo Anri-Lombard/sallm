@@ -17,13 +17,28 @@ dataset:
   templates:
     - {id: "masakhanews_v1", weight: 1.0}
   template_choice: "cycle"
+  max_seq_length: 2048
 
 tokenizer: {path: "${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
   output_dir: "${SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news"
   logging_dir: "${SCRATCH}/masters/sallm/logs/ft_llama_125m_news"
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 4
+  lr_scheduler_type: "cosine"
+  warmup_steps: 100
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
   num_train_epochs: 3
   bf16: true
+  logging_steps: 10
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_strategy: "steps"
+  save_steps: 500
+  save_total_limit: 2
+  report_to: "wandb"

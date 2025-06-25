@@ -20,6 +20,8 @@ def run(config: ExperimentConfig) -> None:
     if config.wandb.id:
         os.environ["WANDB_RUN_ID"] = config.wandb.id
         os.environ["WANDB_RESUME"] = "allow"
+    if config.training and config.wandb and config.wandb.name:
+        config.training["run_name"] = config.wandb.name
 
     tokenizer = build_tokenizer(config)
     model = build_model(config, tokenizer)

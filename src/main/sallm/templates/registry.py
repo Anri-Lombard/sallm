@@ -5,7 +5,9 @@ import yaml
 from pydantic import BaseModel
 
 _TEMPLATE_ROOT = (
-    Path(__file__).resolve().parent.parent.parent.parent / "configs" / "templates"
+    Path(__file__).resolve().parent.parent.parent.parent.parent
+    / "configs"
+    / "templates"
 )
 _CACHE: Dict[str, "TemplateSpec"] = {}
 _TASK_INDEX: Dict[str, List[str]] = {}

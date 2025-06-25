@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import logging
+import torch
 
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets
@@ -38,9 +39,15 @@ def run(config: ExperimentConfig) -> None:
     if config.wandb.id:
         os.environ["WANDB_RUN_ID"] = config.wandb.id
         os.environ["WANDB_RESUME"] = "allow"
+    if config.training and config.wandb and config.wandb.name:
+        config.training["run_name"] = config.wandb.name
 
     logger.info("Tokenizer …")
     tokenizer = build_tokenizer(config)
+
+    if tokenizer.pad_token is None:
+        logger.info("Tokenizer `pad_token` not set. Setting it to `eos_token`.")
+        tokenizer.pad_token = tokenizer.eos_token
 
     logger.info("Model …")
     model = build_model(config, tokenizer)
@@ -52,10 +59,20 @@ def run(config: ExperimentConfig) -> None:
     train_ds, val_ds, _ = build_datasets(config, is_hpo=False)
     logger.info(f"Samples: train={len(train_ds)}, val={len(val_ds)}")
 
+    if train_ds:
+        logger.info("--- Inspecting a single training sample ---")
+        sample = train_ds[0]
+        logger.info(f"Input IDs: {sample['input_ids']}")
+        logger.info(f"Decoded Text: {tokenizer.decode(sample['input_ids'])}")
+        # In Causal LM fine-tuning, labels are typically a copy of input_ids
+        logger.info(f"Labels: {sample['labels']}")
+        logger.info("-------------------------------------------")
+
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
     resume_ckpt = config.training.get("resume_from_checkpoint")
 
     logger.info("Fine-tuning start …")
+    torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
 
