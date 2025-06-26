@@ -1,50 +1,35 @@
 from __future__ import annotations
-import tempfile
-import yaml
-import os
-from pathlib import Path
-from sallm.config import ExperimentConfig, load_experiment_config
+import hydra
+
+# from omegaconf import DictConfig
+
+from sallm.config import ExperimentConfig
 from sallm.fine_tune.run import run as run_ft
 from sallm.evaluation.run import run as run_ev
-
-
-def _dump(cfg, tmp: tempfile.NamedTemporaryFile):
-    yaml.safe_dump(cfg, tmp)
-    tmp.flush()
-    return tmp.name
 
 
 def run(cfg: ExperimentConfig):
     pipe = cfg.pipeline
     for lang in pipe.languages:
-        with open(pipe.finetune_base_cfg, "r") as f:
-            ft_cfg = yaml.safe_load(f)
+        # TODO make absolute
+        with hydra.initialize(config_path="../../conf"):
+            ft_cfg = hydra.compose(
+                config_name=pipe.finetune_base_cfg,
+                overrides=[
+                    f"model.init_checkpoint={pipe.base_checkpoint}",
+                    f"dataset.subset={lang}",
+                    f"wandb.name=ft-{lang}",
+                ],
+            )
+            run_ft(hydra.utils.instantiate(ft_cfg))
 
-        ft_cfg["model"]["init_checkpoint"] = pipe.base_checkpoint
-        ft_cfg["dataset"]["subset"] = lang
-        ft_cfg["wandb"]["name"] = f"ft-{lang}"
-
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
-        ) as tmp:
-            ft_path = _dump(ft_cfg, tmp)
-
-        run_ft(load_experiment_config(ft_path))
-        ckpt_dir = Path(
-            ft_cfg["training"]["output_dir"]
-            or os.path.join(os.environ.get("SCRATCH", "/tmp"), "ft", lang)
-        )
-        final_ckpt = ckpt_dir / "final_model"
-
-        with open(pipe.eval_stub_cfg, "r") as f:
-            ev_cfg = yaml.safe_load(f)
-
-        ev_cfg["eval_model"]["checkpoint"] = str(final_ckpt)
-        ev_cfg["evaluation"]["task_packs"] = [f"masakhanews_{lang}"]
-
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
-        ) as tmp:
-            ev_path = _dump(ev_cfg, tmp)
-
-        run_ev(load_experiment_config(ev_path))
+        # TODO make absolute
+        with hydra.initialize(config_path="../../conf"):
+            ev_cfg = hydra.compose(
+                config_name=pipe.eval_stub_cfg,
+                overrides=[
+                    "eval_model.checkpoint=???",  # TODO: get from ft_cfg
+                    f"evaluation.task_packs=[masakhanews_{lang}]",
+                ],
+            )
+            run_ev(hydra.utils.instantiate(ev_cfg))

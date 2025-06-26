@@ -1,9 +1,10 @@
 from __future__ import annotations
 import logging
 
-from transformers import HfArgumentParser, TrainingArguments
+import hydra
+from omegaconf import DictConfig
 
-from sallm.config import ScriptArguments, load_experiment_config
+from sallm.config import ExperimentConfig
 from sallm.utils import RunMode
 
 from sallm.training.run import run as run_train
@@ -17,23 +18,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main() -> None:
-    parser = HfArgumentParser((ScriptArguments, TrainingArguments))
-    script_args, training_cli = parser.parse_args_into_dataclasses()
-
-    cfg_path = script_args.config_path
-    logger.info(f"Loading config: {cfg_path}")
-    config = load_experiment_config(cfg_path)
-
-    if config.training is None:
-        config.training = {}
-
-    if script_args.wandb_run_id:
-        logger.info(f"Resuming WANDB run id {script_args.wandb_run_id}")
-        if config.wandb is None:
-            raise ValueError("`wandb` block missing in config.")
-        config.wandb.id = script_args.wandb_run_id
-        config.training["resume_from_checkpoint"] = True
+# TODO: make path absolute
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
+def main(cfg: DictConfig) -> None:
+    config: ExperimentConfig = hydra.utils.instantiate(cfg)
 
     logger.info(f"Run mode: {config.mode.value}")
 
