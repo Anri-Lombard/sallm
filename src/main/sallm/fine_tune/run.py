@@ -1,7 +1,8 @@
 from __future__ import annotations
-import os
 import logging
 import torch
+import wandb
+from omegaconf import OmegaConf
 
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets
@@ -32,15 +33,17 @@ def _apply_peft_if_needed(model, peft_cfg):
 
 
 def run(config: ExperimentConfig) -> None:
-    if config.wandb.project:
-        os.environ["WANDB_PROJECT"] = config.wandb.project
-    if config.wandb.name:
-        os.environ["WANDB_RUN_NAME"] = config.wandb.name
-    if config.wandb.id:
-        os.environ["WANDB_RUN_ID"] = config.wandb.id
-        os.environ["WANDB_RESUME"] = "allow"
-    if config.training and config.wandb and config.wandb.name:
-        config.training["run_name"] = config.wandb.name
+    if config.wandb and config.wandb.project:
+        wandb.init(
+            project=config.wandb.project,
+            entity=config.wandb.entity,
+            group=config.wandb.group,
+            name=config.wandb.name,
+            id=config.wandb.id,
+            config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+        )
+        if config.wandb.id:
+            wandb.config.update({"resume": "allow"})
 
     logger.info("Tokenizer …")
     tokenizer = build_tokenizer(config)
@@ -75,7 +78,3 @@ def run(config: ExperimentConfig) -> None:
     torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
-
-    final_path = os.path.join(trainer.args.output_dir, "final_model")
-    trainer.save_model(final_path)
-    logger.info(f"Final model saved → {final_path}")

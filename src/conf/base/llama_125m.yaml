@@ -25,17 +25,17 @@ model:
     max_params_m: 130.0
 
 data:
-  path: "${SCRATCH}/masters/sallm/data/sallm_processed"
+  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_processed"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
 
 tokenizer:
-  path: "${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
+  path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
 
 training:
-  output_dir: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m"
-  logging_dir: "${SCRATCH}/masters/sallm/logs/sallm-llama-125m"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-llama-125m"
   learning_rate: 4.0e-4
   weight_decay: 0.01
   adam_beta1: 0.9

@@ -65,9 +65,15 @@ def _build_finetune_dataset(
 ) -> Dataset:
     ds_cfg = cfg.dataset
     mapper = make_example_mapper(ds_cfg, tokenizer)
-    return raw_ds.map(
+    processed_ds = raw_ds.map(
         mapper,
         batched=False,
         remove_columns=raw_ds.column_names,
         desc="Mapping prompt+label → LM inputs",
     )
+
+    if ds_cfg.subset:
+        lang_column = [ds_cfg.subset] * len(processed_ds)
+        processed_ds = processed_ds.add_column("lang", lang_column)
+
+    return processed_ds

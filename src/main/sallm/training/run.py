@@ -1,5 +1,7 @@
 import logging
+import wandb
 import os
+from omegaconf import OmegaConf
 
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets
@@ -10,18 +12,22 @@ logger = logging.getLogger(__name__)
 
 
 def run(config: ExperimentConfig) -> None:
-    is_hpo_run = "WANDB_SWEEP_ID" in os.environ
+    is_hpo_run = config.wandb.id is not None and "sweep" in config.wandb.id
 
-    if not is_hpo_run:
-        if config.wandb.project:
-            os.environ["WANDB_PROJECT"] = config.wandb.project
-        if config.wandb.name:
-            os.environ["WANDB_RUN_NAME"] = config.wandb.name
-    if config.wandb.id:
-        os.environ["WANDB_RUN_ID"] = config.wandb.id
-        os.environ["WANDB_RESUME"] = "allow"
-    if config.training and config.wandb and config.wandb.name:
-        config.training["run_name"] = config.wandb.name
+    if config.wandb and config.wandb.project:
+        if not is_hpo_run:
+            wandb.init(
+                project=config.wandb.project,
+                entity=config.wandb.entity,
+                group=config.wandb.group,
+                name=config.wandb.name,
+                id=config.wandb.id,
+                config=OmegaConf.to_container(
+                    config, resolve=True, throw_on_missing=True
+                ),
+            )
+            if config.wandb.id:
+                wandb.config.update({"resume": "allow"})
 
     tokenizer = build_tokenizer(config)
     model = build_model(config, tokenizer)

@@ -9,9 +9,9 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-CONFIG_PATH="$1"
-if [ -z "$CONFIG_PATH" ]; then
-    echo "Usage: sbatch $0 <configs/eval/models/...yaml>"; exit 1
+CONFIG_NAME="$1" # Renamed for clarity
+if [ -z "$CONFIG_NAME" ]; then
+    echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
 fi
 
 export SCRATCH="/scratch/lmbanr001"
@@ -22,4 +22,4 @@ CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate sallm-ner
 
-python -m sallm.main --config_path "$CONFIG_PATH"
+python -m sallm.main --config-name "$CONFIG_NAME"

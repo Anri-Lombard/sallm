@@ -114,5 +114,5 @@ class CustomTrainer(Trainer):
 
         self.model.save_pretrained(out, safe_serialization=False)
 
-        if hasattr(self, "tokenizer"):
+        if self.tokenizer is not None:
             self.tokenizer.save_pretrained(out)

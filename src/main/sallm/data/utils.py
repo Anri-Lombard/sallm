@@ -12,8 +12,8 @@ def make_example_mapper(
     templates = [tmpl.get(t.id) for t in ds_cfg.templates]
     weights = [t.weight for t in ds_cfg.templates]
 
-    if ds_cfg.template_choice == TemplateChoice.SINGLE:
-        templates = [random.choices(templates, weights)[0]]
+    # if ds_cfg.template_choice == TemplateChoice.SINGLE:
+    #     templates = [random.choices(templates, weights)[0]]
 
     numeric_keys = isinstance(next(iter(templates[0].label_mapping.keys())), int)
 

@@ -1,4 +1,4 @@
-mode: "finetune"
+mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
@@ -6,7 +6,7 @@ wandb:
 
 model:
   architecture: "llama"
-  init_checkpoint: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
 
 dataset:
   hf_name: "masakhane/masakhanews"
@@ -15,15 +15,15 @@ dataset:
   label_column: "label"
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "masakhanews_v1", weight: 1.0}
-  template_choice: "cycle"
+    - {id: "masakhane_news_classification/v1", weight: 1.0}
+  template_choice: CYCLE
   max_seq_length: 2048
 
-tokenizer: {path: "${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news"
-  logging_dir: "${SCRATCH}/masters/sallm/logs/ft_llama_125m_news"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news"
   learning_rate: 2.0e-5
   weight_decay: 0.01
   adam_beta2: 0.95
@@ -32,13 +32,14 @@ training:
   lr_scheduler_type: "cosine"
   warmup_steps: 100
   per_device_train_batch_size: 8
-  per_device_eval_batch_size: 8
+  per_device_eval_batch_size: 6
   num_train_epochs: 3
-  bf16: true
+  bf16: false
+  fp16: true
   logging_steps: 10
   eval_strategy: "steps"
   eval_steps: 200
-  save_strategy: "steps"
+  save_strategy: "no"
   save_steps: 500
   save_total_limit: 2
   report_to: "wandb"

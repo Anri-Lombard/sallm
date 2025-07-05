@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from sallm.config import ExperimentConfig
 from sallm.utils import RunMode
@@ -18,10 +18,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# TODO: make path absolute
 @hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
-    config: ExperimentConfig = hydra.utils.instantiate(cfg)
+    unwrapped_cfg = cfg
+
+    # Dynamically detect if the config is nested inside a group key.
+    keys_in_cfg = list(cfg.keys())
+    if (
+        len(keys_in_cfg) == 1
+        and keys_in_cfg[0] not in ExperimentConfig.__dataclass_fields__
+    ):
+        group_name = keys_in_cfg[0]
+        logger.info(
+            f"Detected nested config group '{group_name}'. Unwrapping configuration."
+        )
+        unwrapped_cfg = cfg[group_name]
+
+    # Now, perform the merge with the (potentially unwrapped) config.
+    schema = OmegaConf.structured(ExperimentConfig)
+    config = OmegaConf.merge(schema, unwrapped_cfg)
 
     logger.info(f"Run mode: {config.mode.value}")
 

@@ -11,8 +11,9 @@ from sallm.evaluation.run import run as run_ev
 def run(cfg: ExperimentConfig):
     pipe = cfg.pipeline
     for lang in pipe.languages:
-        # TODO make absolute
-        with hydra.initialize(config_path="../../conf"):
+        with hydra.initialize(
+            config_path="../../conf", job_name=f"sallm-pipeline-{lang}"
+        ):
             ft_cfg = hydra.compose(
                 config_name=pipe.finetune_base_cfg,
                 overrides=[
@@ -21,10 +22,11 @@ def run(cfg: ExperimentConfig):
                     f"wandb.name=ft-{lang}",
                 ],
             )
-            run_ft(hydra.utils.instantiate(ft_cfg))
+            run_ft(hydra.utils.instantiate(ft_cfg, _convert_="all"))
 
-        # TODO make absolute
-        with hydra.initialize(config_path="../../conf"):
+        with hydra.initialize(
+            config_path="../../conf", job_name=f"sallm-pipeline-{lang}-eval"
+        ):
             ev_cfg = hydra.compose(
                 config_name=pipe.eval_stub_cfg,
                 overrides=[
@@ -32,4 +34,4 @@ def run(cfg: ExperimentConfig):
                     f"evaluation.task_packs=[masakhanews_{lang}]",
                 ],
             )
-            run_ev(hydra.utils.instantiate(ev_cfg))
+            run_ev(hydra.utils.instantiate(ev_cfg, _convert_="all"))
