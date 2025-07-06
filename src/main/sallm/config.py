@@ -129,7 +129,7 @@ class ExperimentConfig:
     data: Optional[DataConfig] = None
     tokenizer: Optional[TokenizerConfig] = None
     training: Optional[Dict[str, Any]] = None
-    evaluation: Optional[Dict[str, Any]] = None
+    evaluation: Optional[EvaluationConfig] = None
     eval_model: Optional[ModelEvalConfig] = None
     dataset: Optional[FinetuneDatasetConfig] = None
     peft: Optional[PeftConfig] = None

@@ -33,7 +33,7 @@ training:
   warmup_steps: 100
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 6
-  num_train_epochs: 3
+  num_train_epochs: 5
   bf16: false
   fp16: true
   logging_steps: 10

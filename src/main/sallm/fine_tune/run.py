@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import torch
 import wandb
+import os
 from omegaconf import OmegaConf
 
 from sallm.config import ExperimentConfig
@@ -78,3 +79,7 @@ def run(config: ExperimentConfig) -> None:
     torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
+
+    output_dir = os.path.join(trainer.args.output_dir, "final_model")
+    trainer.save_model(output_dir)
+    logger.info(f"Saved final model/adapter → {output_dir}")

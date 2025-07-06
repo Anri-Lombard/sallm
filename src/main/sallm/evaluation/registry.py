@@ -9,10 +9,7 @@ from pydantic import ValidationError
 from sallm.evaluation.config import TaskPack
 
 TASK_DIR = (
-    Path(__file__).resolve().parent.parent.parent.parent.parent
-    / "conf"
-    / "eval"
-    / "tasks"
+    Path(__file__).resolve().parent.parent.parent.parent / "conf" / "eval" / "tasks"
 )
 
 _CACHE: Dict[str, TaskPack] = {}

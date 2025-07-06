@@ -1,13 +1,30 @@
 from __future__ import annotations
-
 import json
 from pathlib import Path
 from typing import Dict, List
+import numpy as np
+import torch
 
 import lm_eval
+from lm_eval.models.huggingface import HFLM
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
+
+
+def safe_json_encoder(obj):
+    if isinstance(obj, (np.integer, np.floating)):
+        return obj.item()
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+
+    if isinstance(obj, torch.Tensor):
+        return obj.tolist() if obj.ndim else obj.item()
+    if isinstance(obj, torch.dtype):
+        return str(obj)
+
+    return str(obj)
+
 
 SUPPORTED_LANGS: List[str] = [
     "afr",
@@ -24,8 +41,11 @@ SUPPORTED_LANGS: List[str] = [
 ]
 
 
-def _filter_tasks_by_lang(task_names: List[str]) -> List[str]:
-    return [t for t in task_names if t.split("_")[-1] in SUPPORTED_LANGS]
+def _filter_tasks_by_lang(task_names: list[str]) -> list[str]:
+    def has_lang(tokens):
+        return any(tok in SUPPORTED_LANGS for tok in tokens)
+
+    return [t for t in task_names if has_lang(t.split("_"))]
 
 
 def evaluate_pack(
@@ -36,28 +56,31 @@ def evaluate_pack(
 ) -> Dict:
     pack_over = overrides.get(pack.name, {})
     task_list = pack_over.get("tasks", pack.tasks)
-    task_list = _filter_tasks_by_lang(task_list)
 
     fewshot = pack_over.get("fewshot", pack.fewshot)
     batch_size = pack_over.get("batch_size", pack.batch_size)
 
-    model_args = f"pretrained={model_cfg.checkpoint},dtype={model_cfg.dtype},device={model_cfg.device}"
+    model = HFLM(
+        pretrained=model_cfg.checkpoint,
+        dtype=model_cfg.dtype,
+        device=model_cfg.device,
+    )
 
-    eval_kwargs = {
-        "model": model_cfg.adapter,
-        "model_args": model_args,
-        "tasks": task_list,
-        "batch_size": batch_size,
-        "num_fewshot": fewshot,
-        "verbosity": "ERROR",
-    }
-    eval_kwargs.update(pack.lm_eval_kwargs)
-
-    results = lm_eval.evaluate(**eval_kwargs)
+    try:
+        results = lm_eval.simple_evaluate(
+            model=model,
+            tasks=task_list,
+            num_fewshot=fewshot,
+            batch_size=batch_size,
+        )
+    except TypeError as e:
+        raise ValueError(
+            f"{e}. Did you pass a dict instead of a list/str for `tasks`?"
+        ) from None
 
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{pack.name}.json"
     with out_path.open("w") as f:
-        json.dump(results, f, indent=2)
+        json.dump(results, f, indent=2, default=safe_json_encoder)
 
     return results
