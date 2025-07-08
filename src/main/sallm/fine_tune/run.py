@@ -60,7 +60,7 @@ def run(config: ExperimentConfig) -> None:
         model.print_trainable_parameters()
 
     logger.info("Datasets …")
-    train_ds, val_ds, _ = build_datasets(config, is_hpo=False)
+    train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
     logger.info(f"Samples: train={len(train_ds)}, val={len(val_ds)}")
 
     if train_ds:

@@ -10,7 +10,7 @@ from sallm.data.utils import make_example_mapper
 
 
 def build_datasets(
-    config: ExperimentConfig, is_hpo: bool
+    config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
 ) -> Tuple[Dataset, Dataset, Optional[Dataset]]:
     if config.mode == RunMode.FINETUNE:
         assert config.dataset, "Finetune mode requires a `dataset` block in the config."
@@ -33,7 +33,7 @@ def build_datasets(
             trust_remote_code=True,
         )
 
-        tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
+        # tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
 
         train_ds = _build_finetune_dataset(train_raw, config, tokenizer)
         val_ds = _build_finetune_dataset(val_raw, config, tokenizer)

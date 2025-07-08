@@ -26,6 +26,8 @@ def make_example_mapper(
         else:
             label_text = template.label_mapping[raw_label]
         full_text = f"{prompt_text} {label_text}{tokenizer.eos_token}"
+
+        tokenizer.truncation_side = "left"
         enc = tokenizer(
             full_text,
             truncation=True,

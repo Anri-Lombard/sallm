@@ -11,4 +11,4 @@ defaults:
 mode: ???
 wandb:
   project: sallm
-  entity: anrilo
+  entity: anrilombard
