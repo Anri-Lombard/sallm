@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any, Dict
 
 from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
 from transformers import AutoTokenizer
 
 from sallm.config import ExperimentConfig, RunMode
-from sallm.data.utils import make_example_mapper
+from sallm.templates import registry as tmpl
 
 
 def build_datasets(
@@ -18,14 +18,12 @@ def build_datasets(
         ds_cfg = config.dataset
         split_map = ds_cfg.splits
 
-        # TODO: specify split in config rather
         train_raw = load_dataset(
             ds_cfg.hf_name,
             ds_cfg.subset,
             split=split_map["train"],
             trust_remote_code=True,
         )
-        # TODO: specify split in config rather
         val_raw = load_dataset(
             ds_cfg.hf_name,
             ds_cfg.subset,
@@ -33,10 +31,8 @@ def build_datasets(
             trust_remote_code=True,
         )
 
-        # tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
-
-        train_ds = _build_finetune_dataset(train_raw, config, tokenizer)
-        val_ds = _build_finetune_dataset(val_raw, config, tokenizer)
+        train_ds = _build_finetune_dataset(train_raw, config)
+        val_ds = _build_finetune_dataset(val_raw, config)
         return train_ds, val_ds, None
 
     data_conf = config.data
@@ -61,19 +57,35 @@ def build_datasets(
 def _build_finetune_dataset(
     raw_ds: Dataset,
     cfg: ExperimentConfig,
-    tokenizer: AutoTokenizer,
 ) -> Dataset:
     ds_cfg = cfg.dataset
-    mapper = make_example_mapper(ds_cfg, tokenizer)
+    template_spec = tmpl.get(ds_cfg.templates[0].id)
+    numeric_keys = isinstance(next(iter(template_spec.label_mapping.keys())), int)
+
+    def to_prompt_completion(ex: Dict[str, Any]) -> Dict[str, str]:
+        prompt_kwargs = {col: ex[col] for col in ds_cfg.text_columns}
+        prompt = template_spec.prompt.format(**prompt_kwargs)
+
+        raw_label = ex[ds_cfg.label_column]
+        label_text = template_spec.label_mapping[
+            int(raw_label) if numeric_keys else raw_label
+        ]
+
+        return {
+            "prompt": prompt,
+            "completion": " " + label_text,
+        }
+
     processed_ds = raw_ds.map(
-        mapper,
+        to_prompt_completion,
         batched=False,
         remove_columns=raw_ds.column_names,
-        desc="Mapping prompt+label → LM inputs",
+        desc="Formatting dataset into prompt/completion columns",
     )
 
     if ds_cfg.subset:
-        lang_column = [ds_cfg.subset] * len(processed_ds)
-        processed_ds = processed_ds.add_column("lang", lang_column)
+        processed_ds = processed_ds.add_column(
+            "lang", [ds_cfg.subset] * len(processed_ds)
+        )
 
     return processed_ds

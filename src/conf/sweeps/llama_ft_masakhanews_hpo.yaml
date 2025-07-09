@@ -1,0 +1,50 @@
+project: "sallm-ft-hpo"
+name: "llama-125m-masakhanews-sweep"
+
+program: main/sallm/main.py
+
+method: bayes
+run_cap: 50
+
+metric:
+  name: "eval_loss"
+  goal: "minimize"
+
+command:
+  - ${interpreter}
+  - -m
+  - accelerate.commands.accelerate_cli
+  - launch
+  - -m
+  - ${program}
+  - ${args}
+
+parameters:
+  config_path:
+    value: "conf/finetune/llama_news_ft.yaml"
+
+  training.learning_rate:
+    distribution: log_uniform_values
+    min: 1.0e-6
+    max: 5.0e-5
+
+  training.weight_decay:
+    distribution: uniform
+    min: 0.01
+    max: 0.2
+
+  # peft.kwargs.r:
+  #   values: [8, 16, 32, 64]
+
+  # peft.kwargs.lora_alpha:
+  #   values: [16, 32, 64]
+
+  # peft.kwargs.lora_dropout:
+  #   distribution: uniform
+  #   min: 0.0
+  #   max: 0.15
+
+  training.warmup_ratio:
+    distribution: uniform
+    min: 0.01
+    max: 0.1

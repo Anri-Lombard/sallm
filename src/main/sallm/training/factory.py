@@ -1,14 +1,14 @@
 import logging
+from omegaconf import OmegaConf
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    DataCollatorForLanguageModeling,
-    TrainingArguments,
 )
 from datasets import Dataset
+from trl import SFTTrainer, SFTConfig
 
 from sallm.config import ExperimentConfig
-from sallm.training.trainer import CustomTrainer
+from sallm.training.callbacks import ShowCompletionsCallback
 
 logger = logging.getLogger(__name__)
 
@@ -19,26 +19,34 @@ def build_trainer(
     tokenizer: AutoTokenizer,
     train_dataset: Dataset,
     eval_dataset: Dataset,
-) -> CustomTrainer:
-    training_args = TrainingArguments(**config.training)
+) -> SFTTrainer:
 
-    if training_args.local_rank <= 0:  # Print only on the main process
+    training_args_dict = OmegaConf.to_container(config.training, resolve=True)
+
+    training_args = SFTConfig(
+        **training_args_dict,
+        max_seq_length=config.dataset.max_seq_length if config.dataset else None,
+        completion_only_loss=True,
+        packing=False,
+    )
+
+    if training_args.local_rank <= 0:
         logger.info("--- Effective Training Arguments ---")
-        # The __str__ method of TrainingArguments provides a nice, readable format.
         logger.info(training_args)
         logger.info("------------------------------------")
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    completions_callback = ShowCompletionsCallback(
+        eval_dataset=eval_dataset, tokenizer=tokenizer, num_samples=5
+    )
 
-    trainer = CustomTrainer(
+    trainer = SFTTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        data_collator=data_collator,
+        callbacks=[completions_callback],
     )
 
-    # TODO: depricated, so use a different method eventually
     trainer.tokenizer = tokenizer
 
     return trainer

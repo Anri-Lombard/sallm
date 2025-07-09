@@ -2,7 +2,7 @@ id: "masakhanews_v1"
 prompt: |
   Given the categories technology, business, politics, sports, health,
   entertainment, or religion; what category does the text: '{headline_text}' belong
-  to: 
+  to:
 label_mapping:
   0: "business"
   1: "entertainment"

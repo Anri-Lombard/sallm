@@ -21,14 +21,16 @@ def _apply_peft_if_needed(model, peft_cfg):
     import peft
 
     if peft_cfg.method.lower() in {"lora", "qlora"}:
+        peft_kwargs = OmegaConf.to_container(peft_cfg.kwargs, resolve=True)
         lora_conf = peft.LoraConfig(
-            r=peft_cfg.kwargs.get("r", 64),
-            lora_alpha=peft_cfg.kwargs.get("lora_alpha", 16),
-            lora_dropout=peft_cfg.kwargs.get("lora_dropout", 0.05),
-            target_modules=peft_cfg.kwargs.get("target_modules", ["q_proj", "v_proj"]),
+            r=peft_kwargs.get("r", 64),
+            lora_alpha=peft_kwargs.get("lora_alpha", 16),
+            lora_dropout=peft_kwargs.get("lora_dropout", 0.05),
+            target_modules=peft_kwargs.get("target_modules", ["q_proj", "v_proj"]),
             bias="none",
             task_type=peft.TaskType.CAUSAL_LM,
         )
+
         return peft.get_peft_model(model, lora_conf)
     raise ValueError(f"Unsupported PEFT method '{peft_cfg.method}'")
 
@@ -49,10 +51,6 @@ def run(config: ExperimentConfig) -> None:
     logger.info("Tokenizer …")
     tokenizer = build_tokenizer(config)
 
-    if tokenizer.pad_token is None:
-        logger.info("Tokenizer `pad_token` not set. Setting it to `eos_token`.")
-        tokenizer.pad_token = tokenizer.eos_token
-
     logger.info("Model …")
     model = build_model(config, tokenizer)
     model = _apply_peft_if_needed(model, config.peft)
@@ -63,13 +61,11 @@ def run(config: ExperimentConfig) -> None:
     train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
     logger.info(f"Samples: train={len(train_ds)}, val={len(val_ds)}")
 
-    if train_ds:
-        logger.info("--- Inspecting a single training sample ---")
+    if train_ds and len(train_ds) > 0:
         sample = train_ds[0]
-        logger.info(f"Input IDs: {sample['input_ids']}")
-        logger.info(f"Decoded Text: {tokenizer.decode(sample['input_ids'])}")
-        # In Causal LM fine-tuning, labels are typically a copy of input_ids
-        logger.info(f"Labels: {sample['labels']}")
+        logger.info("--- Inspecting a single training sample ---")
+        logger.info(f"Prompt:\n{sample['prompt']}")
+        logger.info(f"Completion: '{sample['completion'].strip()}'")
         logger.info("-------------------------------------------")
 
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
