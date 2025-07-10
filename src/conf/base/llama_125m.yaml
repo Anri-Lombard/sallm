@@ -1,4 +1,4 @@
-mode: "train"
+mode: TRAIN
 
 wandb:
   # TODO set all wand info and make sure it's passed

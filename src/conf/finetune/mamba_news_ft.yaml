@@ -1,4 +1,4 @@
-mode: "finetune"
+mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
@@ -6,7 +6,7 @@ wandb:
 
 model:
   architecture: "mamba2"
-  init_checkpoint: "${SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m"
 
 peft:
   method: "qlora"
@@ -24,14 +24,15 @@ dataset:
   splits: {train: "train", val: "validation"}
   templates:
     - {id: "masakhanews_v1", weight: 1.0}
+  task_type: CLASSIFICATION
   template_choice: "cycle"
   max_seq_length: 2048
 
-tokenizer: {path: "${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_news"
-  logging_dir: "${SCRATCH}/masters/sallm/logs/ft_mamba_125m_news"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_news"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_news"
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
   num_train_epochs: 3

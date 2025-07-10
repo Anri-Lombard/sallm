@@ -20,5 +20,5 @@ model:
     max_params_m: 130.0
 
 training:
-  output_dir: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-shallowwide"
-  logging_dir: "${SCRATCH}/masters/sallm/logs/sallm-llama-shallowwide"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-shallowwide"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-llama-shallowwide"

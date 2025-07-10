@@ -81,6 +81,11 @@ class TemplateChoice(str, Enum):
     ALL = "all"
 
 
+class TaskType(str, Enum):
+    CAUSAL_LM = "causal_lm"
+    CLASSIFICATION = "classification"
+
+
 @dataclass
 class TemplateRef:
     id: str = MISSING
@@ -96,6 +101,7 @@ class FinetuneDatasetConfig:
     splits: Dict[str, str] = field(default_factory=dict)
     templates: List[TemplateRef] = field(default_factory=list)
     template_choice: TemplateChoice = TemplateChoice.CYCLE
+    task_type: TaskType = TaskType.CAUSAL_LM
     max_seq_length: int = MISSING
 
 
