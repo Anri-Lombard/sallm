@@ -3,8 +3,8 @@
 #SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=4
-#SBATCH --cpus-per-gpu=2
+#SBATCH --gpus-per-node=2
+#SBATCH --cpus-per-gpu=4
 #SBATCH --job-name="sallm-ft"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
@@ -23,4 +23,4 @@ module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sallm-ner
 
-accelerate launch -m sallm.main --config-name "$CFG"
+accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG"

@@ -72,15 +72,16 @@ def _build_finetune_dataset(
         ]
 
         return {
+            "text": prompt + label_text,
             "prompt": prompt,
-            "completion": " " + label_text,
+            "completion": label_text,
         }
 
     processed_ds = raw_ds.map(
         to_prompt_completion,
         batched=False,
         remove_columns=raw_ds.column_names,
-        desc="Formatting dataset into prompt/completion columns",
+        desc="Formatting dataset for training and callbacks",
     )
 
     if ds_cfg.subset:

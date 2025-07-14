@@ -26,8 +26,13 @@ def build_model(
         logger.info(
             f"Loading model of type {model_class.__name__} from checkpoint: {model_conf.init_checkpoint}"
         )
-        # TODO: add flash attention 2?
-        model = model_class.from_pretrained(model_conf.init_checkpoint)
+        attn_impl = getattr(model_conf, "attn_implementation", None)
+        if attn_impl:
+            model = model_class.from_pretrained(
+                model_conf.init_checkpoint, attn_implementation=attn_impl
+            )
+        else:
+            model = model_class.from_pretrained(model_conf.init_checkpoint)
         return model
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]

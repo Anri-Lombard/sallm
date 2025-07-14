@@ -84,6 +84,7 @@ class ShowCompletionsCallback(TrainerCallback):
                 gen_ids = model.generate(
                     **inputs,
                     max_new_tokens=self.max_new_tokens,
+                    do_sample=False,
                     pad_token_id=pad_id,
                     eos_token_id=eos_id,
                 )

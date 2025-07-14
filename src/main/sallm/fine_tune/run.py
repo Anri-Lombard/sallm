@@ -54,6 +54,7 @@ def run(config: ExperimentConfig) -> None:
     logger.info("Model …")
     model = build_model(config, tokenizer)
     model = _apply_peft_if_needed(model, config.peft)
+
     if hasattr(model, "print_trainable_parameters"):
         model.print_trainable_parameters()
 
