@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple, Any, Dict
+from typing import Optional, Tuple, Any, Dict, List
 
 from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
 from transformers import AutoTokenizer
@@ -60,28 +60,30 @@ def _build_finetune_dataset(
 ) -> Dataset:
     ds_cfg = cfg.dataset
     template_spec = tmpl.get(ds_cfg.templates[0].id)
+    label_column = getattr(ds_cfg, "label_column", "label")
     numeric_keys = isinstance(next(iter(template_spec.label_mapping.keys())), int)
 
-    def to_prompt_completion(ex: Dict[str, Any]) -> Dict[str, str]:
-        prompt_kwargs = {col: ex[col] for col in ds_cfg.text_columns}
-        prompt = template_spec.prompt.format(**prompt_kwargs)
+    def to_messages_format(ex: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
+        # Automatically detects the text columns we need to use
+        user_prompt = template_spec.prompt.format(**ex)
 
-        raw_label = ex[ds_cfg.label_column]
-        label_text = template_spec.label_mapping[
-            int(raw_label) if numeric_keys else raw_label
+        raw_label = ex[label_column]
+        assistant_response = template_spec.label_mapping[
+            int(raw_label) if numeric_keys else str(raw_label)
         ]
 
         return {
-            "text": prompt + label_text,
-            "prompt": prompt,
-            "completion": label_text,
+            "messages": [
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": assistant_response},
+            ]
         }
 
     processed_ds = raw_ds.map(
-        to_prompt_completion,
+        to_messages_format,
         batched=False,
         remove_columns=raw_ds.column_names,
-        desc="Formatting dataset for training and callbacks",
+        desc="Formatting dataset into 'messages' format",
     )
 
     if ds_cfg.subset:

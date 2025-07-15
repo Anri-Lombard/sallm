@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import List
+from typing import List, Dict
 
 import torch
 from datasets import Dataset
@@ -29,7 +29,7 @@ class ShowCompletionsCallback(TrainerCallback):
         self.num_samples = num_samples
         self.max_new_tokens = max_new_tokens
 
-    def on_epoch_end(  # noqa: D401
+    def on_epoch_end(
         self,
         args: TrainingArguments,
         state: TrainerState,
@@ -61,61 +61,44 @@ class ShowCompletionsCallback(TrainerCallback):
 
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
-        pad_tok = (
-            self.tokenizer.convert_ids_to_tokens(pad_id) if pad_id is not None else None
-        )
-        eos_tok = self.tokenizer.convert_ids_to_tokens(eos_id)
-
         device = model.device
 
         for i, sample in enumerate(samples, start=1):
-            prompt_text: str = sample["prompt"]
-            gold_completion: str = sample["completion"].lstrip()
+            messages: List[Dict[str, str]] = sample["messages"]
 
-            inputs = self.tokenizer(
-                prompt_text,
+            prompt_messages = messages[:-1]
+            gold_completion = messages[-1]["content"].lstrip()
+
+            inputs = self.tokenizer.apply_chat_template(
+                prompt_messages,
+                add_generation_prompt=True,
                 return_tensors="pt",
-                truncation=True,
-                max_length=1024,
             ).to(device)
-            inputs.pop("token_type_ids", None)
 
             with torch.no_grad():
                 gen_ids = model.generate(
-                    **inputs,
+                    inputs,
                     max_new_tokens=self.max_new_tokens,
                     do_sample=False,
                     pad_token_id=pad_id,
                     eos_token_id=eos_id,
                 )
 
-            generated_ids = gen_ids[0][inputs["input_ids"].shape[-1] :]
+            generated_ids = gen_ids[0][inputs.shape[-1] :]
             generated_completion = self.tokenizer.decode(
-                generated_ids
-                # generated_ids, skip_special_tokens=True
+                generated_ids, skip_special_tokens=True
             ).strip()
 
-            gold_tokens = self.tokenizer.tokenize(" " + gold_completion)
-            gold_ids = self.tokenizer.convert_tokens_to_ids(gold_tokens)
-
-            gen_tokens = self.tokenizer.convert_ids_to_tokens(generated_ids)
-            gen_ids_list = generated_ids.tolist()
-
-            contains_pad = pad_id is not None and pad_id in gen_ids_list
-            contains_eos = eos_id in gen_ids_list
+            prompt_text_for_log = self.tokenizer.apply_chat_template(
+                prompt_messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
 
             logger.info(f"\n--- Sample {i}/{len(indices)} ---")
-            logger.info(f"Prompt:\n{prompt_text}")
-
+            logger.info(f"Prompt (as seen by model):\n{prompt_text_for_log}")
             logger.info(f"\n--> Generated Completion: '{generated_completion}'")
-            logger.info(f"    Generated tokens: {gen_tokens}")
-            logger.info(f"    Generated IDs:    {gen_ids_list}")
-            logger.info(f"    Contains PAD ({pad_tok}): {contains_pad}")
-            logger.info(f"    Contains EOS ({eos_tok}): {contains_eos}")
-
-            logger.info(f"\n--> Gold Completion:      '{gold_completion}'")
-            logger.info(f"    Gold tokens: {gold_tokens}")
-            logger.info(f"    Gold IDs:    {gold_ids}")
+            logger.info(f"--> Gold Completion:      '{gold_completion}'")
             logger.info("-" * 40)
 
         logger.info("--- End of Generated Examples ---\n")

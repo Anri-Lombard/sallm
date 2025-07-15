@@ -2,42 +2,40 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-news"
+  name: "llama-125m-news-v2-messages"
 
 model:
   architecture: "llama"
   init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
-  # attn_implementation: "flash_attention_2"
 
-peft:
-  method: "lora"
-  kwargs:
-    r: 64
-    lora_alpha: 128
-    lora_dropout: 0.1
+# peft:
+#   method: "lora"
+#   kwargs:
+#     r: 64
+#     lora_alpha: 128
+#     lora_dropout: 0.1
 
 dataset:
   hf_name: "masakhane/masakhanews"
   subset: "eng"
-  text_columns: ["headline_text"]
-  label_column: "label"
+  # label_column: "label"
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "masakhane_news_classification/v1", weight: 1.0}
-    # - {id: "masakhane_news_classification/v5", weight: 1.0}
+    # - {id: "masakhane_news_classification/v1", weight: 1.0}
+    - {id: "masakhane_news_classification/v5", weight: 1.0}
   # TODO add template choice
   # template_choice: CYCLE
-  task_type: CLASSIFICATION
-  max_seq_length: 2048
-  # max_seq_length: 1024
+  packing: true
+  assistant_only_loss: false
+  max_seq_length: 1024
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news"
-  run_name: "llama-125m-news-lora-finetune"
-  learning_rate: 3.0e-6
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages"
+  run_name: "llama-125m-news-lora-finetune-messages"
+  learning_rate: 3.0e-5
   weight_decay: 0.1
   adam_beta2: 0.95
   max_grad_norm: 1.0
@@ -49,17 +47,9 @@ training:
   eval_accumulation_steps: 1
   num_train_epochs: 5
   bf16: true
-  # fp16: true
   logging_steps: 10
   eval_strategy: "epoch"
-  # eval_steps: 200
   save_strategy: "no"
-  # load_best_model_at_end: true
-  # metric_for_best_model: "eval_loss"
-  # greater_is_better: false
-  # early_stopping_patience: 2
   dataloader_num_workers: 8
-  save_steps: 500
-  save_total_limit: 2
   report_to: "wandb"
   ddp_find_unused_parameters: false

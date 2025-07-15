@@ -22,12 +22,22 @@ def build_trainer(
 ) -> SFTTrainer:
     training_args_dict = OmegaConf.to_container(config.training, resolve=True)
 
+    # TODO validation
+    packing = getattr(config.dataset, "packing", False)
+    assistant_only_loss = getattr(config.dataset, "assistant_only_loss", True)
+
+    if packing and assistant_only_loss:
+        logger.warning(
+            "You are using `packing=True` with `assistant_only_loss=True`. "
+            "Due to a known bug in TRL, this combination is not effective, and the loss will be "
+            "computed on all tokens. See: https://github.com/huggingface/trl/issues/3728"
+        )
+
     training_args = SFTConfig(
         **training_args_dict,
-        max_seq_length=config.dataset.max_seq_length if config.dataset else None,
-        dataset_text_field="text",
-        completion_only_loss=True,
-        packing=False,
+        max_seq_length=config.dataset.max_seq_length,
+        packing=packing,
+        assistant_only_loss=assistant_only_loss,
     )
 
     if training_args.local_rank <= 0:
@@ -41,12 +51,13 @@ def build_trainer(
 
     trainer = SFTTrainer(
         model=model,
+        processing_class=tokenizer,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         callbacks=[completions_callback],
     )
 
-    trainer.tokenizer = tokenizer
+    trainer.processing_class = tokenizer
 
     return trainer

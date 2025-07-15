@@ -96,13 +96,11 @@ class TemplateRef:
 class FinetuneDatasetConfig:
     hf_name: str = MISSING
     subset: Optional[str] = None
-    text_columns: List[str] = field(default_factory=list)
-    label_column: str = MISSING
     splits: Dict[str, str] = field(default_factory=dict)
     templates: List[TemplateRef] = field(default_factory=list)
-    template_choice: TemplateChoice = TemplateChoice.CYCLE
-    task_type: TaskType = TaskType.CAUSAL_LM
     max_seq_length: int = MISSING
+    packing: bool = MISSING
+    assistant_only_loss: bool = MISSING
 
 
 @dataclass
