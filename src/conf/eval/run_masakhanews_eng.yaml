@@ -5,6 +5,8 @@ eval_model:
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
+  peft_adapter: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news/final_model"
+  merge_lora: true
 
 evaluation:
   task_packs:

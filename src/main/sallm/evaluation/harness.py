@@ -7,6 +7,7 @@ import torch
 
 import lm_eval
 from lm_eval.models.huggingface import HFLM
+from peft import PeftModel
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
@@ -60,15 +61,22 @@ def evaluate_pack(
     fewshot = pack_over.get("fewshot", pack.fewshot)
     batch_size = pack_over.get("batch_size", pack.batch_size)
 
-    model = HFLM(
+    # Build HF model with optional PEFT adapter
+    hf_model = HFLM(
         pretrained=model_cfg.checkpoint,
-        dtype=model_cfg.dtype,
+        peft=model_cfg.peft_adapter,
         device=model_cfg.device,
+        dtype=model_cfg.dtype,
+        trust_remote_code=True,
     )
+
+    # Optionally merge and unload the adapter
+    if model_cfg.merge_lora and isinstance(hf_model.model, PeftModel):
+        hf_model._model = hf_model.model.merge_and_unload()
 
     try:
         results = lm_eval.simple_evaluate(
-            model=model,
+            model=hf_model,
             tasks=task_list,
             num_fewshot=fewshot,
             batch_size=batch_size,

@@ -41,11 +41,25 @@ class EvaluationConfig:
 
 
 @dataclass
+class PeftLoadConfig:
+    path: str = MISSING
+    merge: bool = True
+
+
+@dataclass
 class ModelEvalConfig:
     checkpoint: str = MISSING
     adapter: str = "hf"
     dtype: str = "bfloat16"
     device: str = "cuda:0"
+    peft_adapter: Optional[str] = None
+    merge_lora: bool = False
+
+    def __post_init__(self):
+        from pathlib import Path
+
+        if self.peft_adapter and not Path(self.peft_adapter).exists():
+            raise ValueError(f"PEFT adapter path '{self.peft_adapter}' does not exist.")
 
 
 @dataclass
