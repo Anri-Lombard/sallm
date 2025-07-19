@@ -2,34 +2,19 @@ default_language_version:
   python: python3.12
 
 repos:
-  # ▸ Formatting
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 25.1.0
     hooks:
       - id: black
         language_version: python3.12
 
-  # ▸ Linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.0
     hooks:
       - id: ruff-check
 
-  # ▸ YAML linting
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1
     hooks:
       - id: yamllint
         args: [--strict, -c=.yamllint]
-
-  # ▸ Local utilities
-  - repo: local
-    hooks:
-      - id: poetry-install
-        name: Ensure dependencies are installed (poetry install)
-        entry: poetry install --no-root
-        language: system          # run in your existing environment
-        pass_filenames: false     # we don’t need file paths
-        stages: [commit]          # or remove this line to run on all stages
-        files: |
-          ^(?:poetry\.lock|pyproject\.toml)$
