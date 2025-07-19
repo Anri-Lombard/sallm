@@ -12,10 +12,6 @@ logger = logging.getLogger(__name__)
 def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
 
-    if tokenizer.chat_template is None:
-        tokenizer.chat_template = """{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|system|>\\n' + message['content'] + '<|end|>\\n' }}{% elif message['role'] == 'user' %}{{ '<|user|>\\n' + message['content'] + '<|end|>\\n' }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\\n' + message['content'] + '<|end|>\\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|assistant|>\\n' }}{% else %}{{ eos_token }}{% endif %}"""
-        logger.info("Tokenizer chat template not found. Applying custom template.")
-
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         logger.info(

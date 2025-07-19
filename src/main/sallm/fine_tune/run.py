@@ -54,6 +54,20 @@ def run(config: ExperimentConfig) -> None:
     logger.info("Model …")
     model = build_model(config, tokenizer)
 
+    logger.info("Adding special tokens and resizing model embeddings.")
+    special_tokens_dict = {
+        "additional_special_tokens": [
+            "<|system|>",
+            "<|user|>",
+            "<|assistant|>",
+            "<|end|>",
+        ]
+    }
+    num_added_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+
+    if num_added_tokens > 0:
+        model.resize_token_embeddings(len(tokenizer))
+
     if tokenizer.chat_template is None:
         # TODO: move this template to it's own file
         tokenizer.chat_template = """{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|system|>\\n' + message['content'] + '<|end|>\\n' }}{% elif message['role'] == 'user' %}{{ '<|user|>\\n' + message['content'] + '<|end|>\\n' }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\\n' + message['content'] + '<|end|>\\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|assistant|>\\n' }}{% else %}{{ eos_token }}{% endif %}"""

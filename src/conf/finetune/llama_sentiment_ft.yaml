@@ -2,7 +2,7 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-news-xho"
+  name: "llama-125m-sentiment-tso"
 
 model:
   architecture: "llama"
@@ -16,14 +16,12 @@ peft:
     lora_dropout: 0.1
 
 dataset:
-  hf_name: "masakhane/masakhanews"
-  # subset: "eng"
-  subset: "xho"
+  hf_name: "masakhane/afrisenti"
+  subset: "tso"
   # label_column: "label"
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "masakhane_news_classification/v1", weight: 1.0}
-    # - {id: "masakhane_news_classification/v5", weight: 1.0}
+    - {id: "afrisenti_sentiment_classification/v1", weight: 1.0}
   # TODO add template choice
   # template_choice: CYCLE
   packing: false
@@ -33,9 +31,9 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages"
-  run_name: "llama-125m-news-lora-finetune-messages"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrisenti_tso"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrisenti_tso"
+  run_name: "llama-125m-afrisenti-lora-finetune-tso"
   learning_rate: 3.0e-5
   # weight_decay: 0.1
   adam_beta2: 0.95

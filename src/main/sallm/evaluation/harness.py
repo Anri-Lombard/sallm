@@ -61,7 +61,6 @@ def evaluate_pack(
     fewshot = pack_over.get("fewshot", pack.fewshot)
     batch_size = pack_over.get("batch_size", pack.batch_size)
 
-    # Build HF model with optional PEFT adapter
     hf_model = HFLM(
         pretrained=model_cfg.checkpoint,
         peft=model_cfg.peft_adapter,
@@ -70,7 +69,6 @@ def evaluate_pack(
         trust_remote_code=True,
     )
 
-    # Optionally merge and unload the adapter
     if model_cfg.merge_lora and isinstance(hf_model.model, PeftModel):
         hf_model._model = hf_model.model.merge_and_unload()
 

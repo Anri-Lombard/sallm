@@ -63,14 +63,34 @@ def _build_finetune_dataset(
     label_column = getattr(ds_cfg, "label_column", "label")
     numeric_keys = isinstance(next(iter(template_spec.label_mapping.keys())), int)
 
+    str_to_int_key_map = {}
+    if numeric_keys:
+        str_to_int_key_map = {
+            str(v).lower(): k for k, v in template_spec.label_mapping.items()
+        }
+
     def to_messages_format(ex: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
         # Automatically detects the text columns we need to use
         user_prompt = template_spec.prompt.format(**ex)
-
         raw_label = ex[label_column]
-        assistant_response = template_spec.label_mapping[
-            int(raw_label) if numeric_keys else str(raw_label)
-        ]
+
+        key_to_use = None
+        if numeric_keys:
+            if isinstance(raw_label, str):
+                try:
+                    key_to_use = int(raw_label)
+                except ValueError:
+                    key_to_use = str_to_int_key_map.get(raw_label.lower())
+                    if key_to_use is None:
+                        raise ValueError(
+                            f"Cannot map string label '{raw_label}' to an integer key."
+                        )
+            else:
+                key_to_use = int(raw_label)
+        else:
+            key_to_use = str(raw_label)
+
+        assistant_response = template_spec.label_mapping[key_to_use]
 
         return {
             "messages": [
