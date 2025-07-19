@@ -23,7 +23,7 @@ scipy = "1.15.3"
 accelerate = "^1.7.0"
 regex = "^2024.11.6"
 tokenizers = "^0.21.1"
-flash-attn = "^2.8.0.post2"
+# flash-attn = "^2.8.0.post2"
 
 # [tool.poetry.group.gpu.dependencies]
 # mamba-ssm = ">=2.2.4"
@@ -45,12 +45,15 @@ python_version = "3.12"
 warn_return_any = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
+exclude = ["trash"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
     "tests",
 ]
+# TODO update when/if we add tests
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+

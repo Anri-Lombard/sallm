@@ -1,13 +1,15 @@
 tokenizer_training:
   bpe_model:
     # Research-backed vocabulary size choice.
-    # For multilingual models covering a dozen or so African languages, research from
-    # the Masakhane community provides strong empirical evidence for an optimal vocabulary
-    # size range.
-    # - Ogueji et al., 2021 (AfriBERTa): Found best performance in the 40k-70k range.
-    # - Adelani et al., 2022 (AfriTeVa): Used a vocab size of 70k for a generative model.
-    # We choose 65,536 (2**16) as it sits comfortably within this empirically validated
-    # range and is compatible with uint16 data types.
+    # For multilingual models covering a dozen or so African languages,
+    # research from the Masakhane community provides strong empirical
+    # evidence for an optimal vocabulary size range.
+    # - Ogueji et al., 2021 (AfriBERTa): Found best performance in the
+    # 40k-70k range.
+    # - Adelani et al., 2022 (AfriTeVa): Used a vocab size of 70k for a
+    # generative model.
+    # We choose 65,536 (2**16) as it sits comfortably within this
+    # empirically validatedrange and is compatible with uint16 data types.
     vocab_size: 65536
 
     special_tokens:

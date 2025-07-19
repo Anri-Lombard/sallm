@@ -19,7 +19,7 @@ metric:
   goal: minimize
 parameters:
   gradient_accumulation_steps:
-      values: [1, 2, 4, 8]
+    values: [1, 2, 4, 8]
   # TODO: architectural bayesian sweep
   learning_rate:
     distribution: log_uniform

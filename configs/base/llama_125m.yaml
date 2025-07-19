@@ -34,7 +34,7 @@ training:
   logging_dir: "${SCRATCH}/masters/sallm/logs/sallm-llama-125m"
   learning_rate: 3e-4
   weight_decay: 0.01
-  num_train_epochs: 1 # TODO change back after hpo
+  num_train_epochs: 1  # TODO change back after hpo
   per_device_train_batch_size: 12
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 4
