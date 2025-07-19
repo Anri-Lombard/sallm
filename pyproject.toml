@@ -11,7 +11,6 @@ authors = [
 ]
 license = { file="LICENSE" }
 requires-python = ">=3.12"
-requires-python = ">=3.12"
 
 dependencies = [
     "torch",
@@ -44,10 +43,8 @@ namespaces = false
 [tool.black]
 line-length = 88
 target-version = ['py312']
-target-version = ['py312']
 
 [tool.mypy]
-python_version = "3.12"
 python_version = "3.12"
 warn_return_any = true
 ignore_missing_imports = true
