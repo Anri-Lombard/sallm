@@ -44,4 +44,3 @@ training:
   save_steps: 500
   save_total_limit: 2
   report_to: "wandb"
-  resume_from_checkpoint: null
