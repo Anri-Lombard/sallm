@@ -20,8 +20,6 @@ dependencies:
   - mypy
   - pytest
   - pip:
-    - "accelerate"
-    - "types-pyyaml"
-    - "tabulate"
-    - "mamba-ssm"
-    - "causal-conv1d>=1.2.0"
+      - "accelerate"
+      - "types-pyyaml"
+      - "tabulate"
