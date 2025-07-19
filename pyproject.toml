@@ -24,8 +24,6 @@ dependencies = [
     "accelerate",
     "regex",
     "tokenizers",
-    "mamba-ssm",
-    "causal-conv1d>=1.2.0"
 ]
 
 [project.optional-dependencies]
