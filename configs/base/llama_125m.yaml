@@ -18,16 +18,17 @@ model:
     max_params_m: 130.0
 
 data:
-  path: "data/sallm_processed"
+  path: "${SCRATCH}/masters/sallm/data/sallm_processed"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
 
 tokenizer:
-  path: "./tokenizer/"
+  path: "${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
 
 training:
-  output_dir: "./checkpoints/sallm-llama-125m"
+  output_dir: "${SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m"
+  logging_dir: "${SCRATCH}/masters/sallm/logs/sallm-llama-125m"
   learning_rate: 3e-4
   weight_decay: 0.01
   num_train_epochs: 3
@@ -36,7 +37,6 @@ training:
   warmup_ratio: 0.03
   lr_scheduler_type: "cosine"
   bf16: true
-  logging_dir: "./logs/sallm-llama-125m"
   logging_steps: 10
   evaluation_strategy: "steps"
   eval_steps: 500

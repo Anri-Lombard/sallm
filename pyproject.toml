@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sallm"
 version = "0.1.0"
-description = "A modular framework for training small language models."
+description = "A modular framework for training small language models for South African languages."
 authors = [
-  { name="Anri Lombard", email="anri.m.lombard@gamil.com" },
+  { name="Anri Lombard", email="anri.m.lombard@gmail.com" },
 ]
 license = { file="LICENSE" }
 requires-python = ">=3.12"
@@ -21,6 +21,9 @@ dependencies = [
     "pyyaml",
     "numpy",
     "scipy",
+    "accelerate",
+    "regex",
+    "tokenizers",
 ]
 
 [project.optional-dependencies]
@@ -32,8 +35,10 @@ dev = [
     "yamllint"
 ]
 
-[tool.setuptools.package-dir]
-"" = "src/main"
+[tool.setuptools.packages.find]
+where = ["src/main"]
+include = ["sallm*"]
+namespaces = false
 
 [tool.black]
 line-length = 88
@@ -55,3 +60,4 @@ testpaths = [
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+

@@ -1,0 +1,25 @@
+name: sallm-ner
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - pytorch::pytorch>=2.0.0
+  - pytorch::pytorch-cuda=12.1
+  - transformers
+  - datasets
+  - wandb
+  - pyyaml
+  - scipy
+  - numpy
+  - pydantic
+  - regex
+  - black
+  - mypy
+  - pytest
+  - pip:
+      - "accelerate"
+      - "types-pyyaml"
+      - "tabulate"

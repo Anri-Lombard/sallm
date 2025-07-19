@@ -21,10 +21,20 @@ def main() -> None:
         required=True,
         help="Path to the main YAML experiment config file.",
     )
+    parser.add_argument(
+        "--wandb_run_id",
+        type=str,
+        default=None,
+        help="Wandb run ID to resume a specific crashed trial.",
+    )
     cli_args = parser.parse_args()
 
     logger.info(f"Loading experiment configuration from: {cli_args.config_path}")
     config = load_experiment_config(cli_args.config_path)
+
+    if cli_args.wandb_run_id:
+        logger.info(f"Received wandb run ID for resumption: {cli_args.wandb_run_id}")
+        config.wandb.id = cli_args.wandb_run_id
 
     logger.info(f"Starting run in '{config.mode.value}' mode.")
 
