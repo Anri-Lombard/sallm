@@ -1,26 +1,22 @@
 import logging
-from argparse import Namespace
 
 import wandb
 
 from sallm.config import ExperimentConfig
-from sallm.factories import (
-    build_datasets,
-    build_model,
-    build_tokenizer,
-    build_trainer,
-)
+from sallm.data.factory import build_datasets
+from sallm.models.factory import build_model, build_tokenizer
+from sallm.training.factory import build_trainer
 
 logger = logging.getLogger(__name__)
 
 
-def run(config: ExperimentConfig, cli_args: Namespace) -> None:
+def run(config: ExperimentConfig) -> None:
     """
     Executes a training run, which can be a standalone run or part of an HPO sweep.
     """
-    run = wandb.init(**config.wandb.model_dump(exclude_none=True))
+    run_instance = wandb.init(**config.wandb.model_dump(exclude_none=True))
 
-    is_hpo_run = run.sweep_id is not None
+    is_hpo_run = run_instance.sweep_id is not None
     if is_hpo_run:
         logger.info("Detected HPO run (part of a wandb sweep).")
         for key, value in wandb.config.items():
@@ -41,7 +37,6 @@ def run(config: ExperimentConfig, cli_args: Namespace) -> None:
         config, is_hpo=is_hpo_run
     )
 
-    # TODO: these should be in tokens, not len
     logger.info(f"Train dataset size: {len(train_dataset)}")
     logger.info(f"Evaluation dataset size: {len(eval_dataset)}")
     if test_dataset:
@@ -53,7 +48,7 @@ def run(config: ExperimentConfig, cli_args: Namespace) -> None:
     trainer = build_trainer(config, model, tokenizer, train_dataset, eval_dataset)
 
     logger.info("Starting training...")
-    trainer.train(resume_from_checkpoint=cli_args.resume_from_checkpoint)
+    trainer.train(resume_from_checkpoint=config.training.resume_from_checkpoint)
     logger.info("Training finished.")
 
     final_model_path = f"{config.training.output_dir}/final_model"

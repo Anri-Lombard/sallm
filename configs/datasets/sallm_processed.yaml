@@ -1,0 +1,11 @@
+dataset_processing:
+  paths:
+    source_dataset_dir: "data/sallm_dataset"
+    tokenizer_path: "tokenizer/sallm_bpe_tokenizer"
+    output_dir: "data/sallm_processed"
+
+  settings:
+    # TODO might need to do HPO with this rather than tokenizing it now?
+    max_seq_length: 2048
+    num_proc: 8
+    seed: 42
