@@ -29,6 +29,7 @@ def _apply_peft_if_needed(model, peft_cfg):
             target_modules=peft_kwargs.get("target_modules", ["q_proj", "v_proj"]),
             bias="none",
             task_type=peft.TaskType.CAUSAL_LM,
+            modules_to_save=["embed_tokens", "lm_head"],
         )
 
         return peft.get_peft_model(model, lora_conf)
@@ -117,6 +118,9 @@ def run(config: ExperimentConfig) -> None:
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
 
-    output_dir = os.path.join(trainer.args.output_dir, "final_model")
-    trainer.save_model(output_dir)
-    logger.info(f"Saved final model/adapter → {output_dir}")
+    merged_model = model.merge_and_unload()
+
+    output_dir = os.path.join(trainer.args.output_dir, "final_merged_model")
+    merged_model.save_pretrained(output_dir)
+    tokenizer.save_pretrained(output_dir)
+    logger.info(f"Saved final MERGED model to → {output_dir}")

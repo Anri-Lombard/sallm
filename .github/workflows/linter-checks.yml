@@ -1,23 +1,23 @@
 name: Linter and Formatter Checks
-
 'on': [push, pull_request]
 
 jobs:
   lint-and-format:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: |
-          pip install .[dev]
-          pip install pre-commit
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+          virtualenvs-create: false
 
-      - name: Run all pre-commit hooks (including yamllint)
-        run: pre-commit run --all-files --show-diff-on-failure
+      - run: poetry install --no-root
+
+      - run: poetry run yamllint --strict -c .yamllint .
+      - run: poetry run black --check .

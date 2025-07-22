@@ -2,7 +2,8 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-news-xho"
+  name: "llama-125m-news-eng"
+  # name: "llama-125m-news-xho"
 
 model:
   architecture: "llama"
@@ -17,8 +18,8 @@ peft:
 
 dataset:
   hf_name: "masakhane/masakhanews"
-  # subset: "eng"
-  subset: "xho"
+  subset: "eng"
+  # subset: "xho"
   # label_column: "label"
   splits: {train: "train", val: "validation"}
   templates:

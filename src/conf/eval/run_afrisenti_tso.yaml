@@ -1,21 +1,21 @@
 mode: EVALUATE
 
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages/final_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrisenti_tso/final_merged_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
-  peft_adapter: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages/final_model"
-  merge_lora: true
+  # peft_adapter: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages/final_model"
+  # merge_lora: true
 
 evaluation:
   task_packs:
-    - "masakhanews_xho"
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_news_xho"
+    - "afrisenti_tso"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_afrisenti_tso"
 
 wandb:
   project: "sallm-eval"
-  name: "eval-ft-llama-125m-masakhanews-xho"
+  name: "eval-ft-llama-125m-afrisenti-tso"
 
 model: null
 data: null
