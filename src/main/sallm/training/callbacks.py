@@ -22,7 +22,7 @@ class ShowCompletionsCallback(TrainerCallback):
         eval_dataset: Dataset,
         tokenizer: AutoTokenizer,
         num_samples: int = 5,
-        max_new_tokens: int = 6,
+        max_new_tokens: int = 100,
     ):
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer

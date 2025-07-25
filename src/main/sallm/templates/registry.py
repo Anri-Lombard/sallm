@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import yaml
 from pydantic import BaseModel
 
@@ -14,7 +14,8 @@ _TASK_INDEX: Dict[str, List[str]] = {}
 class TemplateSpec(BaseModel):
     id: str
     prompt: str
-    label_mapping: Dict[int | str, str]
+    label_mapping: Optional[Dict[int | str, str]] = None
+    ner_tags: Optional[List[str]] = None
     task: str
 
 
