@@ -100,6 +100,13 @@ class TaskType(str, Enum):
     CLASSIFICATION = "classification"
 
 
+# TODO choose this or tasktype?
+class FinetuneTaskType(str, Enum):
+    INSTRUCTION = "instruction"
+    CLASSIFICATION = "classification"
+    NAMED_ENTITY_RECOGNITION = "named_entity_recognition"
+
+
 @dataclass
 class TemplateRef:
     id: str = MISSING
@@ -110,6 +117,7 @@ class TemplateRef:
 class FinetuneDatasetConfig:
     hf_name: str = MISSING
     subset: Optional[str] = None
+    task: Optional[FinetuneTaskType] = None
     splits: Dict[str, str] = field(default_factory=dict)
     templates: List[TemplateRef] = field(default_factory=list)
     max_seq_length: int = MISSING

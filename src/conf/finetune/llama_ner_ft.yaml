@@ -19,6 +19,7 @@ peft:
 dataset:
   hf_name: "masakhane/masakhaner2"
   subset: "xho"
+  task: NAMED_ENTITY_RECOGNITION
   # subset: "zul"
   splits: {train: "train", val: "validation"}
   templates:

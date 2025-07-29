@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Any, Dict, List
 from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
 from transformers import AutoTokenizer
 
-from sallm.config import ExperimentConfig, RunMode
+from sallm.config import ExperimentConfig, RunMode, FinetuneTaskType
 from sallm.templates import registry as tmpl
 
 
@@ -63,12 +63,14 @@ def build_datasets(
             ds_cfg.subset,
             split=split_map["train"],
             trust_remote_code=True,
+            # streaming=True,
         )
         val_raw = load_dataset(
             ds_cfg.hf_name,
             ds_cfg.subset,
             split=split_map["val"],
             trust_remote_code=True,
+            # streaming=True,
         )
 
         train_ds = _build_finetune_dataset(train_raw, config)
@@ -99,10 +101,26 @@ def _build_finetune_dataset(
     cfg: ExperimentConfig,
 ) -> Dataset:
     ds_cfg = cfg.dataset
-    template_spec = tmpl.get(ds_cfg.templates[0].id)
+    assert (
+        ds_cfg.task is not None
+    ), "A `dataset.task` must be specified for fine-tuning."
 
-    # TODO: use enum tasks?
-    if template_spec.task == "masakhane_named_entity_recognition":
+    if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
+
+        def to_messages(ex):
+            return {
+                "messages": [
+                    {"role": "user", "content": ex["instruction"]},
+                    {"role": "assistant", "content": ex["output"]},
+                ]
+            }
+
+        map_function, desc = to_messages, "Format AfriInstruct to chat"
+
+    elif ds_cfg.task == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
+        # TODO don't index into templates[0] if multiple templates are used
+        template_spec = tmpl.get(ds_cfg.templates[0].id)
+
         tag_map = template_spec.ner_tags
         if not tag_map:
             raise ValueError(
@@ -130,7 +148,8 @@ def _build_finetune_dataset(
         map_function = to_messages_format_ner
         desc = "Formatting dataset for NER"
 
-    else:
+    elif ds_cfg.task == FinetuneTaskType.CLASSIFICATION:
+        template_spec = tmpl.get(ds_cfg.templates[0].id)
         label_column = getattr(ds_cfg, "label_column", "label")
         if not template_spec.label_mapping:
             raise ValueError(
@@ -176,6 +195,8 @@ def _build_finetune_dataset(
 
         map_function = to_messages_format_classification
         desc = "Formatting dataset into 'messages' format"
+    else:
+        raise ValueError(f"Unsupported task type: {ds_cfg.task}")
 
     processed_ds = raw_ds.map(
         map_function,

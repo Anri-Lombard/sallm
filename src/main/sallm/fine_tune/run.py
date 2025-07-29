@@ -71,10 +71,21 @@ def run(config: ExperimentConfig) -> None:
 
     if tokenizer.chat_template is None:
         # TODO: move this template to it's own file
-        tokenizer.chat_template = """{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|system|>\\n' + message['content'] + '<|end|>\\n' }}{% elif message['role'] == 'user' %}{{ '<|user|>\\n' + message['content'] + '<|end|>\\n' }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\\n' + message['content'] + '<|end|>\\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|assistant|>\\n' }}{% else %}{{ eos_token }}{% endif %}"""
-        logger.info(
-            "Tokenizer chat template not found. Applying custom template provided."
-        )
+        tokenizer.chat_template = r"""
+            {% for message in messages %}
+            {% if message['role'] == 'system' %}
+            {{ '<|system|>\n' + message['content'] + '<|end|>\n' }}
+            {% elif message['role'] == 'user' %}
+            {{ '<|user|>\n' + message['content'] + '<|end|>\n' }}
+            {% elif message['role'] == 'assistant' %}
+            {{ '<|assistant|>\n' }}{% generation %}
+            {{ message['content'] }}{% endgeneration %}
+            {{ '<|end|>\n' }}
+            {% endif %}{% endfor %}
+            {% if add_generation_prompt %}{{ '<|assistant|>\n' }}{% else %}{{ eos_token }}{% endif %}
+            """
+
+        logger.info("Tokenizer chat template not found. Applying default template.")
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

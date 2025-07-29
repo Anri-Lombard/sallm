@@ -14,6 +14,10 @@ CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
 export TOKENIZERS_PARALLELISM="false"
+export HF_HOME="$SCRATCH/hf"
+export TRANSFORMERS_CACHE="$HF_HOME/transformers"
+export HF_DATASETS_CACHE="$HF_HOME/datasets"
+export HF_METRICS_CACHE="$HF_HOME/metrics"
 
 echo "--- Checking GPU availability ---"
 nvidia-smi
