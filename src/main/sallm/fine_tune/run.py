@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import textwrap
 import torch
 import wandb
 import os
@@ -71,19 +72,24 @@ def run(config: ExperimentConfig) -> None:
 
     if tokenizer.chat_template is None:
         # TODO: move this template to it's own file
-        tokenizer.chat_template = r"""
-            {% for message in messages %}
-            {% if message['role'] == 'system' %}
-            {{ '<|system|>\n' + message['content'] + '<|end|>\n' }}
-            {% elif message['role'] == 'user' %}
-            {{ '<|user|>\n' + message['content'] + '<|end|>\n' }}
-            {% elif message['role'] == 'assistant' %}
-            {{ '<|assistant|>\n' }}{% generation %}
-            {{ message['content'] }}{% endgeneration %}
-            {{ '<|end|>\n' }}
-            {% endif %}{% endfor %}
-            {% if add_generation_prompt %}{{ '<|assistant|>\n' }}{% else %}{{ eos_token }}{% endif %}
+        tokenizer.chat_template = textwrap.dedent(
+            """\
+            {%- if system_message %}
+            <|system|>
+            {{ system_message }}<|end|>
+            {%- endif %}
+            {%- for message in messages %}
+            {%- if message['role'] == 'user' %}
+            <|user|>
+            {{ message['content'] }}<|end|>
+            {%- elif message['role'] == 'assistant' %}
+            <|assistant|>
+            {{ message['content'] }}<|end|>
+            {%- endif %}
+            {%- endfor %}
+            {%- if add_generation_prompt %}<|assistant|>{%- else %}{{ eos_token }}{%- endif %}
             """
+        )
 
         logger.info("Tokenizer chat template not found. Applying default template.")
 

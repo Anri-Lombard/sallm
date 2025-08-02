@@ -12,6 +12,7 @@ class TaskPack(BaseModel):
     tasks: List[str]
     fewshot: int = 0
     batch_size: int = 8
+    apply_chat_template: bool = True
     lm_eval_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
     def to_lm_eval_kwargs(self) -> Dict[str, Any]:

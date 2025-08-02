@@ -6,3 +6,4 @@ trash/
 __pycache__
 sallm.egg-info/
 .venv/
+.DS_Store

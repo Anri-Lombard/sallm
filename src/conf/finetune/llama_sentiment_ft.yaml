@@ -20,6 +20,7 @@ dataset:
   subset: "tso"
   # label_column: "label"
   splits: {train: "train", val: "validation"}
+  task: CLASSIFICATION
   templates:
     - {id: "afrisenti_sentiment_classification/v1", weight: 1.0}
   # TODO add template choice

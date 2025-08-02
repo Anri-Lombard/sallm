@@ -31,7 +31,10 @@ def run(config: ExperimentConfig) -> None:
 
     tokenizer = build_tokenizer(config)
     model = build_model(config, tokenizer)
-    train_ds, val_ds, test_ds = build_datasets(config, is_hpo=is_hpo_run)
+
+    model.tokenizer = tokenizer
+
+    train_ds, val_ds, test_ds = build_datasets(config, tokenizer, is_hpo=is_hpo_run)
 
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
     trainer.train(resume_from_checkpoint=config.training.get("resume_from_checkpoint"))

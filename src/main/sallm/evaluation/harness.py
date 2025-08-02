@@ -89,6 +89,7 @@ def evaluate_pack(
     task_list = pack_over.get("tasks", pack.tasks)
     fewshot = pack_over.get("fewshot", pack.fewshot)
     batch_size = pack_over.get("batch_size", pack.batch_size)
+    apply_chat_template = pack_over.get("apply_chat_template", pack.apply_chat_template)
 
     _ = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
 
@@ -109,6 +110,7 @@ def evaluate_pack(
             tasks=task_list,
             num_fewshot=fewshot,
             batch_size=batch_size,
+            apply_chat_template=apply_chat_template,
         )
     except TypeError as e:
         raise ValueError(
