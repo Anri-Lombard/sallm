@@ -17,7 +17,6 @@ prompt: |
   topics. 
   religion: The text talks about religions, religious institutions and
   beliefs or related topics. 
-  
   business: The text covers economy, business, or
   related topics. 
 
@@ -25,7 +24,8 @@ prompt: |
   topic. For ambiguous or unclear topics, select the category that best reflects
   the overall content. Please provide a single classification for each input.
   
-  text: {{headline_text}} \\category: 
+  text: {headline_text}
+  category: 
   
   
 label_mapping:

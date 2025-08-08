@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Optional, Tuple, Any, Dict, List
 
-from datasets import Dataset, DatasetDict, load_from_disk, load_dataset
+from datasets import (
+    Dataset,
+    DatasetDict,
+    load_from_disk,
+    load_dataset,
+    get_dataset_config_names,
+)
 from transformers import AutoTokenizer
 
 from sallm.config import ExperimentConfig, RunMode, FinetuneTaskType
@@ -53,25 +59,37 @@ def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
 ) -> Tuple[Dataset, Dataset, Optional[Dataset]]:
     if config.mode == RunMode.FINETUNE:
-        assert config.dataset, "Finetune mode requires a `dataset` block in the config."
-
+        assert config.dataset, "Finetune mode requires a `dataset` block."
         ds_cfg = config.dataset
-        split_map = ds_cfg.splits
+        splits = ds_cfg.splits
+        lang_tag = ds_cfg.subset
+
+        available_configs = get_dataset_config_names(
+            ds_cfg.hf_name, trust_remote_code=True
+        )
+        load_name = ds_cfg.subset
+        filter_after_load = False
+
+        if ds_cfg.subset not in available_configs:
+            load_name = None
+            filter_after_load = True
 
         train_raw = load_dataset(
             ds_cfg.hf_name,
-            ds_cfg.subset,
-            split=split_map["train"],
+            name=load_name,
+            split=splits["train"],
             trust_remote_code=True,
-            # streaming=True,
         )
         val_raw = load_dataset(
             ds_cfg.hf_name,
-            ds_cfg.subset,
-            split=split_map["val"],
+            name=load_name,
+            split=splits["val"],
             trust_remote_code=True,
-            # streaming=True,
         )
+
+        if filter_after_load and lang_tag:
+            train_raw = train_raw.filter(lambda ex: ex["lang"] == lang_tag)
+            val_raw = val_raw.filter(lambda ex: ex["lang"] == lang_tag)
 
         train_ds = _build_finetune_dataset(train_raw, config)
         val_ds = _build_finetune_dataset(val_raw, config)
@@ -82,8 +100,7 @@ def build_datasets(
 
     if not isinstance(dataset_dict, DatasetDict):
         raise TypeError(
-            f"Expected data at {data_conf.path} to be a DatasetDict, "
-            f"but found {type(dataset_dict)}"
+            f"Expected DatasetDict at {data_conf.path}, found {type(dataset_dict)}"
         )
 
     train_ds = dataset_dict[data_conf.train_split]
@@ -136,7 +153,7 @@ def _build_finetune_dataset(
             reconstructed_entities = _reconstruct_entities_from_iob(
                 ex["tokens"], ex["ner_tags"], tag_map
             )
-            assistant_response = " $ ".join(reconstructed_entities)
+            assistant_response = " $$ ".join(reconstructed_entities)
 
             return {
                 "messages": [

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import torch
@@ -27,58 +27,6 @@ def _safe_json_encoder(obj):
     return str(obj)
 
 
-_SUPPORTED_LANGS: List[str] = [
-    "afr",
-    "xho",
-    "zul",
-    "nso",
-    "sot",
-    "ssw",
-    "tsn",
-    "tso",
-    "ven",
-    "eng",
-    "nbl",
-]
-
-
-def _filter_tasks_by_lang(task_names: list[str]) -> list[str]:
-    def has_lang(tokens):
-        return any(tok in _SUPPORTED_LANGS for tok in tokens)
-
-    return [t for t in task_names if has_lang(t.split("_"))]
-
-
-class ChatHFLM(HFLM):
-    def _wrap_prompt(self, prompt: str) -> str:
-        messages = [{"role": "user", "content": prompt}]
-        return self.tokenizer.apply_chat_template(
-            messages,
-            add_generation_prompt=True,
-            tokenize=False,
-        )
-
-    def generate(
-        self,
-        requests,
-        max_length=512,
-        temperature=0.0,
-        top_p=1.0,
-        **gen_kwargs,
-    ):
-        if isinstance(requests, str):
-            requests = [requests]
-
-        wrapped = [self._wrap_prompt(p) for p in requests]
-        return super().generate(
-            wrapped,
-            max_length=max_length,
-            temperature=temperature,
-            top_p=top_p,
-            **gen_kwargs,
-        )
-
-
 def evaluate_pack(
     pack: TaskPack,
     model_cfg: ModelEvalConfig,
@@ -91,10 +39,11 @@ def evaluate_pack(
     batch_size = pack_over.get("batch_size", pack.batch_size)
     apply_chat_template = pack_over.get("apply_chat_template", pack.apply_chat_template)
 
-    _ = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
+    tok = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
 
-    hf_model = ChatHFLM(
+    hf_model = HFLM(
         pretrained=model_cfg.checkpoint,
+        tokenizer=tok,
         peft=model_cfg.peft_adapter,
         device=model_cfg.device,
         dtype=model_cfg.dtype,
@@ -111,6 +60,8 @@ def evaluate_pack(
             num_fewshot=fewshot,
             batch_size=batch_size,
             apply_chat_template=apply_chat_template,
+            log_samples=True,
+            write_out=True,
         )
     except TypeError as e:
         raise ValueError(

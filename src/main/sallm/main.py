@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import sys
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -18,11 +19,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def setup_logging(config: DictConfig) -> None:
+    log_handlers = [logging.StreamHandler(sys.stdout)]
+
+    log_file_path = None
+    if config.training:
+        log_file_path = config.training.get("log_file")
+
+    if log_file_path:
+        log_handlers.append(logging.FileHandler(log_file_path))
+        print(f"Logging text output to: {log_file_path}")
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s — %(levelname)s — %(message)s",
+        handlers=log_handlers,
+    )
+
+
 @hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
     unwrapped_cfg = cfg
 
-    # Dynamically detect if the config is nested inside a group key.
     keys_in_cfg = list(cfg.keys())
     if (
         len(keys_in_cfg) == 1
@@ -34,9 +52,10 @@ def main(cfg: DictConfig) -> None:
         )
         unwrapped_cfg = cfg[group_name]
 
-    # Now, perform the merge with the (potentially unwrapped) config.
     schema = OmegaConf.structured(ExperimentConfig)
     config = OmegaConf.merge(schema, unwrapped_cfg)
+
+    setup_logging(config)
 
     logger.info(f"Run mode: {config.mode.value}")
 

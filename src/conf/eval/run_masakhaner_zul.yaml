@@ -5,7 +5,7 @@ eval_model:
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
-  merge_lora: true
+  merge_lora: false
 
 evaluation:
   task_packs:

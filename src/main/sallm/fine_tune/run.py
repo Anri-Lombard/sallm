@@ -62,7 +62,6 @@ def run(config: ExperimentConfig) -> None:
             "<|system|>",
             "<|user|>",
             "<|assistant|>",
-            "<|end|>",
         ]
     }
     num_added_tokens = tokenizer.add_special_tokens(special_tokens_dict)
@@ -76,18 +75,20 @@ def run(config: ExperimentConfig) -> None:
             """\
             {%- if system_message %}
             <|system|>
-            {{ system_message }}<|end|>
+            {{ system_message }}{{ eos_token }}
             {%- endif %}
             {%- for message in messages %}
-            {%- if message['role'] == 'user' %}
-            <|user|>
-            {{ message['content'] }}<|end|>
-            {%- elif message['role'] == 'assistant' %}
-            <|assistant|>
-            {{ message['content'] }}<|end|>
-            {%- endif %}
+                {%- if message['role'] == 'user' %}
+                    <|user|>
+                    {{ message['content'] }}{{ eos_token }}
+                {%- elif message['role'] == 'assistant' %}
+                    {%- generation -%}
+                    <|assistant|>
+                    {{ message['content'] }}{{ eos_token }}
+                    {%- endgeneration -%}
+                {%- endif %}
             {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>{%- else %}{{ eos_token }}{%- endif %}
+            {%- if add_generation_prompt %}<|assistant|>\n{%- endif %}
             """
         )
 
