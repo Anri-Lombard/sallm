@@ -31,6 +31,6 @@ dependencies:
 
   # Pip-only or specific version dependencies
   - pip:
-    - "causal-conv1d"
-    # - "mamba-ssm"
-    - "types-pyyaml"
+      - "accelerate"
+      - "types-pyyaml"
+      - "tabulate"

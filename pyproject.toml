@@ -46,12 +46,15 @@ python_version = "3.12"
 warn_return_any = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
+exclude = ["trash"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
     "tests",
 ]
+# TODO update when/if we add tests
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+

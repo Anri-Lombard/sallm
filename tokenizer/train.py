@@ -1,9 +1,8 @@
-# TODO consider replacing tokenizer with sentencepiece?
 import yaml
 import argparse
 from pathlib import Path
 import os
-from typing import Any, Dict, Iterator
+from typing import Any, Iterator
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
@@ -19,7 +18,7 @@ from tokenizers.processors import TemplateProcessing
 
 
 # TODO restructure library to use pydantic models for loading configs
-def load_config(config_path: Path) -> Dict[str, Any]:
+def load_config(config_path: Path) -> Any:
     with config_path.open("r") as f:
         data = yaml.safe_load(f)
         if not isinstance(data, dict):
@@ -36,8 +35,8 @@ def train_tokenizer(config: dict) -> None:
 
     vocab_size = model_config["vocab_size"]
     special_tokens = model_config["special_tokens"]
-    train_dir = Path(path_config["train_data_dir"])
-    output_dir = Path(path_config["output_dir"])
+    train_dir = Path(path_config["train_data_file"])
+    output_dir = Path(path_config["output_file"])
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
     # TODO these necessary/useful according to research?
