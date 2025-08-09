@@ -21,4 +21,4 @@ tasks:
   # - afrimmlu_direct_sot_prompt_5
 fewshot: 0
 batch_size: 4
-apply_chat_template: false
+apply_chat_template: true

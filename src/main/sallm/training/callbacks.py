@@ -85,15 +85,11 @@ class ShowCompletionsCallback(TrainerCallback):
                 )
 
             generated_ids = gen_ids[0][inputs.shape[-1] :]
-            generated_completion = (
-                self.tokenizer.decode(
-                    generated_ids,
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True,
-                )
-                .replace("Ċ", "\n")
-                .replace("Ġ", " ")
-                .strip()
+            generated_completion = self.tokenizer.decode(
+                generated_ids,
+                # skip_special_tokens=True,
+                skip_special_tokens=False,
+                clean_up_tokenization_spaces=True,
             )
 
             prompt_text_for_log = self.tokenizer.apply_chat_template(

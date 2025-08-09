@@ -2,7 +2,7 @@
 id: "masakhanews_v5"
 prompt: |
   You are tasked with performing topic classification on the following
-  Xhosa text. For each input, classify the topic as technology, business, politics,
+  text. For each input, classify the topic as technology, business, politics,
   sports, health, entertainment, or religion. Use the following guidelines:
 
   technology: The text discusses scientific discoveries, technological advancements,

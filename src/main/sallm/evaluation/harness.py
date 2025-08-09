@@ -10,6 +10,7 @@ import lm_eval
 from lm_eval.models.huggingface import HFLM
 from peft import PeftModel
 from transformers import AutoTokenizer
+from tokenizers.decoders import ByteLevel
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
@@ -40,6 +41,7 @@ def evaluate_pack(
     apply_chat_template = pack_over.get("apply_chat_template", pack.apply_chat_template)
 
     tok = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
+    tok.backend_tokenizer.decoder = ByteLevel()
 
     hf_model = HFLM(
         pretrained=model_cfg.checkpoint,
@@ -49,6 +51,10 @@ def evaluate_pack(
         dtype=model_cfg.dtype,
         trust_remote_code=True,
     )
+
+    genconf = hf_model.model.generation_config
+    genconf.eos_token_id = tok.eos_token_id
+    genconf.pad_token_id = tok.pad_token_id or tok.eos_token_id
 
     if model_cfg.merge_lora and isinstance(hf_model.model, PeftModel):
         hf_model._model = hf_model.model.merge_and_unload()

@@ -1,4 +1,4 @@
-id: "masakhaner_v1"
+id: "masakhaner_v5"
 prompt: |
   Provide a concise list of named entities in the text below. Use the
   following labels: PERSON, LOCATION, ORGANIZATION, and DATE. Ensure the output

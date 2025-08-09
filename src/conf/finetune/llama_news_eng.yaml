@@ -2,8 +2,7 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  # name: "llama-125m-news-eng"
-  name: "llama-125m-news-xho"
+  name: "llama-125m-news-eng"
 
 model:
   architecture: "llama"
@@ -18,12 +17,9 @@ peft:
 
 dataset:
   hf_name: "masakhane/masakhanews"
-  # subset: "eng"
-  subset: "xho"
-  # label_column: "label"
+  subset: "eng"
   splits: {train: "train", val: "validation"}
   templates:
-    # - {id: "masakhane_news_classification/v1", weight: 1.0}
     - {id: "masakhane_news_classification/v5", weight: 1.0}
   # TODO add template choice
   # template_choice: CYCLE
@@ -35,10 +31,8 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  # output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_eng"
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_xho"
-  # logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_eng"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_xho"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_eng"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_eng"
   run_name: "llama-125m-news-lora-finetune-messages"
   learning_rate: 3.0e-5
   # weight_decay: 0.1

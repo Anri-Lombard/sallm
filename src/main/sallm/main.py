@@ -3,7 +3,7 @@ import logging
 import sys
 
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 from sallm.config import ExperimentConfig
 from sallm.utils import RunMode
@@ -13,28 +13,48 @@ from sallm.fine_tune.run import run as run_fine_tune
 from sallm.evaluation.run import run as run_eval
 from sallm.pipeline.run import run as run_orch
 
+import os
+from transformers.trainer_utils import is_main_process
+from transformers.utils import logging as hf_logging
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s — %(levelname)s — %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
+def _is_main_process() -> bool:
+    local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
+    return (local_rank == -1) or is_main_process(local_rank)
+
+
 def setup_logging(config: DictConfig) -> None:
+    is_main = bool(OmegaConf.select(config, "runtime.is_main") or True)
     log_handlers = [logging.StreamHandler(sys.stdout)]
 
-    log_file_path = None
-    if config.training:
-        log_file_path = config.training.get("log_file")
+    if is_main:
+        log_handlers = [logging.StreamHandler(sys.stdout)]
 
-    if log_file_path:
-        log_handlers.append(logging.FileHandler(log_file_path))
-        print(f"Logging text output to: {log_file_path}")
+        log_file_path = None
+        if config.training:
+            log_file_path = config.training.get("log_file")
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s — %(levelname)s — %(message)s",
-        handlers=log_handlers,
-    )
+        if log_file_path:
+            log_handlers.append(logging.FileHandler(log_file_path))
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s — %(levelname)s — %(message)s",
+            handlers=log_handlers,
+        )
+    else:
+        logging.basicConfig(handlers=[logging.NullHandler()])
+        logging.getLogger().setLevel(logging.CRITICAL)
+        logging.disable(logging.CRITICAL)
+
+        hf_logging.set_verbosity_error()
+
+        os.environ.setdefault("TQDM_DISABLE", "1")
 
 
 @hydra.main(config_path="../../conf", config_name="config", version_base=None)
@@ -54,6 +74,10 @@ def main(cfg: DictConfig) -> None:
 
     schema = OmegaConf.structured(ExperimentConfig)
     config = OmegaConf.merge(schema, unwrapped_cfg)
+
+    is_main = _is_main_process()
+    with open_dict(config):
+        config["runtime"] = {"is_main": is_main}
 
     setup_logging(config)
 

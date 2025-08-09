@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 def run(config: ExperimentConfig) -> None:
     is_hpo_run = config.wandb.id is not None and "sweep" in config.wandb.id
 
-    if config.wandb and config.wandb.project:
-        if not is_hpo_run:
-            wandb.init(
-                project=config.wandb.project,
-                entity=config.wandb.entity,
-                group=config.wandb.group,
-                name=config.wandb.name,
-                id=config.wandb.id,
-                config=OmegaConf.to_container(
-                    config, resolve=True, throw_on_missing=True
-                ),
-            )
-            if config.wandb.id:
-                wandb.config.update({"resume": "allow"})
+    sel = OmegaConf.select(config, "runtime.is_main")
+    i_am_main = bool(True if sel is None else sel)
+
+    if config.wandb and config.wandb.project and (not is_hpo_run) and i_am_main:
+        wandb.init(
+            project=config.wandb.project,
+            entity=config.wandb.entity,
+            group=config.wandb.group,
+            name=config.wandb.name,
+            id=config.wandb.id,
+            config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+        )
+        if config.wandb.id:
+            wandb.config.update({"resume": "allow"})
 
     tokenizer = build_tokenizer(config)
     model = build_model(config, tokenizer)

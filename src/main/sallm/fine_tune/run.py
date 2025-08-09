@@ -38,7 +38,10 @@ def _apply_peft_if_needed(model, peft_cfg):
 
 
 def run(config: ExperimentConfig) -> None:
-    if config.wandb and config.wandb.project:
+    sel = OmegaConf.select(config, "runtime.is_main")
+    i_am_main = bool(True if sel is None else sel)
+
+    if config.wandb and config.wandb.project and i_am_main:
         wandb.init(
             project=config.wandb.project,
             entity=config.wandb.entity,
@@ -72,7 +75,7 @@ def run(config: ExperimentConfig) -> None:
     if tokenizer.chat_template is None:
         # TODO: move this template to it's own file
         tokenizer.chat_template = textwrap.dedent(
-            """\
+            """
             {%- if system_message %}
             <|system|>
             {{ system_message }}{{ eos_token }}
@@ -88,7 +91,7 @@ def run(config: ExperimentConfig) -> None:
                     {%- endgeneration -%}
                 {%- endif %}
             {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>\n{%- endif %}
+            {%- if add_generation_prompt %}<|assistant|> {%- endif %}
             """
         )
 

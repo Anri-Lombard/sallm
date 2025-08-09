@@ -1,6 +1,7 @@
 import logging
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from tokenizers.decoders import ByteLevel
 
 from sallm.config import ExperimentConfig
 from sallm.models.registry import MODEL_CONFIG_REGISTRY, MODEL_CLASS_REGISTRY
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
+    tokenizer.backend_tokenizer.decoder = ByteLevel()
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
