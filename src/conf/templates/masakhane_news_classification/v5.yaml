@@ -6,28 +6,27 @@ prompt: |
   sports, health, entertainment, or religion. Use the following guidelines:
 
   technology: The text discusses scientific discoveries, technological advancements,
-  or related topics. 
+  or related topics.
   politics: The text covers political events, policies, or
-  related topics. 
+  related topics.
   sports: The text talks about sports events, athletes, or related
-  topics. 
+  topics.
   health: The text addresses health issues, medical advancements, or related
-  topics. 
+  topics.
   entertainment: The text pertains to movies, music, celebrities, or related
-  topics. 
+  topics.
   religion: The text talks about religions, religious institutions and
-  beliefs or related topics. 
+  beliefs or related topics.
   business: The text covers economy, business, or
-  related topics. 
+  related topics.
 
   If the text contains multiple topics, choose the dominant
   topic. For ambiguous or unclear topics, select the category that best reflects
   the overall content. Please provide a single classification for each input.
-  
+
   text: {headline_text}
-  category: 
-  
-  
+  category:
+
 label_mapping:
   0: "business"
   1: "entertainment"
