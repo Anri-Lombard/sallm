@@ -3,7 +3,7 @@
 #SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=2
+#SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-gpu=2
 #SBATCH --job-name="sallm-hpo-agent"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
@@ -24,14 +24,17 @@ if [ ! -f "$SWEEP_CONFIG_PATH" ]; then
     exit 1
 fi
 
+export SCRATCH="/scratch/lmbanr001"
+export HOME="/home/lmbanr001"
+
 echo "Setting up environment..."
 module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate sallm-ner
-pip uninstall -y sallm
-pip cache purge
-pip install --ignore-installed -e .
+# pip uninstall -y sallm
+# pip cache purge
+# pip install --user -e .
 echo "Environment ready."
 
 SWEEP_ID_FILE="$(dirname "$SWEEP_CONFIG_PATH")/.$(basename "$SWEEP_CONFIG_PATH" .yaml).id"

@@ -1,0 +1,16 @@
+id: "afrisenti_v1"
+prompt: "You are tasked with performing sentiment classification on the following\nXithonga
+  text. For each input, classify the sentiment as positive, negative, or\nneutral.
+  Use the following guidelines:\n#magic___^_^___line\nPositive: The text expresses
+  happiness, satisfaction, or optimism.\nNegative: The text conveys disappointment,
+  dissatisfaction, or pessimism.\nNeutral: The text is factual, objective, or without
+  strong emotional undertones.\n#magic___^_^___line\nIf the text contains both positive
+  and negative sentiments, choose\nthe dominant sentiment. For ambiguous or unclear
+  sentiments, select the label\nthat best reflects the overall tone. Please provide
+  a single classification for\neach input.\n#magic___^_^___line\ntext: {tweet}\nlabel:
+  \n"
+label_mapping:
+  0: "Neutral"
+  1: "Positive"
+  2: "Negative"
+task: "afrisenti_sentiment_classification"

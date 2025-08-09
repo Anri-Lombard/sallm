@@ -1,5 +1,7 @@
 data/**/
 trash/
+.mypy_cache
+.ruff_cache
 *.json
 __pycache__/
 *.pyc

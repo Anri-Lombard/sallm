@@ -1,108 +1,163 @@
-import os
-from typing import Any, Dict, Optional, Union
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass, field
+from omegaconf import MISSING
 
-import regex as re
-import yaml
-from pydantic import BaseModel, Field, field_validator
-
-from sallm.models.registry import MODEL_CONFIG_REGISTRY
 from sallm.utils import RunMode
 
 
-class ParamRangeConfig(BaseModel):
-    min_params_m: float = Field(..., description="Minimum parameters in millions.")
-    max_params_m: float = Field(..., description="Maximum parameters in millions.")
+@dataclass
+class ScriptArguments:
+    config_path: str = field(
+        metadata={"help": "Path to the main YAML experiment config file."}
+    )
+    wandb_run_id: Optional[str] = field(
+        default=None,
+        metadata={"help": "Wandb run ID to resume a specific crashed trial."},
+    )
 
 
-class WandbConfig(BaseModel):
-    project: str
+@dataclass
+class ParamRangeConfig:
+    min_params_m: float = MISSING
+    max_params_m: float = MISSING
+
+
+@dataclass
+class WandbConfig:
+    project: str = MISSING
     entity: Optional[str] = None
     group: Optional[str] = None
-    name: Optional[str] = None
+    name: Optional[str] = MISSING
     id: Optional[str] = None
 
 
-class ModelConfig(BaseModel):
-    architecture: str
-    config: Dict[str, Any]
+@dataclass
+class EvaluationConfig:
+    task_packs: List[str] = field(default_factory=list)
+    output_dir: str = MISSING
+    overrides: Dict[str, Any] = field(default_factory=dict)
+    wandb: Optional[WandbConfig] = MISSING
+
+
+@dataclass
+class PeftLoadConfig:
+    path: str = MISSING
+    merge: bool = True
+
+
+@dataclass
+class ModelEvalConfig:
+    checkpoint: str = MISSING
+    adapter: str = "hf"
+    dtype: str = "bfloat16"
+    device: str = "cuda:0"
+    peft_adapter: Optional[str] = None
+    merge_lora: bool = False
+
+    def __post_init__(self):
+        from pathlib import Path
+
+        if self.peft_adapter and not Path(self.peft_adapter).exists():
+            raise ValueError(f"PEFT adapter path '{self.peft_adapter}' does not exist.")
+
+
+@dataclass
+class ModelConfig:
+    architecture: str = MISSING
+    config: Optional[Dict[str, Any]] = None
+    init_checkpoint: Optional[str] = None
     param_validation: Optional[ParamRangeConfig] = None
 
-    @field_validator("architecture")
-    def validate_architecture(cls, v: str) -> str:
-        """Ensure the requested architecture is available in the registry."""
-        if v not in MODEL_CONFIG_REGISTRY:
+    def __post_init__(self):
+        if self.config is None and self.init_checkpoint is None:
             raise ValueError(
-                f"Unsupported architecture '{v}'. "
-                f"Available options are: {list(MODEL_CONFIG_REGISTRY.keys())}"
+                "Either `config` or `init_checkpoint` must be provided inside `model`."
             )
-        return v
 
 
-class DataConfig(BaseModel):
-    path: str
+@dataclass
+class DataConfig:
+    path: str = MISSING
     train_split: str = "train"
     eval_split: str = "validation"
     test_split: Optional[str] = "test"
 
 
-class TokenizerConfig(BaseModel):
-    path: str
+@dataclass
+class TokenizerConfig:
+    path: str = MISSING
 
 
-class TrainingConfig(BaseModel):
-    output_dir: str
-    learning_rate: float
-    num_train_epochs: int
-    weight_decay: float
-    per_device_train_batch_size: int
-    per_device_eval_batch_size: int
-    warmup_ratio: float
-    lr_scheduler_type: str
-    bf16: bool
-    logging_dir: str
-    logging_steps: int
-    evaluation_strategy: str
-    eval_steps: int
-    save_strategy: str
-    save_steps: int
-    save_total_limit: int
-    report_to: str
-    max_grad_norm: Optional[float] = None
-    resume_from_checkpoint: Union[bool, str, None] = None
-
-    # TODO be more specific?
-    class Config:
-        extra = "allow"
+class TemplateChoice(str, Enum):
+    CYCLE = "cycle"
+    RANDOM = "random"
+    ALL = "all"
 
 
-class ExperimentConfig(BaseModel):
+class TaskType(str, Enum):
+    CAUSAL_LM = "causal_lm"
+    CLASSIFICATION = "classification"
+
+
+# TODO choose this or tasktype?
+class FinetuneTaskType(str, Enum):
+    INSTRUCTION = "instruction"
+    CLASSIFICATION = "classification"
+    NAMED_ENTITY_RECOGNITION = "named_entity_recognition"
+
+
+@dataclass
+class TemplateRef:
+    id: str = MISSING
+    weight: float = 1.0
+
+
+@dataclass
+class FinetuneDatasetConfig:
+    hf_name: str = MISSING
+    subset: Optional[str] = None
+    task: Optional[FinetuneTaskType] = None
+    splits: Dict[str, str] = field(default_factory=dict)
+    templates: List[TemplateRef] = field(default_factory=list)
+    max_seq_length: int = MISSING
+    packing: bool = MISSING
+    assistant_only_loss: bool = MISSING
+
+
+@dataclass
+class PipelineConfig:
+    base_checkpoint: str = MISSING
+    languages: List[str] = field(default_factory=list)
+    task_name: str = MISSING
+    finetune_base_cfg: str = MISSING
+    eval_stub_cfg: str = MISSING
+    slurm_array: bool = False
+
+
+@dataclass
+class TemplateConfig:
+    prompt: str = MISSING
+    label_mapping: Dict[Union[int, str], str] = field(default_factory=dict)
+
+
+@dataclass
+class PeftConfig:
+    method: str = "qlora"
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ExperimentConfig:
     mode: RunMode
     wandb: WandbConfig
-    model: ModelConfig
-    data: DataConfig
-    tokenizer: TokenizerConfig
-    training: TrainingConfig
-
-
-# TODO load automatically
-def load_experiment_config(path: str) -> ExperimentConfig:
-    """Loads a YAML config file, expanding any environment variables."""
-    path_matcher = re.compile(r"\$\{([^}]+)\}")
-
-    def path_constructor(loader, node):
-        value = loader.construct_scalar(node)
-        match = path_matcher.search(value)
-        if match:
-            env_var = match.group(1)
-            return value.replace(f"${{{env_var}}}", os.environ.get(env_var, ""))
-        return value
-
-    class EnvVarLoader(yaml.SafeLoader):
-        pass
-
-    EnvVarLoader.add_constructor("tag:yaml.org,2002:str", path_constructor)
-
-    with open(path, "r") as f:
-        config_dict = yaml.load(f, Loader=EnvVarLoader)
-
-    return ExperimentConfig(**config_dict)
+    model: Optional[ModelConfig] = None
+    data: Optional[DataConfig] = None
+    tokenizer: Optional[TokenizerConfig] = None
+    training: Optional[Dict[str, Any]] = None
+    evaluation: Optional[EvaluationConfig] = None
+    eval_model: Optional[ModelEvalConfig] = None
+    dataset: Optional[FinetuneDatasetConfig] = None
+    peft: Optional[PeftConfig] = None
+    template: Optional[TemplateConfig] = None
+    pipeline: Optional[PipelineConfig] = None

@@ -1,0 +1,40 @@
+project: "sallm-arch-hpo"
+name: "llama-125m-arch-sweep"
+run_cap: 50
+method: bayes
+metric: {name: eval/loss, goal: minimize}
+
+program: sallm.main
+command:
+  - ${interpreter}
+  - -m
+  - accelerate.commands.accelerate_cli
+  - launch
+  - -m
+  - ${program}
+
+parameters:
+  config_path:
+    values:
+      - configs/sweeps/llama/125m/deepthin_gqa.yaml
+      - configs/sweeps/llama/125m/shallowwide.yaml
+      - configs/sweeps/llama/125m/deepnarrow.yaml
+
+  learning_rate:
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 6e-4
+  weight_decay:
+    distribution: uniform
+    min: 0.01
+    max: 0.1
+  warmup_ratio:
+    distribution: uniform
+    min: 0.01
+    max: 0.06
+  adam_beta2:
+    values: [0.95, 0.999]
+  gradient_accumulation_steps:
+    values: [1, 2, 4, 8]
+  lr_scheduler_type:
+    values: ["cosine", "linear"]

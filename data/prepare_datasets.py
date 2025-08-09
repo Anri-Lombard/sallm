@@ -67,7 +67,6 @@ class DataProcessor:
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-
         language_indexes = self._build_index()
         split_pointers = self._calculate_splits(language_indexes)
         self._create_and_save_splits(split_pointers)
@@ -175,7 +174,7 @@ class DataProcessor:
         self, split_pointers: Dict[str, List[FilePointer]]
     ) -> None:
         print("Phase 3: Generating and saving Hugging Face DatasetDict...")
-        
+
         dataset_splits = {}
         for split_name, pointers in split_pointers.items():
             if not pointers:
@@ -190,7 +189,7 @@ class DataProcessor:
             if split_name == "train":
                 print("  - Shuffling training set...")
                 dataset = dataset.shuffle(seed=self.seed)
-            
+
             dataset_splits[split_name] = dataset
 
         if not dataset_splits:

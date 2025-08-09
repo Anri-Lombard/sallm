@@ -1,0 +1,8 @@
+id: "afrisenti_v1"
+prompt: |
+  Does this statement; "{tweet}" have a Neutral, Positive or Negative sentiment? Labels only
+label_mapping:
+  0: "Neutral"
+  1: "Positive"
+  2: "Negative"
+task: "afrisenti_sentiment_classification"

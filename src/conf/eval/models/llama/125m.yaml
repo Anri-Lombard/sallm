@@ -1,0 +1,12 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+
+evaluation:
+  task_packs: ["masakhanews"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/eval/ft_llama_125m_news"
+  wandb: {project: "sallm-benchmarks", name: "ft-llama-news"}

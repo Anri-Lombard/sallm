@@ -1,32 +1,58 @@
 import logging
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from tokenizers.decoders import ByteLevel
 
 from sallm.config import ExperimentConfig
-from sallm.models.registry import MODEL_CONFIG_REGISTRY
+from sallm.models.registry import MODEL_CONFIG_REGISTRY, MODEL_CLASS_REGISTRY
 from sallm.utils import count_trainable_parameters
 
 logger = logging.getLogger(__name__)
 
 
 def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
-    return AutoTokenizer.from_pretrained(config.tokenizer.path)
+    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
+    tokenizer.backend_tokenizer.decoder = ByteLevel()
+
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        logger.info(
+            f"tokenizer.pad_token was not set, setting it to eos_token: {tokenizer.eos_token}"
+        )
+
+    return tokenizer
 
 
 def build_model(
     config: ExperimentConfig, tokenizer: AutoTokenizer
 ) -> AutoModelForCausalLM:
-    """
-    Builds a model from a configuration object by looking up the
-    architecture in the central registry.
-    """
     model_conf = config.model
+    model_class = MODEL_CLASS_REGISTRY.get(model_conf.architecture)
+
+    if not model_class:
+        raise ValueError(f"Unsupported model architecture: {model_conf.architecture}")
+
+    if getattr(model_conf, "init_checkpoint", None):
+        logger.info(
+            f"Loading model of type {model_class.__name__} from checkpoint: {model_conf.init_checkpoint}"
+        )
+        attn_impl = getattr(config.model, "attn_implementation", None)
+        model = model_class.from_pretrained(
+            model_conf.init_checkpoint,
+            attn_implementation=attn_impl,
+        )
+        return model
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
+    if model_conf.config is None:
+        raise ValueError(
+            "`model.config` is required when `init_checkpoint` is not provided."
+        )
+
     model_config_obj = config_class(**model_conf.config)
     model_config_obj.vocab_size = len(tokenizer)
 
-    model = AutoModelForCausalLM.from_config(model_config_obj)
+    model = model_class(model_config_obj)
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

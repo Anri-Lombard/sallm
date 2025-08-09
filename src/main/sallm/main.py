@@ -1,51 +1,98 @@
-import argparse
+from __future__ import annotations
 import logging
+import sys
 
-from sallm.config import load_experiment_config
-from sallm.training.run import run as run_train
+import hydra
+from omegaconf import DictConfig, OmegaConf, open_dict
+
+from sallm.config import ExperimentConfig
 from sallm.utils import RunMode
 
+from sallm.training.run import run as run_train
+from sallm.fine_tune.run import run as run_fine_tune
+from sallm.evaluation.run import run as run_eval
+from sallm.pipeline.run import run as run_orch
+
+import os
+from transformers.trainer_utils import is_main_process
+from transformers.utils import logging as hf_logging
+
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s — %(levelname)s — %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Modular Language Model Training Framework."
-    )
-    parser.add_argument(
-        "--config_path",
-        type=str,
-        required=True,
-        help="Path to the main YAML experiment config file.",
-    )
-    parser.add_argument(
-        "--wandb_run_id",
-        type=str,
-        default=None,
-        help="Wandb run ID to resume a specific crashed trial.",
-    )
-    cli_args = parser.parse_args()
+def _is_main_process() -> bool:
+    local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
+    return (local_rank == -1) or is_main_process(local_rank)
 
-    logger.info(f"Loading experiment configuration from: {cli_args.config_path}")
-    config = load_experiment_config(cli_args.config_path)
 
-    if cli_args.wandb_run_id:
-        logger.info(f"Received wandb run ID for resumption: {cli_args.wandb_run_id}")
-        config.wandb.id = cli_args.wandb_run_id
+def setup_logging(config: DictConfig) -> None:
+    is_main = bool(OmegaConf.select(config, "runtime.is_main") or True)
+    log_handlers = [logging.StreamHandler(sys.stdout)]
 
-    logger.info(f"Starting run in '{config.mode.value}' mode.")
+    if is_main:
+        log_handlers = [logging.StreamHandler(sys.stdout)]
+
+        log_file_path = None
+        if config.training:
+            log_file_path = config.training.get("log_file")
+
+        if log_file_path:
+            log_handlers.append(logging.FileHandler(log_file_path))
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s — %(levelname)s — %(message)s",
+            handlers=log_handlers,
+        )
+    else:
+        logging.basicConfig(handlers=[logging.NullHandler()])
+        logging.getLogger().setLevel(logging.CRITICAL)
+        logging.disable(logging.CRITICAL)
+
+        hf_logging.set_verbosity_error()
+
+        os.environ.setdefault("TQDM_DISABLE", "1")
+
+
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
+def main(cfg: DictConfig) -> None:
+    unwrapped_cfg = cfg
+
+    keys_in_cfg = list(cfg.keys())
+    if (
+        len(keys_in_cfg) == 1
+        and keys_in_cfg[0] not in ExperimentConfig.__dataclass_fields__
+    ):
+        group_name = keys_in_cfg[0]
+        logger.info(
+            f"Detected nested config group '{group_name}'. Unwrapping configuration."
+        )
+        unwrapped_cfg = cfg[group_name]
+
+    schema = OmegaConf.structured(ExperimentConfig)
+    config = OmegaConf.merge(schema, unwrapped_cfg)
+
+    is_main = _is_main_process()
+    with open_dict(config):
+        config["runtime"] = {"is_main": is_main}
+
+    setup_logging(config)
+
+    logger.info(f"Run mode: {config.mode.value}")
 
     if config.mode == RunMode.TRAIN:
         run_train(config)
     elif config.mode == RunMode.FINETUNE:
-        # TODO implement
-        raise NotImplementedError("Finetune mode is not yet implemented.")
+        run_fine_tune(config)
     elif config.mode == RunMode.EVALUATE:
-        # TODO implement
-        raise NotImplementedError("Evaluate mode is not yet implemented.")
+        run_eval(config)
+    elif config.mode == RunMode.ORCHESTRATE:
+        run_orch(config)
+    else:
+        raise ValueError(f"Unsupported mode {config.mode!r}")
 
 
 if __name__ == "__main__":

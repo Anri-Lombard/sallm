@@ -1,0 +1,7 @@
+formatter:
+  type: basic
+  indent: 2
+  pad_line_comments: 2     # <- was 1
+  max_line_length: 80
+  retain_line_breaks: true
+  scan_folded_as_literal: false

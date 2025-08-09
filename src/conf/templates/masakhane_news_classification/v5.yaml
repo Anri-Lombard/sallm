@@ -1,0 +1,38 @@
+# TODO: make multi language
+id: "masakhanews_v5"
+prompt: |
+  You are tasked with performing topic classification on the following
+  text. For each input, classify the topic as technology, business, politics,
+  sports, health, entertainment, or religion. Use the following guidelines:
+
+  technology: The text discusses scientific discoveries, technological advancements,
+  or related topics.
+  politics: The text covers political events, policies, or
+  related topics.
+  sports: The text talks about sports events, athletes, or related
+  topics.
+  health: The text addresses health issues, medical advancements, or related
+  topics.
+  entertainment: The text pertains to movies, music, celebrities, or related
+  topics.
+  religion: The text talks about religions, religious institutions and
+  beliefs or related topics.
+  business: The text covers economy, business, or
+  related topics.
+
+  If the text contains multiple topics, choose the dominant
+  topic. For ambiguous or unclear topics, select the category that best reflects
+  the overall content. Please provide a single classification for each input.
+
+  text: {headline_text}
+  category:
+
+label_mapping:
+  0: "business"
+  1: "entertainment"
+  2: "health"
+  3: "politics"
+  4: "religion"
+  5: "sports"
+  6: "technology"
+task: "masakhane_news_classification"

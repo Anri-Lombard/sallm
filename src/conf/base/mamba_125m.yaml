@@ -1,0 +1,65 @@
+mode: TRAIN
+
+wandb:
+  project: "sallm-mamba"
+  name: "125m-final"
+
+model:
+  architecture: "mamba2"
+  config:
+    hidden_size: 512
+    state_size: 64
+    num_hidden_layers: 27
+    expand: 4
+    num_heads: 32
+    head_dim: 64
+    n_groups: 4
+    vocab_size: 65536
+    tie_word_embeddings: true
+  param_validation:
+    min_params_m: 120.0
+    max_params_m: 130.0
+
+data:
+  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_processed"
+  train_split: "train"
+  eval_split: "validation"
+  test_split: "test"
+
+tokenizer:
+  path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-mamba-125m"
+
+  learning_rate: 4.0e-4
+  max_seq_length: 2048
+  lr_scheduler_type: "cosine"
+  warmup_steps: 2000
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+
+  per_device_train_batch_size: 12
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
+
+  num_train_epochs: 5
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_strategy: "steps"
+  save_steps: 500
+  save_total_limit: 2
+
+  bf16: true
+  bf16_full_eval: true
+  logging_steps: 10
+  report_to: "wandb"
+  prediction_loss_only: true
+  ddp_find_unused_parameters: false
+  # gradient_checkpointing:      true
+  torch_compile: true
+  dataloader_num_workers: 8
+  packing: false

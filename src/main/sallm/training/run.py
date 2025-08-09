@@ -1,6 +1,7 @@
 import logging
-
 import wandb
+import os
+from omegaconf import OmegaConf
 
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets
@@ -11,61 +12,39 @@ logger = logging.getLogger(__name__)
 
 
 def run(config: ExperimentConfig) -> None:
-    """
-    Executes a training run, which can be a standalone run or part of an HPO sweep.
-    """
-    run_instance = wandb.init(**config.wandb.model_dump(exclude_none=True))
+    is_hpo_run = config.wandb.id is not None and "sweep" in config.wandb.id
 
-    is_hpo_run = run_instance.sweep_id is not None
-    if is_hpo_run:
-        logger.info("Detected HPO run (part of a wandb sweep).")
-        for key, value in wandb.config.items():
-            if hasattr(config.training, key):
-                logger.info(f"  - Sweep override: {key} = {value}")
-                setattr(config.training, key, value)
-    else:
-        logger.info("Detected a single, standalone training run.")
+    sel = OmegaConf.select(config, "runtime.is_main")
+    i_am_main = bool(True if sel is None else sel)
 
-    logger.info("Building tokenizer...")
+    if config.wandb and config.wandb.project and (not is_hpo_run) and i_am_main:
+        wandb.init(
+            project=config.wandb.project,
+            entity=config.wandb.entity,
+            group=config.wandb.group,
+            name=config.wandb.name,
+            id=config.wandb.id,
+            config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+        )
+        if config.wandb.id:
+            wandb.config.update({"resume": "allow"})
+
     tokenizer = build_tokenizer(config)
-
-    logger.info("Building model...")
     model = build_model(config, tokenizer)
 
-    logger.info("Building datasets...")
-    train_dataset, eval_dataset, test_dataset = build_datasets(
-        config, is_hpo=is_hpo_run
-    )
+    model.tokenizer = tokenizer
 
-    logger.info(f"Train dataset size: {len(train_dataset)}")
-    logger.info(f"Evaluation dataset size: {len(eval_dataset)}")
-    if test_dataset:
-        logger.info(f"Test dataset size: {len(test_dataset)}")
-    elif not is_hpo_run:
-        logger.warning("No test set found or specified for this final training run.")
+    train_ds, val_ds, test_ds = build_datasets(config, tokenizer, is_hpo=is_hpo_run)
 
-    logger.info("Building trainer...")
-    trainer = build_trainer(config, model, tokenizer, train_dataset, eval_dataset)
-
-    logger.info("Starting training...")
-    trainer.train(resume_from_checkpoint=config.training.resume_from_checkpoint)
-    logger.info("Training finished.")
+    trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
+    trainer.train(resume_from_checkpoint=config.training.get("resume_from_checkpoint"))
 
     if not is_hpo_run:
-        final_model_path = f"{config.training.output_dir}/final_model"
-        logger.info(f"Saving final model to {final_model_path}...")
-        trainer.save_model(final_model_path)
-        logger.info("Model saved.")
-    else:
-        logger.info("HPO trial finished. Skipping final model save to conserve space.")
+        out = os.path.join(trainer.args.output_dir, "final_model")
+        trainer.save_model(out)
+        logger.info(f"Saved model → {out}")
 
-    if test_dataset:
-        logger.info("Starting final evaluation on the test set...")
-        test_results = trainer.predict(test_dataset)
-
-        test_metrics = {f"test_{k}": v for k, v in test_results.metrics.items()}
-        wandb.log(test_metrics)
-        logger.info(f"Test results: {test_metrics}")
-
-    wandb.finish()
-    logger.info("Run finished.")
+    # TODO: do per language
+    if test_ds:
+        res = trainer.predict(test_ds)
+        logger.info(f"Test metrics: {res.metrics}")

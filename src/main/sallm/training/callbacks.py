@@ -1,55 +1,107 @@
-from typing import Any, Dict
+import logging
+import random
+from typing import List, Dict
 
-import numpy as np
-import wandb
+import torch
+from datasets import Dataset
 from transformers import (
-    EvalPrediction,
+    AutoModelForCausalLM,
+    AutoTokenizer,
     TrainerCallback,
     TrainerControl,
-    TrainingArguments,
     TrainerState,
+    TrainingArguments,
 )
 
-from sallm.utils import compute_metrics
+logger = logging.getLogger(__name__)
 
 
-class PerLanguageEvalCallback(TrainerCallback):
-    def on_evaluate(
+class ShowCompletionsCallback(TrainerCallback):
+    def __init__(
+        self,
+        eval_dataset: Dataset,
+        tokenizer: AutoTokenizer,
+        num_samples: int = 5,
+        max_new_tokens: int = 100,
+    ):
+        self.eval_dataset = eval_dataset
+        self.tokenizer = tokenizer
+        self.num_samples = num_samples
+        self.max_new_tokens = max_new_tokens
+
+    def on_epoch_end(
         self,
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Any,
-    ) -> None:
-        trainer = kwargs.get("trainer")
-        if not trainer:
+        **kwargs,
+    ):
+        if not state.is_world_process_zero:
             return
 
-        eval_dataset = trainer.eval_dataset
-        if "lang" not in eval_dataset.features:
+        model: AutoModelForCausalLM | None = kwargs.get("model")
+        if model is None:
+            logger.warning(
+                "ShowCompletionsCallback: `model` not found in kwargs. Skipping."
+            )
             return
 
-        predictions = trainer.predict(eval_dataset)
-        logits, labels = predictions.predictions, predictions.label_ids
+        ds_len = len(self.eval_dataset)
+        indices: List[int] = (
+            random.sample(range(ds_len), self.num_samples)
+            if ds_len > self.num_samples
+            else list(range(ds_len))
+        )
+        samples = self.eval_dataset.select(indices)
 
-        languages = eval_dataset["lang"]
-        unique_languages = set(languages)
+        logger.info(
+            f"\n--- Showing {len(indices)} Generated Examples "
+            f"after Epoch {int(state.epoch):d} ---"
+        )
 
-        per_language_metrics: Dict[str, float] = {}
+        pad_id = self.tokenizer.pad_token_id
+        eos_id = self.tokenizer.eos_token_id
+        device = model.device
 
-        for lang in unique_languages:
-            mask = np.array(languages) == lang
+        for i, sample in enumerate(samples, start=1):
+            messages: List[Dict[str, str]] = sample["messages"]
 
-            lang_logits = logits[mask]
-            lang_labels = labels[mask]
+            prompt_messages = messages[:-1]
+            gold_completion = messages[-1]["content"].lstrip()
 
-            metrics = compute_metrics(
-                EvalPrediction(predictions=lang_logits, label_ids=lang_labels)
+            inputs = self.tokenizer.apply_chat_template(
+                prompt_messages,
+                add_generation_prompt=True,
+                return_tensors="pt",
+            ).to(device)
+
+            with torch.no_grad():
+                gen_ids = model.generate(
+                    inputs,
+                    max_new_tokens=self.max_new_tokens,
+                    do_sample=False,
+                    pad_token_id=pad_id,
+                    eos_token_id=eos_id,
+                )
+
+            generated_ids = gen_ids[0][inputs.shape[-1] :]
+            generated_completion = self.tokenizer.decode(
+                generated_ids,
+                # skip_special_tokens=True,
+                skip_special_tokens=False,
+                clean_up_tokenization_spaces=True,
             )
 
-            for key, value in metrics.items():
-                metric_name = f"eval/{lang}_{key}"
-                per_language_metrics[metric_name] = value
+            prompt_text_for_log = self.tokenizer.apply_chat_template(
+                prompt_messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
 
-        if state.is_world_process_zero:
-            wandb.log(per_language_metrics, step=state.global_step)
+            logger.info(f"\n--- Sample {i}/{len(indices)} ---")
+            logger.info(f"Prompt (as seen by model):\n{prompt_text_for_log}")
+            logger.info(f"\n--> Generated Completion: '{generated_completion}'")
+            logger.info(f"--> Gold Completion:      '{gold_completion}'")
+            logger.info("-" * 40)
+
+        logger.info("--- End of Generated Examples ---\n")

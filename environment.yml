@@ -1,14 +1,18 @@
 name: sallm-ner
 channels:
+  - conda-forge
   - pytorch
   - nvidia
-  - conda-forge
+  - defaults
 dependencies:
+  # Core ML/Python stack
   - python=3.12
   - pip
-  - pytorch::pytorch>=2.0.0
-  - pytorch::pytorch-cuda=12.1
-  - transformers>=4.40.0
+  - pytorch
+  - pytorch-cuda=12.1
+  - transformers
+  - tokenizers
+  - accelerate
   - datasets
   - wandb
   - pyyaml
@@ -16,9 +20,16 @@ dependencies:
   - numpy
   - pydantic
   - regex
+
+  # Build dependencies for Mamba
+  - gxx_linux-64
+
+  # Dev tools
   - black
   - mypy
   - pytest
+
+  # Pip-only or specific version dependencies
   - pip:
       - "accelerate"
       - "types-pyyaml"

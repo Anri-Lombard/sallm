@@ -1,0 +1,11 @@
+mode: ORCHESTRATE
+
+wandb: {project: "sallm-pipeline"}
+
+pipeline:
+  base_checkpoint: "${SCRATCH}/masters/sallm/trainer_output/final_model"
+  languages: ["eng", "xho"]
+  task_name: "masakhane_news_classification"
+  finetune_base_cfg: "configs/finetune/llama_news_ft.yaml"
+  eval_stub_cfg: "configs/eval/models/llama/ft_news.yaml"
+  slurm_array: false  # not wired yet (TODO)
