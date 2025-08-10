@@ -62,4 +62,5 @@ training:
   # gradient_checkpointing:      true
   torch_compile: true
   dataloader_num_workers: 8
-  packing: false
+  packing: true
+  assistant_only_loss: false

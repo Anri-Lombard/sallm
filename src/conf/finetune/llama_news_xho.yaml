@@ -21,8 +21,8 @@ dataset:
   splits: {train: "train", val: "validation"}
   templates:
     - {id: "masakhane_news_classification/v5", weight: 1.0}
-  # TODO add template choice
-  # template_choice: CYCLE
+  template_choice: ALL
+  label_column: "label"
   task: CLASSIFICATION
   packing: false
   assistant_only_loss: true

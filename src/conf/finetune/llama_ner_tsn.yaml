@@ -2,7 +2,7 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-ner-xho"
+  name: "llama-125m-ner-tsn"
 
 model:
   architecture: "llama"
@@ -17,7 +17,7 @@ peft:
 
 dataset:
   hf_name: "masakhane/masakhaner2"
-  subset: "xho"
+  subset: "tsn"
   task: NAMED_ENTITY_RECOGNITION
   splits: {train: "train", val: "validation"}
   templates:
@@ -29,9 +29,9 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_ner_xho"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_ner_xho"
-  run_name: "llama-125m-ner-lora-finetune-xho"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_ner_tsn"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_ner_tsn"
+  run_name: "llama-125m-ner-lora-finetune-tsn"
   learning_rate: 3.0e-5
   adam_beta2: 0.95
   max_grad_norm: 1.0
