@@ -36,12 +36,14 @@ def build_trainer(
                 f"SFTConfig `max_seq_length` not found. Falling back to {max_seq_length}. "
                 "Please add `max_seq_length` to your training config."
             )
+        packing = False
+        assistant_only_loss = False
 
     training_args = SFTConfig(
         **training_args_dict,
         max_seq_length=max_seq_length,
-        packing=config.dataset.packing,
-        assistant_only_loss=config.dataset.assistant_only_loss,
+        packing=packing,
+        assistant_only_loss=assistant_only_loss,
     )
 
     if training_args.local_rank <= 0:
