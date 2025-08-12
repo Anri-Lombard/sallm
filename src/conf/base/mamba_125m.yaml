@@ -49,7 +49,9 @@ training:
   num_train_epochs: 5
   eval_strategy: "steps"
   eval_steps: 200
-  save_total_limit: 0
+
+  save_strategy: "epoch"
+  save_total_limit: 1
 
   bf16: true
   bf16_full_eval: true
@@ -57,8 +59,6 @@ training:
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  # gradient_checkpointing:      true
   torch_compile: true
   dataloader_num_workers: 4
-
   save_safetensors: false

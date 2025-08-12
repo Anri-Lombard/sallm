@@ -19,7 +19,7 @@ dataset:
   splits: {train: "train", val: "validation"}
   templates: []
   packing: false
-  assistant_only_loss: false
+  assistant_only_loss: true
   max_seq_length: 2048
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}

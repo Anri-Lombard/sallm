@@ -27,6 +27,8 @@ def build_trainer(
         if config.dataset is None:
             raise ValueError("`dataset` config block must be provided for fine-tuning.")
         max_seq_length = config.dataset.max_seq_length
+        packing = bool(getattr(config.dataset, "packing", False))
+        assistant_only_loss = bool(getattr(config.dataset, "assistant_only_loss", True))
     else:
         if "max_seq_length" in training_args_dict:
             max_seq_length = training_args_dict.pop("max_seq_length")
