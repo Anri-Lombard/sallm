@@ -117,12 +117,23 @@ class TemplateRef:
 class FinetuneDatasetConfig:
     hf_name: str = MISSING
     subset: Optional[str] = None
-    task: Optional[FinetuneTaskType] = None
+    task: FinetuneTaskType | None = None
     splits: Dict[str, str] = field(default_factory=dict)
     templates: List[TemplateRef] = field(default_factory=list)
+    template_choice: TemplateChoice = TemplateChoice.CYCLE
+    label_column: Optional[str] = "label"
     max_seq_length: int = MISSING
     packing: bool = MISSING
     assistant_only_loss: bool = MISSING
+
+    def __post_init__(self):
+        if self.template_choice == TemplateChoice.ALL and (
+            self.templates is None or len(self.templates) == 0
+        ):
+            raise ValueError(
+                "dataset.template_choice is 'ALL' but no templates were provided. "
+                "Add at least one entry under dataset.templates."
+            )
 
 
 @dataclass

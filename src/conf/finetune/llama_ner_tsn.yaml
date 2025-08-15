@@ -2,7 +2,7 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-news-xho"
+  name: "llama-125m-ner-tsn"
 
 model:
   architecture: "llama"
@@ -16,14 +16,12 @@ peft:
     lora_dropout: 0.1
 
 dataset:
-  hf_name: "masakhane/masakhanews"
-  subset: "xho"
+  hf_name: "masakhane/masakhaner2"
+  subset: "tsn"
+  task: NAMED_ENTITY_RECOGNITION
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "masakhane_news_classification/v5", weight: 1.0}
-  template_choice: ALL
-  label_column: "label"
-  task: CLASSIFICATION
+    - {id: "masakhane_named_entity_recognition/v5", weight: 1.0}
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
@@ -31,11 +29,10 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_xho"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_xho"
-  run_name: "llama-125m-news-lora-finetune-messages"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_ner_tsn"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_ner_tsn"
+  run_name: "llama-125m-ner-lora-finetune-tsn"
   learning_rate: 3.0e-5
-  # weight_decay: 0.1
   adam_beta2: 0.95
   max_grad_norm: 1.0
   gradient_accumulation_steps: 4
@@ -44,7 +41,7 @@ training:
   per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 20
+  num_train_epochs: 50
   bf16: true
   logging_steps: 10
   eval_strategy: "epoch"
