@@ -1,0 +1,26 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs:
+    - "afrixnli_sa"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_afrixnli_sa"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-mamba-125m-afrixnli-sa"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null
+pipeline: null
