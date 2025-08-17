@@ -12,7 +12,7 @@ peft:
     r: 128
     lora_alpha: 256
     lora_dropout: 0.1
-    # target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
 
 dataset:
   hf_name: "masakhane/masakhanews"

@@ -212,6 +212,68 @@ def _build_finetune_dataset(
 
         map_function = to_messages_format_classification
         desc = "Formatting dataset into 'messages' format"
+
+    # TODO: extend support to other pos tasks if we go beyond just masakhanepos
+    elif ds_cfg.task == FinetuneTaskType.POS_TAGGING:
+        upos_class_names = None
+        try:
+            upos_feat = raw_ds.features.get("upos")
+            if hasattr(upos_feat, "feature") and hasattr(upos_feat.feature, "names"):
+                upos_class_names = list(upos_feat.feature.names)
+        except Exception:
+            upos_class_names = None
+
+        if ds_cfg.templates and len(ds_cfg.templates) > 0:
+            template_spec = tmpl.get(ds_cfg.templates[0].id)
+
+            def render_prompt(tokens_list):
+                tokens_repr = "[" + ", ".join(repr(t) for t in tokens_list) + "]"
+                return template_spec.prompt.format(tokens=tokens_repr)
+
+        else:
+
+            def render_prompt(tokens_list):
+                tokens_repr = "[" + ", ".join(repr(t) for t in tokens_list) + "]"
+                return (
+                    "Please provide UPOS tags for each token as a list of (token, TAG) tuples.\n"
+                    f"Sentence: {tokens_repr}\nOutput: "
+                )
+
+        def to_messages_format_pos(
+            ex: Dict[str, Any],
+        ) -> Dict[str, List[Dict[str, str]]]:
+            tokens: List[str] = ex["tokens"]
+            raw_upos = ex["upos"]
+
+            if raw_upos and isinstance(raw_upos[0], int) and upos_class_names:
+                upos_tags = [upos_class_names[i] for i in raw_upos]
+            else:
+                upos_tags = [str(t) for t in raw_upos]
+
+            if len(tokens) != len(upos_tags):
+                raise ValueError(
+                    f"MasakhaPOS sample length mismatch: tokens={len(tokens)} vs upos={len(upos_tags)}"
+                )
+
+            tuple_list_str = (
+                "["
+                + ", ".join(
+                    f"({repr(tok)}, {repr(tag)})" for tok, tag in zip(tokens, upos_tags)
+                )
+                + "]"
+            )
+
+            user_prompt = render_prompt(tokens)
+            return {
+                "messages": [
+                    {"role": "user", "content": user_prompt},
+                    {"role": "assistant", "content": tuple_list_str},
+                ]
+            }
+
+        map_function = to_messages_format_pos
+        desc = "Formatting dataset for POS tagging (MasakhaPOS)"
+
     else:
         raise ValueError(f"Unsupported task type: {ds_cfg.task}")
 
