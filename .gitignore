@@ -3,7 +3,7 @@ trash/
 .mypy_cache
 .ruff_cache
 *.json
-__pycache__/
+__pycache__
 *.pyc
 .mypy_cache/
 /src/sallm.egg-info/

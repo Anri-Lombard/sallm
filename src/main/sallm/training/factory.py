@@ -27,8 +27,8 @@ def build_trainer(
         if config.dataset is None:
             raise ValueError("`dataset` config block must be provided for fine-tuning.")
         max_seq_length = config.dataset.max_seq_length
-        packing = config.dataset.packing
-        assistant_only_loss = config.dataset.assistant_only_loss
+        packing = bool(getattr(config.dataset, "packing", False))
+        assistant_only_loss = bool(getattr(config.dataset, "assistant_only_loss", True))
     else:
         if "max_seq_length" in training_args_dict:
             max_seq_length = training_args_dict.pop("max_seq_length")
@@ -38,15 +38,8 @@ def build_trainer(
                 f"SFTConfig `max_seq_length` not found. Falling back to {max_seq_length}. "
                 "Please add `max_seq_length` to your training config."
             )
-        packing = True
+        packing = False
         assistant_only_loss = False
-
-    if packing and assistant_only_loss:
-        logger.warning(
-            "You are using `packing=True` with `assistant_only_loss=True`. "
-            "Due to a known bug in TRL, this combination is not effective, and the loss will be "
-            "computed on all tokens. See: https://github.com/huggingface/trl/issues/3728"
-        )
 
     training_args = SFTConfig(
         **training_args_dict,
