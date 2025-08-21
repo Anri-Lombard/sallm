@@ -1,24 +1,24 @@
 tasks:
-  # - afrimgsm_eng_prompt_1
-  # - afrimgsm_eng_prompt_2
-  # - afrimgsm_eng_prompt_3
-  # - afrimgsm_eng_prompt_4
-  # - afrimgsm_eng_prompt_5
-  - afrimgsm_xho_prompt_1
-  - afrimgsm_xho_prompt_2
-  - afrimgsm_xho_prompt_3
-  - afrimgsm_xho_prompt_4
-  - afrimgsm_xho_prompt_5
-  # - afrimgsm_zul_prompt_1
-  # - afrimgsm_zul_prompt_2
-  # - afrimgsm_zul_prompt_3
-  # - afrimgsm_zul_prompt_4
-  # - afrimgsm_zul_prompt_5
-  # - afrimgsm_sot_prompt_1
-  # - afrimgsm_sot_prompt_2
-  # - afrimgsm_sot_prompt_3
-  # - afrimgsm_sot_prompt_4
-  # - afrimgsm_sot_prompt_5
+  # - afrixnli_eng_prompt_1
+  # - afrixnli_eng_prompt_2
+  # - afrixnli_eng_prompt_3
+  # - afrixnli_eng_prompt_4
+  # - afrixnli_eng_prompt_5
+  - afrixnli_xho_prompt_1
+  - afrixnli_xho_prompt_2
+  - afrixnli_xho_prompt_3
+  - afrixnli_xho_prompt_4
+  - afrixnli_xho_prompt_5
+  # - afrixnli_zul_prompt_1
+  # - afrixnli_zul_prompt_2
+  # - afrixnli_zul_prompt_3
+  # - afrixnli_zul_prompt_4
+  # - afrixnli_zul_prompt_5
+  # - afrixnli_sot_prompt_1
+  # - afrixnli_sot_prompt_2
+  # - afrixnli_sot_prompt_3
+  # - afrixnli_sot_prompt_4
+  # - afrixnli_sot_prompt_5
 fewshot: 0
 batch_size: 8
 apply_chat_template: true

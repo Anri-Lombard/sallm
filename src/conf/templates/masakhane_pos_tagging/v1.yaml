@@ -1,0 +1,12 @@
+id: "masakhapos_v1"
+prompt: |
+  Please provide the POS tags for each word in the input sentence. The input will be a list of words in the sentence.
+  The output format should be a list of tuples, where each tuple consists of a word from the input text and its
+  corresponding POS tag label from the tag label set: ['ADJ','ADP','ADV','AUX','CCONJ','DET','INTJ','NOUN','NUM',
+  'PART','PRON','PROPN','PUNCT','SCONJ','SYM','VERB','X'].
+  Your response should include only a list of tuples, in the order that the words appear in the input sentence,
+  including punctuations.
+
+  Sentence: {tokens}
+  Output:
+task: "masakhane_pos_tagging"

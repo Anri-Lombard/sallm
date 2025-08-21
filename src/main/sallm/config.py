@@ -105,6 +105,7 @@ class FinetuneTaskType(str, Enum):
     INSTRUCTION = "instruction"
     CLASSIFICATION = "classification"
     NAMED_ENTITY_RECOGNITION = "named_entity_recognition"
+    POS_TAGGING = "pos_tagging"
 
 
 @dataclass

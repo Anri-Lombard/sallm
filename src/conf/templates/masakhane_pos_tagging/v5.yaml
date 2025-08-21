@@ -1,0 +1,11 @@
+id: "masakhapos_v5"
+prompt: |
+  Given the following sentence, identify the part of speech (POS) for each word. Use the following POS tag set:
+  NOUN, VERB, ADJ, ADV, PRON, DET, ADP, CCONJ, PUNCT, PROPN, AUX, SCONJ, PART, SYM, INTJ, NUM, X.
+  The output format should be a list of tuples, where each tuple consists of a word from the input
+  text and its POS tag (key only).
+  Include punctuation. Return only the list.
+
+  Sentence: {tokens}
+  Output:
+task: "masakhane_pos_tagging"

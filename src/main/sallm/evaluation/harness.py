@@ -36,8 +36,8 @@ def evaluate_pack(
 ) -> Dict:
     pack_over = overrides.get(pack.name, {})
     task_list = pack_over.get("tasks", pack.tasks)
-    fewshot = pack_over.get("fewshot", pack.fewshot)
-    batch_size = pack_over.get("batch_size", pack.batch_size)
+    fewshot = int(pack_over.get("fewshot", pack.fewshot))
+    batch_size = int(pack_over.get("batch_size", pack.batch_size))
     apply_chat_template = pack_over.get("apply_chat_template", pack.apply_chat_template)
 
     tok = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
@@ -69,10 +69,8 @@ def evaluate_pack(
             log_samples=True,
             write_out=True,
         )
-    except TypeError as e:
-        raise ValueError(
-            f"{e}. Did you pass a dict instead of a list/str for `tasks`?"
-        ) from None
+    except TypeError:
+        raise
 
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{pack.name}.json"
