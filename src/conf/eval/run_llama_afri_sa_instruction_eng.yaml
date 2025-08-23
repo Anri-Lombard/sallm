@@ -1,0 +1,18 @@
+mode: EVALUATE
+
+# TODO: language agnostic
+eval_model:
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_instruct_eng/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs: ["afrimgsm_eng", "afrimmlu_eng", "afrixnli_eng"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_sa_eng_tasks"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-ft-llama-afri-sa"

@@ -1,0 +1,9 @@
+tasks:
+  - afrimmlu_direct_sot_prompt_1
+  - afrimmlu_direct_sot_prompt_2
+  - afrimmlu_direct_sot_prompt_3
+  - afrimmlu_direct_sot_prompt_4
+  - afrimmlu_direct_sot_prompt_5
+fewshot: 0
+batch_size: 4
+apply_chat_template: false
