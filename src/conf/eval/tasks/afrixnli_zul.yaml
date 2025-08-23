@@ -1,0 +1,9 @@
+tasks:
+  - afrixnli_zul_prompt_1
+  - afrixnli_zul_prompt_2
+  - afrixnli_zul_prompt_3
+  - afrixnli_zul_prompt_4
+  - afrixnli_zul_prompt_5
+fewshot: 0
+batch_size: 8
+apply_chat_template: false
