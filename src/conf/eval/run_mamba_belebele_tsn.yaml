@@ -1,0 +1,26 @@
+mode: EVALUATE
+
+eval_model:
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_belebele_tsn/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+
+evaluation:
+  task_packs:
+    - "belebele_tsn"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_belebele_tsn"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-mamba-125m-belebele-tsn"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null
+pipeline: null
