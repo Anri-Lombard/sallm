@@ -34,6 +34,9 @@ echo "-------------------------------"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
+
+set +u
 conda activate sallm-ner
+set -u
 
 accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG" architecture="$ARCH" language="$LANG" "$@"
