@@ -1,0 +1,19 @@
+architecture: ???
+language: ???
+
+defaults:
+  - architecture: ${architecture}
+  - dataset: sib/${language}
+  - training: sib
+  - tokenizer: base
+  - _self_
+
+mode: FINETUNE
+wandb:
+  project: "sallm-ft"
+  name: "${architecture}-sib-${language}"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_sib_${language}"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_${architecture}_sib_${language}"
+  run_name: "${architecture}-sib-${language}"

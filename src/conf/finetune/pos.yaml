@@ -1,0 +1,19 @@
+architecture: ???
+language: ???
+
+defaults:
+  - architecture: ${architecture}
+  - dataset: pos/${language}
+  - training: pos
+  - tokenizer: base
+  - _self_
+
+mode: FINETUNE
+wandb:
+  project: "sallm-ft"
+  name: "${architecture}-pos-${language}"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_pos_${language}"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_${architecture}_pos_${language}"
+  run_name: "${architecture}-pos-${language}"

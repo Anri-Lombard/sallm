@@ -1,0 +1,19 @@
+architecture: ???
+language: ???
+
+defaults:
+  - architecture: ${architecture}
+  - dataset: afrisenti/${language}
+  - training: afrisenti
+  - tokenizer: base
+  - _self_
+
+mode: FINETUNE
+wandb:
+  project: "sallm-ft"
+  name: "${architecture}-afrisenti-${language}"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_afrisenti_${language}"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_${architecture}_afrisenti_${language}"
+  run_name: "${architecture}-afrisenti-${language}"

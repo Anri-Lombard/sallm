@@ -1,0 +1,9 @@
+hf_name: "llama-lang-adapt/AfriInstruct-Data"
+splits:
+  train: "train"
+  val: "validation"
+task: INSTRUCTION
+templates: []
+packing: false
+assistant_only_loss: true
+max_seq_length: 2048

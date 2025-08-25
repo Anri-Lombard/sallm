@@ -1,0 +1,19 @@
+architecture: ???
+language: ???
+
+defaults:
+  - architecture: ${architecture}
+  - dataset: ner/${language}
+  - training: ner
+  - tokenizer: base
+  - _self_
+
+mode: FINETUNE
+wandb:
+  project: "sallm-ft"
+  name: "${architecture}-ner-${language}"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_ner_${language}"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_${architecture}_ner_${language}"
+  run_name: "${architecture}-ner-${language}"

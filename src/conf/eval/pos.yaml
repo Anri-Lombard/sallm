@@ -1,0 +1,22 @@
+architecture: ???
+language: ???
+
+defaults:
+  - architecture: ${architecture}
+  - _self_
+
+mode: EVALUATE
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_pos_${language}/final_merged_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs: ["masakhapos_${language}"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_${architecture}_pos_${language}"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-${architecture}-pos-${language}"

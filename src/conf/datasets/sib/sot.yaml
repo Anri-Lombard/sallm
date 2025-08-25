@@ -1,0 +1,3 @@
+defaults:
+  - base
+subset: "sot_Latn"
