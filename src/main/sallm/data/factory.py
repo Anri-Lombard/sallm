@@ -158,6 +158,12 @@ def _build_finetune_dataset(
                         )
             else:
                 key_to_use = int(raw_label)
+
+            if (
+                key_to_use not in template_spec.label_mapping
+                and (key_to_use - 1) in template_spec.label_mapping
+            ):
+                key_to_use -= 1
         else:
             key_to_use = str(raw_label)
 
@@ -307,6 +313,12 @@ def _build_finetune_dataset(
             user_prompt = template_spec.prompt.format(**ex)
             raw_label = ex[label_column]
             key_to_use = int(raw_label) if numeric_keys else str(raw_label)
+            if (
+                numeric_keys
+                and key_to_use not in template_spec.label_mapping
+                and (key_to_use - 1) in template_spec.label_mapping
+            ):
+                key_to_use -= 1
             assistant_response = template_spec.label_mapping[key_to_use]
             return {
                 "messages": [
