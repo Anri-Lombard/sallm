@@ -1,0 +1,28 @@
+mode: EVALUATE
+
+eval_model:
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_eng/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  # peft_adapter: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news/final_model"
+  # merge_lora: true
+
+evaluation:
+  task_packs:
+    - "masakhanews_eng"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_news_eng"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-ft-llama-125m-masakhanews-eng"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null
+pipeline: null

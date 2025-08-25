@@ -1,0 +1,26 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_pos_xho/final_merged_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs:
+    - "masakhapos_xho"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_pos_xho"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-ft-mamba-125m-masakhapos-xho"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null
+pipeline: null

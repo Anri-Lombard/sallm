@@ -9,13 +9,7 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-set -euo pipefail
-
-TASK="${TASK:?TASK env var not set}"
-ARCH="${ARCH:?ARCH env var not set}"
-LANG="${LANG:?LANG env var not set}"
-
-CFG="finetune/${TASK}"
+CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1; }
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
@@ -34,9 +28,6 @@ echo "-------------------------------"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
-
-set +u
 conda activate sallm-ner
-set -u
 
-accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG" architecture="$ARCH" language="$LANG" "$@"
+accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG"

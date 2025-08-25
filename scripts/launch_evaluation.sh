@@ -9,13 +9,10 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-set -euo pipefail
-
-TASK="${TASK:?TASK env var not set}"
-ARCH="${ARCH:?ARCH env var not set}"
-LANG="${LANG:?LANG env var not set}"
-
-CONFIG_NAME="eval/${TASK}"
+CONFIG_NAME="$1" # Renamed for clarity
+if [ -z "$CONFIG_NAME" ]; then
+    echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
+fi
 
 export HYDRA_FULL_ERROR=1
 
@@ -25,9 +22,6 @@ export HOME="/home/lmbanr001"
 module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
-
-set +u
 conda activate sallm-ner
-set -u
 
-python -m sallm.main --config-name "$CONFIG_NAME" architecture="$ARCH" language="$LANG" "$@"
+python -m sallm.main --config-name "$CONFIG_NAME"
