@@ -7,7 +7,8 @@ defaults:
 
 mode: EVALUATE
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_injongointent_${language}/final_merged_model"
+  checkpoint: |
+    "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_injongointent_${language}/final_merged_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
