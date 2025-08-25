@@ -1,0 +1,26 @@
+mode: EVALUATE
+
+eval_model:
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_injongointent_xho/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs: ["injongointent_xho"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_injongointent_xho"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-llama-125m-injongointent-xho"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null
+pipeline: null
