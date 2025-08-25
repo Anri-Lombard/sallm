@@ -5,7 +5,7 @@ defaults:
   - architecture: ${architecture}
   - dataset: ner/${language}
   - training: ner
-  - tokenizer: base
+  - tokenizers: base
   - _self_
 
 mode: FINETUNE
