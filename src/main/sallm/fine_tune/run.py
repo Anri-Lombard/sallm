@@ -73,7 +73,7 @@ def run(config: ExperimentConfig) -> None:
         model.resize_token_embeddings(len(tokenizer))
 
     if tokenizer.chat_template is None:
-        # TODO: move this template to it's own file
+        # TODO: move this template to its own file
         tokenizer.chat_template = textwrap.dedent(
             """
             {%- if system_message %}
@@ -91,9 +91,9 @@ def run(config: ExperimentConfig) -> None:
                     {%- endgeneration -%}
                 {%- endif %}
             {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|> {%- endif %}
+            {%- if add_generation_prompt %}<|assistant|>{%- endif %}
             """
-        )
+        ).lstrip()
 
         logger.info("Tokenizer chat template not found. Applying default template.")
 
