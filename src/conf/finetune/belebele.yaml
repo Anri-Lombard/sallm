@@ -1,0 +1,19 @@
+architecture: ???
+language: ???
+
+defaults:
+  - architecture: ${architecture}
+  - dataset: belebele/${language}
+  - training: belebele
+  - tokenizer: base
+  - _self_
+
+mode: FINETUNE
+wandb:
+  project: "sallm-ft"
+  name: "${architecture}-belebele-${language}"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_${architecture}_belebele_${language}"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_${architecture}_belebele_${language}"
+  run_name: "${architecture}-belebele-${language}"
