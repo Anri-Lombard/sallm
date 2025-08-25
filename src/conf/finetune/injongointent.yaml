@@ -5,7 +5,7 @@ defaults:
   - architecture: ${architecture}
   - dataset: injongointent/${language}
   - training: injongointent
-  - tokenizer: base
+  - tokenizers: base
   - _self_
 
 mode: FINETUNE

@@ -5,7 +5,7 @@ defaults:
   - architecture: ${architecture}
   - dataset: afrisenti/${language}
   - training: afrisenti
-  - tokenizer: base
+  - tokenizers: base
   - _self_
 
 mode: FINETUNE

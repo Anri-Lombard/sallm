@@ -5,7 +5,7 @@ defaults:
   - architecture: ${architecture}
   - dataset: pos/${language}
   - training: pos
-  - tokenizer: base
+  - tokenizers: base
   - _self_
 
 mode: FINETUNE

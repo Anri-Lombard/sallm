@@ -5,7 +5,7 @@ defaults:
   - architecture: ${architecture}
   - dataset: instruct/${language}
   - training: instruct
-  - tokenizer: base
+  - tokenizers: base
   - _self_
 
 mode: FINETUNE

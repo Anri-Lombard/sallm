@@ -5,7 +5,7 @@ defaults:
   - architecture: ${architecture}
   - dataset: news/${language}
   - training: news
-  - tokenizer: base
+  - tokenizers: base
   - _self_
 
 mode: FINETUNE
