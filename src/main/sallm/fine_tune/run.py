@@ -139,6 +139,7 @@ def run(config: ExperimentConfig) -> None:
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
 
+    # TODO: rather just save adapters and merge at eval time to save space
     merged_model = model.merge_and_unload()
 
     output_dir = os.path.join(trainer.args.output_dir, "final_merged_model")
