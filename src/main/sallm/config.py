@@ -164,12 +164,11 @@ class ExperimentConfig:
     mode: RunMode
     wandb: WandbConfig
     model: Optional[ModelConfig] = None
-    data: Optional[DataConfig] = None
+    dataset: Optional[DataConfig | FinetuneDatasetConfig] = None
     tokenizer: Optional[TokenizerConfig] = None
     training: Optional[Dict[str, Any]] = None
     evaluation: Optional[EvaluationConfig] = None
     eval_model: Optional[ModelEvalConfig] = None
-    dataset: Optional[FinetuneDatasetConfig] = None
     peft: Optional[PeftConfig] = None
     template: Optional[TemplateConfig] = None
     pipeline: Optional[PipelineConfig] = None

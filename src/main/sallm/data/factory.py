@@ -96,7 +96,7 @@ def build_datasets(
         val_ds = _build_finetune_dataset(val_raw, config)
         return train_ds, val_ds, None
 
-    data_conf = config.data
+    data_conf = config.dataset
     dataset_dict = load_from_disk(data_conf.path)
 
     if not isinstance(dataset_dict, DatasetDict):

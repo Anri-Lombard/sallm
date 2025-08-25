@@ -2,10 +2,10 @@ architecture: ???
 language: ???
 
 defaults:
-  - architecture: ${architecture}
-  - dataset: sib/${language}
-  - training: sib
-  - tokenizers: base
+  - /architecture: ${architecture}
+  - /dataset: sib/${language}
+  - /training: sib
+  - /tokenizer: base
   - _self_
 
 mode: FINETUNE

@@ -2,10 +2,10 @@ architecture: ???
 language: ???
 
 defaults:
-  - architecture: ${architecture}
-  - dataset: injongointent/${language}
-  - training: injongointent
-  - tokenizers: base
+  - /architecture: ${architecture}
+  - /dataset: injongointent/${language}
+  - /training: injongointent
+  - /tokenizer: base
   - _self_
 
 mode: FINETUNE

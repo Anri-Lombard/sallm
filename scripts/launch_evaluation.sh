@@ -15,7 +15,7 @@ TASK="${TASK:?TASK env var not set}"
 ARCH="${ARCH:?ARCH env var not set}"
 LANG="${LANG:?LANG env var not set}"
 
-CONFIG_NAME="eval/${TASK}"
+CONFIG_NAME="config"
 
 export HYDRA_FULL_ERROR=1
 
@@ -30,4 +30,4 @@ set +u
 conda activate sallm-ner
 set -u
 
-python -m sallm.main --config-name "$CONFIG_NAME" architecture="$ARCH" language="$LANG" "$@"
+python -m sallm.main --config-name "$CONFIG_NAME" evaluation="$TASK" architecture="$ARCH" language="$LANG" "$@"

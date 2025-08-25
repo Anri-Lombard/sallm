@@ -9,10 +9,13 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-CONFIG_NAME="$1"
-if [ -z "$CONFIG_NAME" ]; then
-    echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
+PIPELINE="$1"
+if [ -z "$PIPELINE" ]; then
+    echo "Usage: sbatch $0 <pipeline_name_without_yaml>"; exit 1
 fi
+
+
+CONFIG_NAME="config"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
@@ -21,4 +24,4 @@ module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sallm-ner
 
-python -m sallm.main --config-name "$CONFIG_NAME"
+python -m sallm.main --config-name "$CONFIG_NAME" pipeline="$PIPELINE" "$@"

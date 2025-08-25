@@ -2,10 +2,10 @@ architecture: ???
 language: ???
 
 defaults:
-  - architecture: ${architecture}
-  - dataset: news/${language}
-  - training: news
-  - tokenizers: base
+  - /architecture: ${architecture}
+  - /dataset: news/${language}
+  - /training: news
+  - /tokenizer: base
   - _self_
 
 mode: FINETUNE

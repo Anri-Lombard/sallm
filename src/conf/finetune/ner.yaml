@@ -2,10 +2,10 @@ architecture: ???
 language: ???
 
 defaults:
-  - architecture: ${architecture}
-  - dataset: ner/${language}
-  - training: ner
-  - tokenizers: base
+  - /architecture: ${architecture}
+  - /dataset: ner/${language}
+  - /training: ner
+  - /tokenizer: base
   - _self_
 
 mode: FINETUNE

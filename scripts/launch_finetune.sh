@@ -15,7 +15,7 @@ TASK="${TASK:?TASK env var not set}"
 ARCH="${ARCH:?ARCH env var not set}"
 LANG="${LANG:?LANG env var not set}"
 
-CFG="finetune/${TASK}"
+CFG="config"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
@@ -39,4 +39,6 @@ set +u
 conda activate sallm-ner
 set -u
 
-accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG" architecture="$ARCH" language="$LANG" "$@"
+accelerate launch --num_processes 2 -m sallm.main \
+    --config-name "$CFG" \
+    finetune="$TASK" architecture="$ARCH" language="$LANG" "$@"

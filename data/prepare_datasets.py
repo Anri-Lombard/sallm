@@ -211,7 +211,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/datasets/sallm_dataset.yaml",
+        default="configs/dataset/sallm_dataset.yaml",
         help="Path to the dataset preparation configuration YAML file.",
     )
     args = parser.parse_args()

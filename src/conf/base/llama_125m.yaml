@@ -24,7 +24,7 @@ model:
     min_params_m: 120.0
     max_params_m: 130.0
 
-data:
+dataset:
   path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_processed"
   train_split: "train"
   eval_split: "validation"

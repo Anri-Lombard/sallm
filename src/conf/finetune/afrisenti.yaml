@@ -2,10 +2,10 @@ architecture: ???
 language: ???
 
 defaults:
-  - architecture: ${architecture}
-  - dataset: afrisenti/${language}
-  - training: afrisenti
-  - tokenizers: base
+  - /architecture: ${architecture}
+  - /dataset: afrisenti/${language}
+  - /training: afrisenti
+  - /tokenizer: base
   - _self_
 
 mode: FINETUNE

@@ -2,10 +2,10 @@ architecture: ???
 language: ???
 
 defaults:
-  - architecture: ${architecture}
-  - dataset: pos/${language}
-  - training: pos
-  - tokenizers: base
+  - /architecture: ${architecture}
+  - /dataset: pos/${language}
+  - /training: pos
+  - /tokenizer: base
   - _self_
 
 mode: FINETUNE
