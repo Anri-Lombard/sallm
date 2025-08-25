@@ -1,7 +1,7 @@
 mode: EVALUATE
 
 eval_model:
-  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sib_afr/final_merged_model"
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_injongointent_eng/final_merged_model"
   checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
   adapter: "hf"
   dtype: "bfloat16"
@@ -9,12 +9,12 @@ eval_model:
   merge_lora: false
 
 evaluation:
-  task_packs: ["sib_afr"]
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_sib_afr"
+  task_packs: ["injongointent_eng"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_injongointent_eng"
 
 wandb:
   project: "sallm-eval"
-  name: "eval-ft-llama-125m-sib-afr"
+  name: "eval-llama-125m-injongointent-eng"
 
 model: null
 data: null
