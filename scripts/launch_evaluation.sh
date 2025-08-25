@@ -26,9 +26,6 @@ module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
 
-# Define ADDR2LINE to prevent unbound variable errors during activation
-export ADDR2LINE="${ADDR2LINE:-$(command -v addr2line 2>/dev/null || echo addr2line)}"
-
 set +u
 conda activate sallm-ner
 set -u
