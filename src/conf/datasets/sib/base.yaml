@@ -1,0 +1,15 @@
+hf_name: "Davlan/sib200"
+splits:
+  train: "train"
+  val: "validation"
+task: CLASSIFICATION
+templates:
+  - id: "sib_topic_classification/v1"
+    weight: 1.0
+  - id: "sib_topic_classification/v5"
+    weight: 1.0
+template_choice: ALL
+label_column: "category"
+packing: false
+assistant_only_loss: true
+max_seq_length: 2048
