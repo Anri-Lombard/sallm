@@ -8,9 +8,6 @@ dataset_preparation:
     test_size: 0.1
 
     capping:
-      # For validation/test splits, cap any single language at this many tokens.
-      # This prevents high-resource languages from dominating
-      # evaluation metrics.Excess data is moved to the training set.
       max_tokens: 2000000
       chars_per_token_estimate: 4
 

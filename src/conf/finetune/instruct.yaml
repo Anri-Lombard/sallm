@@ -1,0 +1,15 @@
+defaults:
+  - _self_
+  - model: llama/125m
+  - dataset: afriinstruct
+  - finetune/_defaults
+
+mode: FINETUNE
+
+training:
+  lang: "xho"
+  dataset: "afriinstruct"
+
+wandb:
+  project: "sallm-ft"
+  name: "ft-${training.model_id}-${training.dataset}-${training.lang}"

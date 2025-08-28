@@ -1,9 +1,0 @@
-tasks:
-  - masakhapos_xho_prompt_1
-  - masakhapos_xho_prompt_2
-  - masakhapos_xho_prompt_3
-  - masakhapos_xho_prompt_4
-  # - masakhapos_xho_prompt_5
-fewshot: 0
-batch_size: 8
-apply_chat_template: true

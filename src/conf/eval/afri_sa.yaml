@@ -1,0 +1,39 @@
+defaults:
+  - _self_
+  - model: llama/125m
+  - eval/_defaults
+
+mode: EVALUATE
+
+evaluation:
+  overrides:
+    lang: "eng"
+  generators:
+    - name: "afrimgsm"
+      name_template: "afrimgsm_{lang}_prompt_{i}"
+      prompt_ids: [1, 2, 3, 4, 5]
+      fewshot: 5
+      batch_size: 8
+      apply_chat_template: false
+    - name: "afrimmlu"
+      name_template: "afrimmlu_direct_{lang}_prompt_{i}"
+      prompt_ids: [1, 2, 3, 4, 5]
+      fewshot: 5
+      batch_size: 8
+      apply_chat_template: false
+    - name: "afrixnli"
+      name_template: "afrixnli_{lang}_prompt_{i}"
+      prompt_ids: [1, 2, 3, 4, 5]
+      fewshot: 5
+      batch_size: 8
+      apply_chat_template: false
+  output_dir: >
+    ${oc.env:SCRATCH}/masters/sallm/results/eval/
+    eval-${training.model_id}-afri-sa-${evaluation.overrides.lang}
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-${training.model_id}-afri-sa-${evaluation.overrides.lang}"
+
+training:
+  dataset: "afri_sa"

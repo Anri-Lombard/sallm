@@ -31,7 +31,7 @@ def run(cfg: ExperimentConfig):
                 config_name=pipe.eval_stub_cfg,
                 overrides=[
                     "eval_model.checkpoint=???",  # TODO: get from ft_cfg
-                    f"evaluation.task_packs=[masakhanews_{lang}]",
+                    f"evaluation.overrides.lang={lang}",
                 ],
             )
             run_ev(hydra.utils.instantiate(ev_cfg, _convert_="all"))

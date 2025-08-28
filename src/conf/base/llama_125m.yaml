@@ -1,16 +1,12 @@
 mode: TRAIN
 
 wandb:
-  # TODO set all wand info and make sure it's passed
   project: "sallm-llama"
-  # name: "125m"
   name: "125m"
 
 model:
   architecture: "llama"
   attn_implementation: "flash_attention_2"
-  # TODO: find research on these params
-  # TODO: different architectural params?
   config:
     hidden_size: 512
     intermediate_size: 1536
@@ -53,8 +49,6 @@ training:
   logging_steps: 10
   eval_strategy: "steps"
   eval_steps: 200
-  # save_strategy: "steps"
-  # save_steps: 500
   eval_accumulation_steps: 8
   save_total_limit: 1
   report_to: "wandb"

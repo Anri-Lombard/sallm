@@ -1,9 +1,0 @@
-tasks:
-  - afrisenti_tso_prompt_1
-  - afrisenti_tso_prompt_2
-  - afrisenti_tso_prompt_3
-  - afrisenti_tso_prompt_4
-  - afrisenti_tso_prompt_5
-fewshot: 0
-batch_size: 8
-apply_chat_template: false

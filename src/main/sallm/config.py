@@ -38,6 +38,8 @@ class EvaluationConfig:
     output_dir: str = MISSING
     overrides: Dict[str, Any] = field(default_factory=dict)
     wandb: Optional[WandbConfig] = MISSING
+    generator: Optional[Dict[str, Any]] = None
+    generators: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass

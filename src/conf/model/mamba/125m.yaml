@@ -1,0 +1,12 @@
+model:
+  architecture: "mamba2"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+
+training:
+  model_id: "mamba-125m"

@@ -30,4 +30,4 @@ module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sallm-ner
 
-accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG"
+accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG" ${@:2}

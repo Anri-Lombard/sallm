@@ -1,9 +1,0 @@
-tasks:
-  - injongointent_zul_prompt_1
-  - injongointent_zul_prompt_2
-  - injongointent_zul_prompt_3
-  - injongointent_zul_prompt_4
-  - injongointent_zul_prompt_5
-fewshot: 4
-batch_size: 8
-apply_chat_template: false

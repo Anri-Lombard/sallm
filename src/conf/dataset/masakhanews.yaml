@@ -1,0 +1,10 @@
+dataset:
+  hf_name: "masakhane/masakhanews"
+  subset: "${training.lang}"
+  task: CLASSIFICATION
+  splits: {train: "train", val: "validation"}
+  templates:
+    - {id: "masakhane_news_classification/v5", weight: 1.0}
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 2048
