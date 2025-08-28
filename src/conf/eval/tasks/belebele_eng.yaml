@@ -4,6 +4,6 @@ tasks:
   - belebele_eng_prompt_3
   - belebele_eng_prompt_4
   - belebele_eng_prompt_5
-fewshot: 0
+fewshot: 5
 batch_size: 8
 apply_chat_template: false

@@ -91,7 +91,7 @@ def run(config: ExperimentConfig) -> None:
                     {%- endgeneration -%}
                 {%- endif %}
             {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>{%- endif %}
+            {%- if add_generation_prompt %}<|assistant|> {%- endif %}
             """
         ).lstrip()
 

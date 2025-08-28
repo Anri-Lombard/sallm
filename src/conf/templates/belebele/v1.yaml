@@ -2,7 +2,7 @@ id: "belebele_v1"
 prompt: |
   P: {flores_passage}
 
-  Q: {question.strip()}
+  Q: {question.strip}
 
   A: {mc_answer1}
 
