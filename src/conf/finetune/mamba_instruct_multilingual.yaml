@@ -2,7 +2,7 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "mamba-125m-afriinstruct-xho"
+  name: "mamba-125m-afriinstruct-multilingual"
 
 model:
   architecture: "mamba2"
@@ -14,7 +14,7 @@ peft:
 
 dataset:
   hf_name: "llama-lang-adapt/AfriInstruct-Data"
-  subset: "xho"
+  subset: null
   task: INSTRUCTION
   splits: {train: "train", val: "validation"}
   templates: []
@@ -25,9 +25,9 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_instruct_xho"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_instruct_xho"
-  run_name: "mamba-125m-afriinstruct-lora-xho"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_instruct_multilingual"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_instruct_multilingual"
+  run_name: "mamba-125m-afriinstruct-lora-multilingual"
   learning_rate: 3.0e-5
   adam_beta2: 0.95
   gradient_accumulation_steps: 4
