@@ -118,6 +118,7 @@ class TemplateRef:
 class FinetuneDatasetConfig:
     hf_name: str = MISSING
     subset: Optional[str] = None
+    languages: Optional[List[str]] = None
     task: FinetuneTaskType | None = None
     splits: Dict[str, str] = field(default_factory=dict)
     templates: List[TemplateRef] = field(default_factory=list)
