@@ -23,7 +23,7 @@ scipy = "1.15.3"
 accelerate = "^1.7.0"
 regex = "^2024.11.6"
 tokenizers = "^0.21.1"
-trl = "^0.9.6"
+trl = "^0.12.0"
 # flash-attn = "^2.8.0.post2"
 lm-eval = "^0.4.9"
 
