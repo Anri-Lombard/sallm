@@ -15,6 +15,7 @@ peft:
 dataset:
   hf_name: "llama-lang-adapt/AfriInstruct-Data"
   subset: null
+  languages: ["eng", "zul", "xho", "sot", "nso", "tsn", "tso", "afr", "ssw", "ven", "nbl"]
   task: INSTRUCTION
   splits: {train: "train", val: "validation"}
   templates: []
