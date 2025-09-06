@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
-#SBATCH --partition=a100
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=2
+#SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-gpu=2
 #SBATCH --job-name="sallm-ft"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
@@ -16,7 +16,6 @@ export HOME="/home/lmbanr001"
 # export TOKENIZERS_PARALLELISM="false"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
-export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
 export TORCH_DISTRIBUTED_TIMEOUT=7200
@@ -30,4 +29,11 @@ module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sallm-ner
 
-accelerate launch --num_processes 2 -m sallm.main --config-name "$CFG"
+# Set PyTorch CUDA allocation config to reduce fragmentation (optional)
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
+
+# Debug info for distributed runs
+echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+
+# pass explicit accelerate options to avoid its default-warning messages
+accelerate launch --num_processes 4 --num_machines 1 --mixed_precision bf16 --dynamo_backend no -m sallm.main --config-name "$CFG"
