@@ -64,6 +64,7 @@ def build_datasets(
         ds_cfg = config.dataset
         splits = ds_cfg.splits
         lang_tag = ds_cfg.subset
+        lang_list = set(ds_cfg.languages or [])
 
         available_configs = get_dataset_config_names(
             ds_cfg.hf_name, trust_remote_code=True
@@ -89,8 +90,29 @@ def build_datasets(
         )
 
         if filter_after_load and lang_tag:
-            train_raw = train_raw.filter(lambda ex: ex["lang"] == lang_tag)
-            val_raw = val_raw.filter(lambda ex: ex["lang"] == lang_tag)
+
+            def _matches_lang(ex: Dict[str, Any]) -> bool:
+                # Prefer 'lang' if present, else fall back to 'language' or 'language_code'
+                if "lang" in ex:
+                    return ex["lang"] == lang_tag
+                if "language" in ex:
+                    return ex["language"] == lang_tag
+                if "language_code" in ex:
+                    return ex["language_code"] == lang_tag
+                return False
+
+            train_raw = train_raw.filter(_matches_lang)
+            val_raw = val_raw.filter(_matches_lang)
+
+        # Optional multi-language filtering if a languages list is provided
+        if lang_list:
+
+            def _in_lang_list(ex: Dict[str, Any]) -> bool:
+                code = ex.get("lang") or ex.get("language_code") or ex.get("language")
+                return code in lang_list
+
+            train_raw = train_raw.filter(_in_lang_list)
+            val_raw = val_raw.filter(_in_lang_list)
 
         train_ds = _build_finetune_dataset(train_raw, config)
         val_ds = _build_finetune_dataset(val_raw, config)
@@ -122,10 +144,44 @@ def _build_finetune_dataset(
     if ds_cfg.task is None:
         raise ValueError("A `dataset.task` must be specified for fine-tuning.")
 
+    def _extract_instruction_pair(ex: Dict[str, Any]) -> Tuple[str, str]:
+        """Return (user_prompt, assistant_response) for instruction-style datasets.
+
+        Supports multiple common schemas:
+        - {instruction, output}
+        - {inputs, targets}  # Aya/xP3x
+        - {prompt, response}
+        - {query, response}
+        """
+        # Preferred keys
+        if "instruction" in ex and "output" in ex:
+            return str(ex["instruction"]), str(ex["output"])
+        # Aya / xP3x style
+        if "inputs" in ex and "targets" in ex:
+            return str(ex["inputs"]), str(ex["targets"])
+        # Other common aliases
+        if "prompt" in ex and "response" in ex:
+            return str(ex["prompt"]), str(ex["response"])
+        if "query" in ex and "response" in ex:
+            return str(ex["query"]), str(ex["response"])
+
+        # Try to find likely fields as last resort
+        candidates_user = ["instruction", "inputs", "prompt", "query", "input"]
+        candidates_assistant = ["output", "targets", "response", "target", "answer"]
+        user_val = next((ex[k] for k in candidates_user if k in ex), None)
+        asst_val = next((ex[k] for k in candidates_assistant if k in ex), None)
+        if user_val is not None and asst_val is not None:
+            return str(user_val), str(asst_val)
+        raise KeyError(
+            "Unable to locate instruction/response fields. Expected one of: "
+            "(instruction, output) or (inputs, targets) or (prompt/query, response)."
+        )
+
     def _format_instruction(ex: Dict[str, Any]) -> List[Dict[str, str]]:
+        user_text, assistant_text = _extract_instruction_pair(ex)
         return [
-            {"role": "user", "content": ex["instruction"]},
-            {"role": "assistant", "content": ex["output"]},
+            {"role": "user", "content": user_text},
+            {"role": "assistant", "content": assistant_text},
         ]
 
     def _format_classification(
@@ -261,16 +317,22 @@ def _build_finetune_dataset(
             desc="Expanding ALL templates",
         )
 
+        # Preserve language column
+        if ds_cfg.subset and "lang" not in processed_ds.column_names:
+            processed_ds = processed_ds.add_column(
+                "lang", [ds_cfg.subset] * len(processed_ds)
+            )
         processed_ds = processed_ds.shuffle(seed=42)
         return processed_ds
 
     if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
 
         def to_messages(ex):
+            user_text, assistant_text = _extract_instruction_pair(ex)
             return {
                 "messages": [
-                    {"role": "user", "content": ex["instruction"]},
-                    {"role": "assistant", "content": ex["output"]},
+                    {"role": "user", "content": user_text},
+                    {"role": "assistant", "content": assistant_text},
                 ]
             }
 
@@ -400,9 +462,20 @@ def _build_finetune_dataset(
         remove_columns=raw_ds.column_names,
         desc=desc,
     )
-    if ds_cfg.subset and "lang" not in processed_ds.column_names:
-        processed_ds = processed_ds.add_column(
-            "lang", [ds_cfg.subset] * len(processed_ds)
-        )
+    # Add/normalize 'lang' column
+    if "lang" not in processed_ds.column_names:
+        # Use subset, language_code, or language to populate lang
+        if ds_cfg.subset:
+            processed_ds = processed_ds.add_column(
+                "lang", [ds_cfg.subset] * len(processed_ds)
+            )
+        elif "language_code" in raw_ds.column_names:
+            processed_ds = processed_ds.add_column(
+                "lang", [v for v in raw_ds["language_code"]]
+            )
+        elif "language" in raw_ds.column_names:
+            processed_ds = processed_ds.add_column(
+                "lang", [v for v in raw_ds["language"]]
+            )
 
     return processed_ds
