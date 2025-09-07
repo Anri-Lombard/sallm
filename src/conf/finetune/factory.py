@@ -36,6 +36,10 @@ def build_model(
             )
         else:
             model = model_class.from_pretrained(model_conf.init_checkpoint)
+        try:
+            model.config.use_cache = False
+        except Exception:
+            pass
         return model
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
@@ -48,6 +52,10 @@ def build_model(
     model_config_obj.vocab_size = len(tokenizer)
 
     model = model_class(model_config_obj)
+    try:
+        model.config.use_cache = False
+    except Exception:
+        pass
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

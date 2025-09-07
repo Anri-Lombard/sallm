@@ -2,7 +2,7 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "mamba-125m-afriinstruct-multilingual"
+  name: "mamba-125m-aya-instruct-sa"
 
 model:
   architecture: "mamba2"
@@ -10,22 +10,14 @@ model:
 
 peft:
   method: "lora"
-  kwargs:
-    r: 128
-    lora_alpha: 256
-    lora_dropout: 0.1
-    target_modules:
-      - "in_proj"
-      - "x_proj"
-      - "embeddings"
-      - "out_proj"
+  kwargs: {r: 128, lora_alpha: 256, lora_dropout: 0.1, target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]}
 
 dataset:
-  hf_name: "llama-lang-adapt/AfriInstruct-Data"
+  hf_name: "CohereLabs/aya_dataset"
   subset: null
-  languages: ["eng", "zul", "xho", "sot", "nso", "tsn", "tso", "afr", "ssw", "ven", "nbl"]
+  languages: ["eng", "zul", "xho", "sot", "nso", "tsn", "tso", "afr", "ssw", "ven"]
   task: INSTRUCTION
-  splits: {train: "train", val: "validation"}
+  splits: {train: "train", val: "test"}
   templates: []
   packing: false
   assistant_only_loss: true
@@ -34,17 +26,17 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_instruct_multilingual"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_instruct_multilingual"
-  run_name: "mamba-125m-afriinstruct-lora-multilingual"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_aya_instruct_sa"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_aya_instruct_sa"
+  run_name: "mamba-125m-aya-lora-sa"
   learning_rate: 2.0e-5
   adam_beta2: 0.95
+  gradient_accumulation_steps: 4
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
   per_device_train_batch_size: 16
   per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 4
-  num_train_epochs: 5
+  num_train_epochs: 3
   bf16: true
   logging_steps: 25
   eval_strategy: "epoch"
