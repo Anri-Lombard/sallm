@@ -41,6 +41,22 @@ def run(config: ExperimentConfig) -> None:
     sel = OmegaConf.select(config, "runtime.is_main")
     i_am_main = bool(True if sel is None else sel)
 
+    # Ensure each process sets its local CUDA device to avoid NCCL warnings about unknown devices
+    try:
+        local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
+        if local_rank != -1:
+            visible = os.environ.get("CUDA_VISIBLE_DEVICES")
+            if visible:
+                devs = [int(x) for x in visible.split(",") if x != ""]
+                if local_rank < len(devs):
+                    torch.cuda.set_device(devs[local_rank])
+                else:
+                    torch.cuda.set_device(local_rank)
+            else:
+                torch.cuda.set_device(local_rank)
+    except Exception:
+        pass
+
     if config.wandb and config.wandb.project and i_am_main:
         wandb.init(
             project=config.wandb.project,
@@ -104,6 +120,11 @@ def run(config: ExperimentConfig) -> None:
         )
 
     model = _apply_peft_if_needed(model, config.peft)
+
+    try:
+        model.config.use_cache = False
+    except Exception:
+        pass
 
     if hasattr(model, "print_trainable_parameters"):
         model.print_trainable_parameters()
