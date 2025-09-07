@@ -2,15 +2,26 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-afriinstruct-multilingual"
+  name: "xlstm-afriinstruct-multilingual"
 
 model:
-  architecture: "llama"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  architecture: "xlstm"
+  init_checkpoint: "NX-AI/xLSTM-7b"
 
 peft:
   method: "lora"
-  kwargs: {r: 128, lora_alpha: 256, lora_dropout: 0.1}
+  kwargs:
+    r: 128
+    lora_alpha: 256
+    lora_dropout: 0.1
+    target_modules:
+      - "q"
+      - "k"
+      - "v"
+      - "out_proj"
+      - "proj_up"
+      - "proj_down"
+      - "proj_up_gate"
 
 dataset:
   hf_name: "llama-lang-adapt/AfriInstruct-Data"
@@ -26,9 +37,9 @@ dataset:
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_instruct_multilingual"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_instruct_multilingual"
-  run_name: "llama-125m-afriinstruct-lora-multilingual"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_instruct_multilingual"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_instruct_multilingual"
+  run_name: "xlstm-afriinstruct-lora-multilingual"
   learning_rate: 3.0e-5
   adam_beta2: 0.95
   lr_scheduler_type: "cosine"
