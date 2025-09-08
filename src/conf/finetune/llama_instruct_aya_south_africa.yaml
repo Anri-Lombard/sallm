@@ -39,7 +39,7 @@ training:
   num_train_epochs: 20
   bf16: true
   fp16: false
-  gradient_checkpointing: true
+  gradient_checkpointing: false
   logging_steps: 25
   eval_strategy: "epoch"
   save_strategy: "no"

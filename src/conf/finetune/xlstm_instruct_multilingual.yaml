@@ -53,8 +53,7 @@ training:
   eval_strategy: "epoch"
   save_strategy: "no"
   dataloader_num_workers: 4
-  gradient_checkpointing: true
-  use_cache: false
+  gradient_checkpointing: false
   label_names: []
   report_to: "wandb"
   ddp_find_unused_parameters: false

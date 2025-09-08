@@ -105,3 +105,29 @@ class ShowCompletionsCallback(TrainerCallback):
             logger.info("-" * 40)
 
         logger.info("--- End of Generated Examples ---\n")
+
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        logs: Dict[str, float] | None = None,
+        **kwargs,
+    ):
+        if not state.is_world_process_zero:
+            return
+
+        if not logs:
+            logger.info("ShowCompletionsCallback: no evaluation logs provided.")
+            return
+
+        eval_items = {k: v for k, v in logs.items()}
+        if "eval_loss" in eval_items:
+            logger.info(f"Evaluation loss: {eval_items.get('eval_loss')}")
+        if "eval_perplexity" in eval_items:
+            logger.info(f"Evaluation perplexity: {eval_items.get('eval_perplexity')}")
+
+        logger.info(
+            "Evaluation metrics:\n"
+            + "\n".join(f"{k}: {v}" for k, v in eval_items.items())
+        )

@@ -1,5 +1,6 @@
 import logging
 from omegaconf import OmegaConf
+import inspect
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -40,6 +41,21 @@ def build_trainer(
             )
         packing = False
         assistant_only_loss = False
+
+    # Ensure we don't accidentally pass duplicates for values we set explicitly
+    for _k in ("max_seq_length", "packing", "assistant_only_loss"):
+        training_args_dict.pop(_k, None)
+
+    sft_sig = inspect.signature(SFTConfig)
+    allowed_keys = set(sft_sig.parameters.keys())
+    provided_keys = set(training_args_dict.keys())
+    unknown = sorted(list(provided_keys - allowed_keys))
+    if unknown:
+        raise ValueError(
+            "Found unsupported training config keys that SFTConfig does not accept: "
+            f"{unknown}.\nPlease remove these keys from your `training` config or move them to the appropriate place. "
+            "Allowed keys for SFTConfig are: " + ", ".join(sorted(list(allowed_keys)))
+        )
 
     training_args = SFTConfig(
         **training_args_dict,

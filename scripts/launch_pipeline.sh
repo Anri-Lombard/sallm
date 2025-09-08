@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
-#SBATCH --partition=l40s
+#SBATCH --account=a100
+#SBATCH --partition=a100
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=4

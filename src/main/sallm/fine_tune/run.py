@@ -121,12 +121,7 @@ def run(config: ExperimentConfig) -> None:
 
     model = _apply_peft_if_needed(model, config.peft)
 
-    try:
-        model.config.use_cache = False
-    except Exception:
-        pass
-
-    if hasattr(model, "print_trainable_parameters"):
+    if i_am_main and hasattr(model, "print_trainable_parameters"):
         model.print_trainable_parameters()
 
     logger.info("Datasets …")

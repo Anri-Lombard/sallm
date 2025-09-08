@@ -17,9 +17,6 @@ import os
 from transformers.trainer_utils import is_main_process
 from transformers.utils import logging as hf_logging
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s — %(levelname)s — %(message)s"
-)
 logger = logging.getLogger(__name__)
 
 
@@ -29,31 +26,29 @@ def _is_main_process() -> bool:
 
 
 def setup_logging(config: DictConfig) -> None:
-    is_main = bool(OmegaConf.select(config, "runtime.is_main") or True)
-    log_handlers = [logging.StreamHandler(sys.stdout)]
+    is_main = bool(OmegaConf.select(config, "runtime.is_main"))
 
     if is_main:
-        log_handlers = [logging.StreamHandler(sys.stdout)]
+        handlers = [logging.StreamHandler(sys.stdout)]
 
         log_file_path = None
         if config.training:
             log_file_path = config.training.get("log_file")
-
         if log_file_path:
-            log_handlers.append(logging.FileHandler(log_file_path))
+            handlers.append(logging.FileHandler(log_file_path))
 
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s — %(levelname)s — %(message)s",
-            handlers=log_handlers,
+            handlers=handlers,
+            force=True,
         )
     else:
-        logging.basicConfig(handlers=[logging.NullHandler()])
+        logging.basicConfig(handlers=[logging.NullHandler()], force=True)
         logging.getLogger().setLevel(logging.CRITICAL)
         logging.disable(logging.CRITICAL)
 
         hf_logging.set_verbosity_error()
-
         os.environ.setdefault("TQDM_DISABLE", "1")
 
 
@@ -67,9 +62,6 @@ def main(cfg: DictConfig) -> None:
         and keys_in_cfg[0] not in ExperimentConfig.__dataclass_fields__
     ):
         group_name = keys_in_cfg[0]
-        logger.info(
-            f"Detected nested config group '{group_name}'. Unwrapping configuration."
-        )
         unwrapped_cfg = cfg[group_name]
 
     schema = OmegaConf.structured(ExperimentConfig)
@@ -80,6 +72,14 @@ def main(cfg: DictConfig) -> None:
         config["runtime"] = {"is_main": is_main}
 
     setup_logging(config)
+
+    if (
+        len(keys_in_cfg) == 1
+        and keys_in_cfg[0] not in ExperimentConfig.__dataclass_fields__
+    ):
+        logger.info(
+            f"Detected nested config group '{keys_in_cfg[0]}'. Unwrapping configuration."
+        )
 
     logger.info(f"Run mode: {config.mode.value}")
 

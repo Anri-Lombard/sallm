@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
+#SBATCH --account=a100
 #SBATCH --partition=a100
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
