@@ -14,6 +14,9 @@ from transformers import AutoTokenizer
 
 from sallm.config import ExperimentConfig, RunMode, FinetuneTaskType, TemplateChoice
 from sallm.templates import registry as tmpl
+from sallm.data.afrihg import load_afrihg_from_github
+
+# TODO cleanup this file - way too complicated right now
 
 
 def _reconstruct_entities_from_iob(
@@ -66,28 +69,51 @@ def build_datasets(
         lang_tag = ds_cfg.subset
         lang_list = set(ds_cfg.languages or [])
 
-        available_configs = get_dataset_config_names(
-            ds_cfg.hf_name, trust_remote_code=True
-        )
-        load_name = ds_cfg.subset
         filter_after_load = False
+        if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("github:"):
+            ds_from_github = load_afrihg_from_github(languages=ds_cfg.languages)
+            # load_afrihg_from_github returns a DatasetDict. Select concrete
+            # Dataset splits to pass to the finetune builder.
+            if isinstance(ds_from_github, DatasetDict):
+                if "train" in ds_from_github:
+                    train_raw = ds_from_github["train"]
+                else:
+                    first_split = next(iter(ds_from_github.keys()))
+                    train_raw = ds_from_github[first_split]
 
-        if ds_cfg.subset not in available_configs:
-            load_name = None
-            filter_after_load = True
+                if "validation" in ds_from_github:
+                    val_raw = ds_from_github["validation"]
+                elif "dev" in ds_from_github:
+                    val_raw = ds_from_github["dev"]
+                elif "test" in ds_from_github:
+                    val_raw = ds_from_github["test"]
+                else:
+                    val_raw = train_raw
+            else:
+                train_raw = ds_from_github
+                val_raw = ds_from_github
+        else:
+            available_configs = get_dataset_config_names(
+                ds_cfg.hf_name, trust_remote_code=True
+            )
+            load_name = ds_cfg.subset
+            filter_after_load = False
+            if ds_cfg.subset not in available_configs:
+                load_name = None
+                filter_after_load = True
 
-        train_raw = load_dataset(
-            ds_cfg.hf_name,
-            name=load_name,
-            split=splits["train"],
-            trust_remote_code=True,
-        )
-        val_raw = load_dataset(
-            ds_cfg.hf_name,
-            name=load_name,
-            split=splits["val"],
-            trust_remote_code=True,
-        )
+            train_raw = load_dataset(
+                ds_cfg.hf_name,
+                name=load_name,
+                split=splits["train"],
+                trust_remote_code=True,
+            )
+            val_raw = load_dataset(
+                ds_cfg.hf_name,
+                name=load_name,
+                split=splits["val"],
+                trust_remote_code=True,
+            )
 
         if filter_after_load and lang_tag:
 
@@ -164,6 +190,11 @@ def _build_finetune_dataset(
             return str(ex["prompt"]), str(ex["response"])
         if "query" in ex and "response" in ex:
             return str(ex["query"]), str(ex["response"])
+        # Headline-style generation datasets: article/text -> headline/title
+        if "text" in ex and "title" in ex:
+            return str(ex["text"]), str(ex["title"])
+        if "article" in ex and "headline" in ex:
+            return str(ex["article"]), str(ex["headline"])
 
         # Try to find likely fields as last resort
         candidates_user = ["instruction", "inputs", "prompt", "query", "input"]

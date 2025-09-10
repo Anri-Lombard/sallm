@@ -15,7 +15,7 @@ peft:
 dataset:
   hf_name: "CohereLabs/aya_dataset"
   subset: null
-  languages: ["eng", "zul", "xho", "sot", "nso", "tsn", "tso", "afr", "ssw", "ven"]
+  languages: ["eng", "zul", "xho", "sot", "nso", "tsn", "tso", "afr", "ssw", "ven"]  # TODO: double check size
   task: INSTRUCTION
   splits: {train: "train", val: "test"}
   templates: []

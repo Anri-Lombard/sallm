@@ -9,7 +9,7 @@ from datasets import Dataset
 from trl import SFTTrainer, SFTConfig
 
 from sallm.config import ExperimentConfig, RunMode
-from sallm.training.callbacks import ShowCompletionsCallback
+from sallm.training.callbacks import ShowCompletionsCallback, GenerationMetricsCallback
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,10 @@ def build_trainer(
             eval_dataset=eval_dataset, tokenizer=tokenizer, num_samples=5
         )
         callbacks.append(completions_callback)
+        gen_metrics_cb = GenerationMetricsCallback(
+            eval_dataset=eval_dataset, tokenizer=tokenizer, max_new_tokens=64
+        )
+        callbacks.append(gen_metrics_cb)
 
     trainer = SFTTrainer(
         model=model,
