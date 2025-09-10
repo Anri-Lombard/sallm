@@ -242,22 +242,3 @@ class GenerationMetricsCallback(TrainerCallback):
 
         if log_dict:
             wandb.log(log_dict, step=state.global_step)
-
-
-class TrainingLossLogger(TrainerCallback):
-    """Logs training loss entries to wandb under 'train/loss'."""
-
-    def on_log(
-        self, args, state, control, logs: Dict[str, float] | None = None, **kwargs
-    ):
-        if not state.is_world_process_zero:
-            return
-        if not logs:
-            return
-        loss = None
-        if "loss" in logs:
-            loss = logs["loss"]
-        elif "train_loss" in logs:
-            loss = logs["train_loss"]
-        if loss is not None:
-            wandb.log({"train/loss": float(loss)}, step=state.global_step)
