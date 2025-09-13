@@ -14,4 +14,24 @@ dist/
 .vscode/
 .env
 
+data/**/
+trash/
+.mypy_cache/
+.ruff_cache/
+*.json
+__pycache__/
+*.py[cod]
+.pyc
+.venv/
+venv/
+ENV/
+env/
+/src/sallm.egg-info/
+build/
+dist/
+
+.idea/
+.vscode/
+.env
+
 .DS_Store

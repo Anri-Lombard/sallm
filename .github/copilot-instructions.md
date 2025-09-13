@@ -10,4 +10,3 @@ This file is intentionally small. Follow these rules for generated or contribute
 - When running repository commands, first run `conda activate base` to ensure you are in the correct environment.
 
 If a rule must be violated for a technical reason, document the deviation in the PR and get reviewer approval.
-

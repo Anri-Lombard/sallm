@@ -2,22 +2,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict
 
+import lm_eval
 import numpy as np
 import torch
-import lm_eval
 from lm_eval.models.huggingface import HFLM
 from peft import PeftModel
-from transformers import AutoTokenizer
 from tokenizers.decoders import ByteLevel
+from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
 
 
 def _safe_json_encoder(obj):
-    if isinstance(obj, (np.integer, np.floating)):
+    if isinstance(obj, np.integer) or isinstance(obj, np.floating):
         return obj.item()
     if isinstance(obj, np.ndarray):
         return obj.tolist()
@@ -32,8 +31,8 @@ def evaluate_pack(
     pack: TaskPack,
     model_cfg: ModelEvalConfig,
     out_dir: Path,
-    overrides: Dict[str, Dict],
-) -> Dict:
+    overrides: dict[str, dict],
+) -> dict:
     pack_over = overrides.get(pack.name, {})
     task_list = pack_over.get("tasks", pack.tasks)
     fewshot = int(pack_over.get("fewshot", pack.fewshot))

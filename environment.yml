@@ -25,12 +25,13 @@ dependencies:
   - gxx_linux-64
 
   # Dev tools
-  - black
   - mypy
   - pytest
+  - pip:
+      - ruff
 
   # Pip-only or specific version dependencies
   - pip:
-      - "accelerate"
-      - "types-pyyaml"
-      - "tabulate"
+      - accelerate
+      - types-pyyaml
+      - tabulate

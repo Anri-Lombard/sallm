@@ -11,11 +11,13 @@ license = "MIT"
 packages = [{include = "sallm", from = "src/main"}]
 
 [tool.poetry.dependencies]
-python = "^3.12"
-torch = "^2.7.1"
-transformers = "^4.52.4"
+python = ">=3.12,<3.14"
+torch = "^2.8.0"
+transformers = "^4.53.1"
+protobuf = "==5.29.5"
+tornado = "^6.5"
 datasets = "^3.6.0"
-wandb = "^0.20.1"
+wandb = "0.21.4"
 pydantic = "^2.11.7"
 pyyaml = "^6.0.2"
 numpy = "^2.3.0"
@@ -25,18 +27,22 @@ regex = "^2024.11.6"
 tokenizers = "^0.21.1"
 trl = "^0.12.0"
 # flash-attn = "^2.8.0.post2"
-lm-eval = "^0.4.9"
 
 # [tool.poetry.group.gpu.dependencies]
 # mamba-ssm = ">=2.2.4"
 # causal-conv1d = ">=1.5.0.post8"
+jinja2 = "3.1.6"
+aiohttp = "3.12.14"
 
 
 [tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
 mypy = "^1.16.1"
 pytest = "^8.4.1"
 types-pyyaml = "^6.0.12.20250516"
+ruff = "^0.5.0"
+pre-commit = "^3.8.0"
+black = "^25.1.0"
+jupyter-core = ">=5.8.1"
 
 [tool.black]
 line-length = 88
@@ -49,6 +55,17 @@ ignore_missing_imports = true
 disallow_untyped_defs = true
 exclude = ["trash"]
 
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["src", "tokenizer"]
+exclude = ["build", "dist", "trash", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E203"]
+per-file-ignores = {"__init__.py" = ["F401"]}
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
@@ -58,4 +75,11 @@ testpaths = [
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+
+[tool.yamllint]
+extends = "default"
+
+[tool.yamllint.rules]
+line-length = { max = 120, level = "warning" }
+indentation = { spaces = 2 }
 

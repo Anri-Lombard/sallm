@@ -1,0 +1,9 @@
+id: "afrihg_headline_v1"
+prompt: |
+  Write a concise news headline for the following article. Output the headline only.
+
+  Article:
+  {text}
+
+  Headline:
+task: afrihg_headline_generation

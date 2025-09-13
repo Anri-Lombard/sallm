@@ -1,8 +1,7 @@
 import logging
 import math
-from pathlib import Path
 import time
-from typing import Dict, Optional
+from pathlib import Path
 
 import torch
 import wandb
@@ -16,14 +15,15 @@ if is_datasets_available():
 logger = logging.getLogger(__name__)
 
 
-# TODO rename to something more appropriate since different models will use different trainers
+# TODO rename to something more appropriate since different models will use
+# different trainers
 class CustomTrainer(Trainer):
     def evaluate(
         self,
-        eval_dataset: Optional[datasets.Dataset] = None,
-        ignore_keys: Optional[list[str]] = None,
+        eval_dataset: datasets.Dataset | None = None,
+        ignore_keys: list[str] | None = None,
         metric_key_prefix: str = "eval",
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
         if eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")
@@ -49,7 +49,7 @@ class CustomTrainer(Trainer):
 
         for lang in unique_languages:
             lang_dataset = eval_dataset.filter(
-                lambda x: x["lang"] == lang, load_from_cache_file=False
+                lambda x, _lang=lang: x["lang"] == _lang, load_from_cache_file=False
             )
             if len(lang_dataset) == 0:
                 continue

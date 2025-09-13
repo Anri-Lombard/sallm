@@ -1,20 +1,20 @@
 # TODO reorganize tokenizer code to be DRY across files
 # TODO calculate tokenization distribution
-import yaml
 import argparse
-from pathlib import Path
 import os
 from itertools import chain
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any
 
 import datasets
-from transformers import PreTrainedTokenizerFast
+import yaml
 from tqdm import tqdm
+from transformers import PreTrainedTokenizerFast
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
-def load_config(config_path: Path) -> Dict[str, Any]:
+def load_config(config_path: Path) -> dict[str, Any]:
     with config_path.open("r") as f:
         data = yaml.safe_load(f)
         if not isinstance(data, dict):
@@ -51,7 +51,7 @@ def process_dataset(config: dict) -> None:
     print(f"Loading dataset from: {source_dir}")
     raw_datasets = datasets.load_from_disk(str(source_dir))
 
-    def tokenize_and_chunk(examples: dict) -> Dict[str, list[list[int]]]:
+    def tokenize_and_chunk(examples: dict) -> dict[str, list[list[int]]]:
         outputs = tokenizer(
             examples["text"], add_special_tokens=False, truncation=False
         )
@@ -86,7 +86,7 @@ def process_dataset(config: dict) -> None:
             pbar.set_postfix_str(f"lang={lang}")
 
             lang_dataset = split_dataset.filter(
-                lambda x: x["lang"] == lang, num_proc=num_proc
+                lambda x, _lang=lang: x["lang"] == _lang, num_proc=num_proc
             )
             if len(lang_dataset) == 0:
                 continue
@@ -128,7 +128,13 @@ def process_dataset(config: dict) -> None:
     if "train" in processed_dataset_dict:
         train_sample = processed_dataset_dict["train"][0]
         print(
-            f"Example 'train' sample: {{'input_ids': [shape: {len(train_sample['input_ids'])}], 'lang': '{train_sample['lang']}'}}"
+            "Example 'train' sample: {"
+            "'input_ids': [shape: "
+            f"{len(train_sample['input_ids'])}"
+            "] , 'lang': '"
+            f"{train_sample['lang']}"
+            "'}"
+            "}"
         )
 
 

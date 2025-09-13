@@ -1,6 +1,7 @@
 import logging
-import wandb
 import os
+
+import wandb
 from omegaconf import OmegaConf
 
 from sallm.config import ExperimentConfig

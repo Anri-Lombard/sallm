@@ -1,9 +1,10 @@
 import logging
 import random
-from typing import List, Dict
 
 import torch
+import wandb
 from datasets import Dataset
+from evaluate import load as _eval_load
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -14,6 +15,9 @@ from transformers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# TODO: add models to model.py
 
 
 class ShowCompletionsCallback(TrainerCallback):
@@ -47,7 +51,7 @@ class ShowCompletionsCallback(TrainerCallback):
             return
 
         ds_len = len(self.eval_dataset)
-        indices: List[int] = (
+        indices: list[int] = (
             random.sample(range(ds_len), self.num_samples)
             if ds_len > self.num_samples
             else list(range(ds_len))
@@ -64,7 +68,7 @@ class ShowCompletionsCallback(TrainerCallback):
         device = model.device
 
         for i, sample in enumerate(samples, start=1):
-            messages: List[Dict[str, str]] = sample["messages"]
+            messages: list[dict[str, str]] = sample["messages"]
 
             prompt_messages = messages[:-1]
             gold_completion = messages[-1]["content"].lstrip()
@@ -111,7 +115,7 @@ class ShowCompletionsCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        logs: Dict[str, float] | None = None,
+        logs: dict[str, float] | None = None,
         **kwargs,
     ):
         if not state.is_world_process_zero:
@@ -131,3 +135,122 @@ class ShowCompletionsCallback(TrainerCallback):
             "Evaluation metrics:\n"
             + "\n".join(f"{k}: {v}" for k, v in eval_items.items())
         )
+
+
+class GenerationMetricsCallback(TrainerCallback):
+    def __init__(
+        self,
+        eval_dataset: Dataset,
+        tokenizer: AutoTokenizer,
+        max_new_tokens: int = 64,
+    ):
+        self.eval_dataset = eval_dataset
+        self.tokenizer = tokenizer
+        self.max_new_tokens = max_new_tokens
+
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        if not state.is_world_process_zero:
+            return
+
+        model = kwargs.get("model")
+        if model is None:
+            logger.warning(
+                "GenerationMetricsCallback: `model` not found in kwargs. Skipping."
+            )
+            return
+
+        rouge = _eval_load("rouge")
+        bleu = _eval_load("bleu")
+        chrf = _eval_load("chrf")
+
+        pad_id = self.tokenizer.pad_token_id
+        eos_id = self.tokenizer.eos_token_id
+        device = model.device
+
+        if "lang" in self.eval_dataset.features:
+            unique_languages = sorted(list(set(self.eval_dataset["lang"])))
+        else:
+            unique_languages = [None]
+
+        log_dict: dict[str, float] = {}
+
+        for lang in unique_languages:
+            if lang is None:
+                lang_ds = self.eval_dataset
+                lang_key = "all"
+            else:
+                lang_ds = self.eval_dataset.filter(
+                    lambda x, _lang=lang: x["lang"] == _lang, load_from_cache_file=False
+                )
+                lang_key = lang
+
+            if len(lang_ds) == 0:
+                continue
+
+            preds: list[str] = []
+            refs: list[str] = []
+
+            model.eval()
+            with torch.no_grad():
+                for sample in lang_ds:
+                    messages = sample["messages"]
+                    prompt_messages = messages[:-1]
+                    gold_completion = messages[-1]["content"].lstrip()
+
+                    inputs = self.tokenizer.apply_chat_template(
+                        prompt_messages,
+                        add_generation_prompt=True,
+                        return_tensors="pt",
+                    ).to(device)
+
+                    gen_ids = model.generate(
+                        inputs,
+                        max_new_tokens=self.max_new_tokens,
+                        do_sample=False,
+                        pad_token_id=pad_id,
+                        eos_token_id=eos_id,
+                    )
+
+                    generated_ids = gen_ids[0][inputs.shape[-1] :]
+                    generated_completion = self.tokenizer.decode(
+                        generated_ids,
+                        skip_special_tokens=False,
+                        clean_up_tokenization_spaces=True,
+                    )
+
+                    preds.append(generated_completion)
+                    refs.append(gold_completion)
+
+            if preds and refs:
+                metrics = rouge.compute(predictions=preds, references=refs)
+                r1 = metrics.get("rouge1")
+                r2 = metrics.get("rouge2")
+                rl = metrics.get("rougeL")
+
+                if r1 is not None:
+                    log_dict[f"eval/{lang_key}_rouge1"] = float(r1)
+                if r2 is not None:
+                    log_dict[f"eval/{lang_key}_rouge2"] = float(r2)
+                if rl is not None:
+                    log_dict[f"eval/{lang_key}_rougeL"] = float(rl)
+
+                bleu_metrics = bleu.compute(
+                    predictions=preds, references=[[r] for r in refs]
+                )
+                bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
+                if bleu_score is not None:
+                    log_dict[f"eval/{lang_key}_bleu"] = float(bleu_score)
+
+                chrf_metrics = chrf.compute(predictions=preds, references=refs)
+                chrf_score = chrf_metrics.get("score") or chrf_metrics.get("chrf")
+                if chrf_score is not None:
+                    log_dict[f"eval/{lang_key}_chrf"] = float(chrf_score)
+
+        if log_dict:
+            wandb.log(log_dict, step=state.global_step)

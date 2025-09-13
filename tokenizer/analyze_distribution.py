@@ -1,14 +1,13 @@
 # TODO merge the codebase
 import argparse
-from pathlib import Path
 from collections import defaultdict
-from typing import Dict
+from pathlib import Path
 
 import datasets
 from tabulate import tabulate
 from tqdm import tqdm
 
-DistributionResult = Dict[str, Dict[str, int]]
+DistributionResult = dict[str, dict[str, int]]
 
 
 def analyze_token_distribution(dataset_dir: Path) -> None:
@@ -29,7 +28,7 @@ def analyze_token_distribution(dataset_dir: Path) -> None:
         return
 
     results: DistributionResult = defaultdict(dict)
-    totals: Dict[str, int] = defaultdict(int)
+    totals: dict[str, int] = defaultdict(int)
     all_langs = set()
 
     for split_name, split_dataset in processed_dataset_dict.items():
@@ -49,7 +48,9 @@ def analyze_token_distribution(dataset_dir: Path) -> None:
         for lang in pbar:
             pbar.set_postfix_str(f"lang={lang}")
 
-            lang_dataset = split_dataset.filter(lambda x: x["lang"] == lang, num_proc=4)
+            lang_dataset = split_dataset.filter(
+                lambda x, _lang=lang: x["lang"] == _lang, num_proc=4
+            )
 
             num_tokens = len(lang_dataset) * max_seq_length
 

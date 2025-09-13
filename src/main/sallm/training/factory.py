@@ -1,15 +1,16 @@
-import logging
-from omegaconf import OmegaConf
 import inspect
+import logging
+
+from datasets import Dataset
+from omegaconf import OmegaConf
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
 )
-from datasets import Dataset
-from trl import SFTTrainer, SFTConfig
+from trl import SFTConfig, SFTTrainer
 
 from sallm.config import ExperimentConfig, RunMode
-from sallm.training.callbacks import ShowCompletionsCallback
+from sallm.training.callbacks import GenerationMetricsCallback, ShowCompletionsCallback
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +37,9 @@ def build_trainer(
         else:
             max_seq_length = 2048
             logger.warning(
-                f"SFTConfig `max_seq_length` not found. Falling back to {max_seq_length}. "
-                "Please add `max_seq_length` to your training config."
+                "SFTConfig `max_seq_length` not found. Falling back to %s. "
+                "Please add `max_seq_length` to your training config.",
+                max_seq_length,
             )
         packing = False
         assistant_only_loss = False
@@ -52,9 +54,12 @@ def build_trainer(
     unknown = sorted(list(provided_keys - allowed_keys))
     if unknown:
         raise ValueError(
-            "Found unsupported training config keys that SFTConfig does not accept: "
-            f"{unknown}.\nPlease remove these keys from your `training` config or move them to the appropriate place. "
-            "Allowed keys for SFTConfig are: " + ", ".join(sorted(list(allowed_keys)))
+            (
+                "Found unsupported training config keys that SFTConfig does not "
+                "accept: {}.\nPlease remove these keys from your `training` "
+                "config or move them to the appropriate place. Allowed keys "
+                "for SFTConfig are: {}"
+            ).format(unknown, ", ".join(sorted(list(allowed_keys))))
         )
 
     training_args = SFTConfig(
@@ -75,6 +80,10 @@ def build_trainer(
             eval_dataset=eval_dataset, tokenizer=tokenizer, num_samples=5
         )
         callbacks.append(completions_callback)
+        gen_metrics_cb = GenerationMetricsCallback(
+            eval_dataset=eval_dataset, tokenizer=tokenizer, max_new_tokens=64
+        )
+        callbacks.append(gen_metrics_cb)
 
     trainer = SFTTrainer(
         model=model,

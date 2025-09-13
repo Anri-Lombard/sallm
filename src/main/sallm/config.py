@@ -1,6 +1,7 @@
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
 from omegaconf import MISSING
 
 from sallm.utils import RunMode
@@ -11,7 +12,7 @@ class ScriptArguments:
     config_path: str = field(
         metadata={"help": "Path to the main YAML experiment config file."}
     )
-    wandb_run_id: Optional[str] = field(
+    wandb_run_id: str | None = field(
         default=None,
         metadata={"help": "Wandb run ID to resume a specific crashed trial."},
     )
@@ -26,18 +27,18 @@ class ParamRangeConfig:
 @dataclass
 class WandbConfig:
     project: str = MISSING
-    entity: Optional[str] = None
-    group: Optional[str] = None
-    name: Optional[str] = MISSING
-    id: Optional[str] = None
+    entity: str | None = None
+    group: str | None = None
+    name: str | None = MISSING
+    id: str | None = None
 
 
 @dataclass
 class EvaluationConfig:
-    task_packs: List[str] = field(default_factory=list)
+    task_packs: list[str] = field(default_factory=list)
     output_dir: str = MISSING
-    overrides: Dict[str, Any] = field(default_factory=dict)
-    wandb: Optional[WandbConfig] = MISSING
+    overrides: dict[str, Any] = field(default_factory=dict)
+    wandb: WandbConfig | None = MISSING
 
 
 @dataclass
@@ -52,7 +53,7 @@ class ModelEvalConfig:
     adapter: str = "hf"
     dtype: str = "bfloat16"
     device: str = "cuda:0"
-    peft_adapter: Optional[str] = None
+    peft_adapter: str | None = None
     merge_lora: bool = False
 
     def __post_init__(self):
@@ -65,9 +66,9 @@ class ModelEvalConfig:
 @dataclass
 class ModelConfig:
     architecture: str = MISSING
-    config: Optional[Dict[str, Any]] = None
-    init_checkpoint: Optional[str] = None
-    param_validation: Optional[ParamRangeConfig] = None
+    config: dict[str, Any] | None = None
+    init_checkpoint: str | None = None
+    param_validation: ParamRangeConfig | None = None
 
     def __post_init__(self):
         if self.config is None and self.init_checkpoint is None:
@@ -81,7 +82,7 @@ class DataConfig:
     path: str = MISSING
     train_split: str = "train"
     eval_split: str = "validation"
-    test_split: Optional[str] = "test"
+    test_split: str | None = "test"
 
 
 @dataclass
@@ -117,13 +118,13 @@ class TemplateRef:
 @dataclass
 class FinetuneDatasetConfig:
     hf_name: str = MISSING
-    subset: Optional[str] = None
-    languages: Optional[List[str]] = None
+    subset: str | None = None
+    languages: list[str] | None = None
     task: FinetuneTaskType | None = None
-    splits: Dict[str, str] = field(default_factory=dict)
-    templates: List[TemplateRef] = field(default_factory=list)
+    splits: dict[str, str] = field(default_factory=dict)
+    templates: list[TemplateRef] = field(default_factory=list)
     template_choice: TemplateChoice = TemplateChoice.CYCLE
-    label_column: Optional[str] = "label"
+    label_column: str | None = "label"
     max_seq_length: int = MISSING
     packing: bool = MISSING
     assistant_only_loss: bool = MISSING
@@ -141,7 +142,7 @@ class FinetuneDatasetConfig:
 @dataclass
 class PipelineConfig:
     base_checkpoint: str = MISSING
-    languages: List[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
     task_name: str = MISSING
     finetune_base_cfg: str = MISSING
     eval_stub_cfg: str = MISSING
@@ -151,26 +152,26 @@ class PipelineConfig:
 @dataclass
 class TemplateConfig:
     prompt: str = MISSING
-    label_mapping: Dict[Union[int, str], str] = field(default_factory=dict)
+    label_mapping: dict[int | str, str] = field(default_factory=dict)
 
 
 @dataclass
 class PeftConfig:
     method: str = "qlora"
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class ExperimentConfig:
     mode: RunMode
     wandb: WandbConfig
-    model: Optional[ModelConfig] = None
-    data: Optional[DataConfig] = None
-    tokenizer: Optional[TokenizerConfig] = None
-    training: Optional[Dict[str, Any]] = None
-    evaluation: Optional[EvaluationConfig] = None
-    eval_model: Optional[ModelEvalConfig] = None
-    dataset: Optional[FinetuneDatasetConfig] = None
-    peft: Optional[PeftConfig] = None
-    template: Optional[TemplateConfig] = None
-    pipeline: Optional[PipelineConfig] = None
+    model: ModelConfig | None = None
+    data: DataConfig | None = None
+    tokenizer: TokenizerConfig | None = None
+    training: dict[str, Any] | None = None
+    evaluation: EvaluationConfig | None = None
+    eval_model: ModelEvalConfig | None = None
+    dataset: FinetuneDatasetConfig | None = None
+    peft: PeftConfig | None = None
+    template: TemplateConfig | None = None
+    pipeline: PipelineConfig | None = None

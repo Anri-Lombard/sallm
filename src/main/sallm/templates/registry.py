@@ -1,21 +1,22 @@
 from __future__ import annotations
+
 from pathlib import Path
-from typing import Dict, List, Optional
+
 import yaml
 from pydantic import BaseModel
 
 _TEMPLATE_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent / "conf" / "templates"
 )
-_CACHE: Dict[str, "TemplateSpec"] = {}
-_TASK_INDEX: Dict[str, List[str]] = {}
+_CACHE: dict[str, TemplateSpec] = {}
+_TASK_INDEX: dict[str, list[str]] = {}
 
 
 class TemplateSpec(BaseModel):
     id: str
     prompt: str
-    label_mapping: Optional[Dict[int | str, str]] = None
-    ner_tags: Optional[List[str]] = None
+    label_mapping: dict[int | str, str] | None = None
+    ner_tags: list[str] | None = None
     task: str
 
 
@@ -45,11 +46,12 @@ if not _CACHE:
 def get(template_id: str) -> TemplateSpec:
     if not _CACHE:
         raise RuntimeError(
-            f"Template cache is empty. Check that the path '{_TEMPLATE_ROOT}' is correct "
-            "and contains template YAML files."
+            "Template cache is empty. Check that the path '"
+            + str(_TEMPLATE_ROOT)
+            + "' is correct and contains template YAML files."
         )
     return _CACHE[template_id]
 
 
-def list_by_task(task: str) -> List[str]:
+def list_by_task(task: str) -> list[str]:
     return _TASK_INDEX.get(task, [])

@@ -26,14 +26,19 @@ def resume_crashed_trials(sweep_id: str, config_path: str) -> None:
         sys.exit(1)
 
     logger.info(
-        f"Scanning sweep '{sweep.name}' in project '{sweep_entity}/{sweep_project}' for crashed runs."
+        "Scanning sweep '"
+        f"{sweep.name}"
+        "' in project '"
+        f"{sweep_entity}/{sweep_project}"
+        "' for crashed runs."
     )
 
     for run in sweep.runs:
         if run.state in ["crashed", "failed"]:
             logger.warning(f"Found a '{run.state}' trial: {run.name} (ID: {run.id}).")
             logger.info(
-                "Submitting a new SLURM job to resume this trial from its last checkpoint."
+                "Submitting a new SLURM job to resume this trial from its "
+                "last checkpoint."
             )
 
             resume_script_path = Path(__file__).parent / "train_resumed_trial.sh"
