@@ -14,8 +14,6 @@ repos:
       - id: ruff
         name: ruff lint (no fixes)
         args: ["--no-fix"]
-      - id: ruff-format
-        name: ruff format
 
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1

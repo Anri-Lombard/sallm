@@ -17,10 +17,28 @@ jobs:
           version: 1.8.3
           virtualenvs-create: false
 
+      - name: Cache Poetry virtualenv / dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-cache-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            poetry-cache-${{ runner.os }}-
+
       - run: poetry install --no-root
 
-      - run: poetry run yamllint --strict -c .yamllint .
-      - run: poetry run black --check .
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: precommit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            precommit-${{ runner.os }}-
+
+      - name: Run pre-commit (all files)
+        run: |
+          poetry run pre-commit install --install-hooks
+          poetry run pre-commit run --all-files --show-diff-on-failure
 
   security-scan:
     name: Grype vulnerability scan
