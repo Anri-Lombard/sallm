@@ -42,8 +42,7 @@ training:
   max_grad_norm: 1.0
   logging_steps: 10
   logging_first_step: true
-  eval_strategy: "steps"
-  eval_steps: 200
+  eval_strategy: "epoch"
   save_strategy: "no"
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
