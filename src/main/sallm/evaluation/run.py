@@ -1,8 +1,8 @@
 from __future__ import annotations
-import logging
+
 import json
+import logging
 from pathlib import Path
-from typing import Dict
 
 from sallm.config import ExperimentConfig
 from sallm.evaluation.harness import evaluate_pack
@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 def run(config: ExperimentConfig) -> None:
-    assert (
-        config.evaluation and config.eval_model
-    ), "`evaluation` and `eval_model` blocks required."
+    assert config.evaluation and config.eval_model, (
+        "`evaluation` and `eval_model` blocks required."
+    )
 
     eval_cfg = config.evaluation
     model_cfg = config.eval_model
@@ -24,9 +24,11 @@ def run(config: ExperimentConfig) -> None:
     for pack_name in eval_cfg.task_packs:
         pack = load_task_pack(pack_name)
         logger.info(
-            f"Evaluating task-pack '{pack_name}' with {len(pack.tasks)} tasks …"
+            "Evaluating task-pack '%s' with %d tasks ...",
+            pack_name,
+            len(pack.tasks),
         )
-        results: Dict = evaluate_pack(pack, model_cfg, out_root, overrides)
+        results: dict = evaluate_pack(pack, model_cfg, out_root, overrides)
         logger.info(json.dumps(results["results"], indent=2))
 
     logger.info("Evaluation done.")

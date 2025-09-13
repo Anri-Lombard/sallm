@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
 
 import yaml
 from pydantic import ValidationError
@@ -12,7 +11,7 @@ TASK_DIR = (
     Path(__file__).resolve().parent.parent.parent.parent / "conf" / "eval" / "tasks"
 )
 
-_CACHE: Dict[str, TaskPack] = {}
+_CACHE: dict[str, TaskPack] = {}
 
 
 def load_task_pack(key: str) -> TaskPack:

@@ -33,10 +33,12 @@ lm-eval = "^0.4.9"
 
 
 [tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
 mypy = "^1.16.1"
 pytest = "^8.4.1"
 types-pyyaml = "^6.0.12.20250516"
+ruff = "^0.5.0"
+pre-commit = "^3.8.0"
+black = "^25.1.0"
 
 [tool.black]
 line-length = 88
@@ -49,6 +51,17 @@ ignore_missing_imports = true
 disallow_untyped_defs = true
 exclude = ["trash"]
 
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["src", "tokenizer"]
+exclude = ["build", "dist", "trash", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E203"]
+per-file-ignores = {"__init__.py" = ["F401"]}
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
@@ -58,4 +71,11 @@ testpaths = [
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+
+[tool.yamllint]
+extends = "default"
+
+[tool.yamllint.rules]
+line-length = { max = 120, level = "warning" }
+indentation = { spaces = 2 }
 

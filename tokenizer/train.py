@@ -1,20 +1,21 @@
-import yaml
 import argparse
-from pathlib import Path
 import os
-from typing import Any, Iterator
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 import datasets
-from transformers import PreTrainedTokenizerFast
-
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.normalizers import Sequence, NFD
+from tokenizers.normalizers import NFD, Sequence
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.processors import TemplateProcessing
+from tokenizers.trainers import BpeTrainer
+from transformers import PreTrainedTokenizerFast
 
 
 # TODO restructure library to use pydantic models for loading configs

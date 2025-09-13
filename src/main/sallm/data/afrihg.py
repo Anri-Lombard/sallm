@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from typing import List, Optional
 import os
 from pathlib import Path
 
 import requests
-from datasets import load_dataset, DatasetDict
+from datasets import DatasetDict, load_dataset
 
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/dadelani/AfriHG/main"
 
 
 def load_afrihg_from_github(
-    languages: Optional[List[str]] = None, cache_dir: Optional[str] = None
+    languages: list[str] | None = None, cache_dir: str | None = None
 ) -> DatasetDict:
     if cache_dir is None:
         cache_dir = os.path.join(os.getcwd(), "data", "afrihg_cache")

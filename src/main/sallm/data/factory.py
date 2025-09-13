@@ -1,33 +1,33 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple, Any, Dict, List
 from math import isfinite
+from typing import Any
 
 from datasets import (
     Dataset,
     DatasetDict,
-    load_from_disk,
-    load_dataset,
     get_dataset_config_names,
+    load_dataset,
+    load_from_disk,
 )
 from transformers import AutoTokenizer
 
-from sallm.config import ExperimentConfig, RunMode, FinetuneTaskType, TemplateChoice
-from sallm.templates import registry as tmpl
+from sallm.config import ExperimentConfig, FinetuneTaskType, RunMode, TemplateChoice
 from sallm.data.afrihg import load_afrihg_from_github
 from sallm.data.t2x import load_t2x_from_github
+from sallm.templates import registry as tmpl
 
 # TODO cleanup this file - way too complicated right now
 
 
 def _reconstruct_entities_from_iob(
-    tokens: List[str], ner_tag_ids: List[int], tag_map: List[str]
-) -> List[str]:
+    tokens: list[str], ner_tag_ids: list[int], tag_map: list[str]
+) -> list[str]:
     entities = []
     current_entity_tokens = []
     current_entity_label = None
 
-    for token, tag_id in zip(tokens, ner_tag_ids):
+    for token, tag_id in zip(tokens, ner_tag_ids, strict=False):
         tag_name = tag_map[tag_id]
 
         if tag_name.startswith("B-"):
@@ -62,7 +62,7 @@ def _reconstruct_entities_from_iob(
 
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
-) -> Tuple[Dataset, Dataset, Optional[Dataset]]:
+) -> tuple[Dataset, Dataset, Dataset | None]:
     if config.mode == RunMode.FINETUNE:
         assert config.dataset, "Finetune mode requires a `dataset` block."
         ds_cfg = config.dataset
@@ -123,8 +123,8 @@ def build_datasets(
 
         if filter_after_load and lang_tag:
 
-            def _matches_lang(ex: Dict[str, Any]) -> bool:
-                # Prefer 'lang' if present, else fall back to 'language' or 'language_code'
+            def _matches_lang(ex: dict[str, Any]) -> bool:
+                # Prefer 'lang', else fallback to 'language' or 'language_code'
                 if "lang" in ex:
                     return ex["lang"] == lang_tag
                 if "language" in ex:
@@ -139,7 +139,7 @@ def build_datasets(
         # Optional multi-language filtering if a languages list is provided
         if lang_list:
 
-            def _in_lang_list(ex: Dict[str, Any]) -> bool:
+            def _in_lang_list(ex: dict[str, Any]) -> bool:
                 code = ex.get("lang") or ex.get("language_code") or ex.get("language")
                 return code in lang_list
 
@@ -177,7 +177,7 @@ def _build_finetune_dataset(
         raise ValueError("A `dataset.task` must be specified for fine-tuning.")
 
     # TODO: fix this logic
-    def _extract_instruction_pair(ex: Dict[str, Any]) -> Tuple[str, str]:
+    def _extract_instruction_pair(ex: dict[str, Any]) -> tuple[str, str]:
         """Return (user_prompt, assistant_response) for instruction-style datasets.
 
         Supports multiple common schemas:
@@ -239,7 +239,7 @@ def _build_finetune_dataset(
             "(instruction, output) or (inputs, targets) or (prompt/query, response)."
         )
 
-    def _format_instruction(ex: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _format_instruction(ex: dict[str, Any]) -> list[dict[str, str]]:
         user_text, assistant_text = _extract_instruction_pair(ex)
         return [
             {"role": "user", "content": user_text},
@@ -247,14 +247,15 @@ def _build_finetune_dataset(
         ]
 
     def _format_classification(
-        ex: Dict[str, Any],
+        ex: dict[str, Any],
         template_id: str,
         label_column: str,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         template_spec = tmpl.get(template_id)
         if not template_spec.label_mapping:
             raise ValueError(
-                f"Template '{template_spec.id}' is for a classification task but is missing 'label_mapping'."
+                f"Template '{template_spec.id}' is for a classification task "
+                "but is missing 'label_mapping'."
             )
         user_prompt = template_spec.prompt.format(**ex)
         raw_label = ex[label_column]
@@ -264,7 +265,7 @@ def _build_finetune_dataset(
             if isinstance(raw_label, str):
                 try:
                     key_to_use = int(raw_label)
-                except ValueError:
+                except ValueError as err:
                     str_to_int_key_map = {
                         str(v).lower(): k
                         for k, v in template_spec.label_mapping.items()
@@ -273,7 +274,7 @@ def _build_finetune_dataset(
                     if key_to_use is None:
                         raise ValueError(
                             f"Cannot map string label '{raw_label}' to an integer key."
-                        )
+                        ) from err
             else:
                 key_to_use = int(raw_label)
 
@@ -291,12 +292,13 @@ def _build_finetune_dataset(
             {"role": "assistant", "content": assistant_response},
         ]
 
-    def _format_ner(ex: Dict[str, Any], template_id: str) -> List[Dict[str, str]]:
+    def _format_ner(ex: dict[str, Any], template_id: str) -> list[dict[str, str]]:
         template_spec = tmpl.get(template_id)
         tag_map = template_spec.ner_tags
         if not tag_map:
             raise ValueError(
-                f"Template '{template_spec.id}' is for an NER task but is missing the 'ner_tags' list."
+                f"Template '{template_spec.id}' is for an NER task "
+                "but is missing the 'ner_tags' list."
             )
         text_input = " ".join(ex["tokens"])
         user_prompt = template_spec.prompt.format(text=text_input)
@@ -326,17 +328,19 @@ def _build_finetune_dataset(
             for t_id in template_ids:
                 if not tmpl.get(t_id).label_mapping:
                     raise ValueError(
-                        f"Template '{t_id}' selected for classification but missing 'label_mapping'."
+                        f"Template '{t_id}' selected for classification "
+                        "but missing 'label_mapping'."
                     )
             if ds_cfg.label_column not in raw_ds.column_names:
                 raise ValueError(
-                    f"Classification label column '{ds_cfg.label_column}' not found in dataset."
+                    f"Classification label column '{ds_cfg.label_column}' "
+                    "not found in dataset."
                 )
 
-        def _expand_batch(batch: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
-            out_messages: List[List[Dict[str, str]]] = []
-            out_template_ids: List[str] = []
-            out_langs: List[str] = []
+        def _expand_batch(batch: dict[str, list[Any]]) -> dict[str, list[Any]]:
+            out_messages: list[list[dict[str, str]]] = []
+            out_template_ids: list[str] = []
+            out_langs: list[str] = []
 
             n = len(next(iter(batch.values()))) if batch else 0
             for i in range(n):
@@ -364,7 +368,7 @@ def _build_finetune_dataset(
                         if ds_cfg.subset:
                             out_langs.append(ds_cfg.subset)
 
-            out: Dict[str, List[Any]] = {
+            out: dict[str, list[Any]] = {
                 "messages": out_messages,
                 "template_id": out_template_ids,
             }
@@ -405,7 +409,8 @@ def _build_finetune_dataset(
         tag_map = template_spec.ner_tags
         if not tag_map:
             raise ValueError(
-                f"Template '{template_spec.id}' is for an NER task but is missing the 'ner_tags' list."
+                f"Template '{template_spec.id}' is for an NER task "
+                "but is missing the 'ner_tags' list."
             )
 
         def to_messages(ex):
@@ -429,7 +434,8 @@ def _build_finetune_dataset(
         label_column = getattr(ds_cfg, "label_column", "label")
         if not template_spec.label_mapping:
             raise ValueError(
-                f"Template '{template_spec.id}' is for a classification task but is missing 'label_mapping'."
+                "Template '" + template_spec.id + "' is for a classification task "
+                "but is missing 'label_mapping'."
             )
         numeric_keys = isinstance(next(iter(template_spec.label_mapping.keys())), int)
 
@@ -476,14 +482,15 @@ def _build_finetune_dataset(
             def render_prompt(tokens_list):
                 tokens_repr = "[" + ", ".join(repr(t) for t in tokens_list) + "]"
                 return (
-                    "Please provide UPOS tags for each token as a list of (token, TAG) tuples.\n"
-                    f"Sentence: {tokens_repr}\nOutput: "
+                    "Please provide UPOS tags for each token as a list of (token, TAG) "
+                    "tuples.\nSentence: "
+                    f"{tokens_repr}\nOutput: "
                 )
 
         def to_messages_format_pos(
-            ex: Dict[str, Any],
-        ) -> Dict[str, List[Dict[str, str]]]:
-            tokens: List[str] = ex["tokens"]
+            ex: dict[str, Any],
+        ) -> dict[str, list[dict[str, str]]]:
+            tokens: list[str] = ex["tokens"]
             raw_upos = ex["upos"]
 
             if raw_upos and isinstance(raw_upos[0], int) and upos_class_names:
@@ -493,13 +500,15 @@ def _build_finetune_dataset(
 
             if len(tokens) != len(upos_tags):
                 raise ValueError(
-                    f"MasakhaPOS sample length mismatch: tokens={len(tokens)} vs upos={len(upos_tags)}"
+                    "MasakhaPOS sample length mismatch: "
+                    f"tokens={len(tokens)} vs upos={len(upos_tags)}"
                 )
 
             tuple_list_str = (
                 "["
                 + ", ".join(
-                    f"({repr(tok)}, {repr(tag)})" for tok, tag in zip(tokens, upos_tags)
+                    f"({repr(tok)}, {repr(tag)})"
+                    for tok, tag in zip(tokens, upos_tags, strict=False)
                 )
                 + "]"
             )

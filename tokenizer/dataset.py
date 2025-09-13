@@ -1,8 +1,9 @@
 import json
-from pathlib import Path
-from typing import Iterator
-from tqdm import tqdm
 import sys
+from collections.abc import Iterator
+from pathlib import Path
+
+from tqdm import tqdm
 
 
 def stream_training_data(file_path: Path) -> Iterator[str]:
@@ -28,16 +29,16 @@ def stream_training_data(file_path: Path) -> Iterator[str]:
             try:
                 yield json.loads(line)["text"]
             except (json.JSONDecodeError, KeyError) as e:
-                error_message = f"""
-                \n\n--- FATAL DATA INTEGRITY ERROR ---
-                The tokenizer training was aborted due to a corrupted record in the training data.
-
-                File:           {file_path}
-                Line Number:    {i + 1}
-                Error:          {e}
-                Line Content:   {line.strip()}
-
-                This indicates a bug in the upstream data preparation script. Please fix the
-                source of this corrupted data before attempting to train the tokenizer again.
-                """
+                error_message = (
+                    "\n\n--- FATAL DATA INTEGRITY ERROR ---\n"
+                    "The tokenizer training was aborted due to a corrupted record "
+                    "in the training data.\n\n"
+                    f"File:           {file_path}\n"
+                    f"Line Number:    {i + 1}\n"
+                    f"Error:          {e}\n"
+                    f"Line Content:   {line.strip()}\n\n"
+                    "This indicates a bug in the upstream data preparation script. "
+                    "Please fix the source of this corrupted data before attempting "
+                    "to train the tokenizer again."
+                )
                 raise RuntimeError(error_message) from e

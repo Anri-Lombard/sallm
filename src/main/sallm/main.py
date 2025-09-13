@@ -1,21 +1,20 @@
 from __future__ import annotations
+
 import logging
+import os
 import sys
 
 import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
-
-from sallm.config import ExperimentConfig
-from sallm.utils import RunMode
-
-from sallm.training.run import run as run_train
-from sallm.fine_tune.run import run as run_fine_tune
-from sallm.evaluation.run import run as run_eval
-from sallm.pipeline.run import run as run_orch
-
-import os
 from transformers.trainer_utils import is_main_process
 from transformers.utils import logging as hf_logging
+
+from sallm.config import ExperimentConfig
+from sallm.evaluation.run import run as run_eval
+from sallm.fine_tune.run import run as run_fine_tune
+from sallm.pipeline.run import run as run_orch
+from sallm.training.run import run as run_train
+from sallm.utils import RunMode
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,8 @@ def main(cfg: DictConfig) -> None:
         and keys_in_cfg[0] not in ExperimentConfig.__dataclass_fields__
     ):
         logger.info(
-            f"Detected nested config group '{keys_in_cfg[0]}'. Unwrapping configuration."
+            "Detected nested config group '%s'. Unwrapping configuration.",
+            keys_in_cfg[0],
         )
 
     logger.info(f"Run mode: {config.mode.value}")

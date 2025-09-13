@@ -1,8 +1,8 @@
 import logging
 import random
-from typing import List, Dict
 
 import torch
+import wandb
 from datasets import Dataset
 from evaluate import load as _eval_load
 from transformers import (
@@ -13,8 +13,6 @@ from transformers import (
     TrainerState,
     TrainingArguments,
 )
-
-import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +51,7 @@ class ShowCompletionsCallback(TrainerCallback):
             return
 
         ds_len = len(self.eval_dataset)
-        indices: List[int] = (
+        indices: list[int] = (
             random.sample(range(ds_len), self.num_samples)
             if ds_len > self.num_samples
             else list(range(ds_len))
@@ -70,7 +68,7 @@ class ShowCompletionsCallback(TrainerCallback):
         device = model.device
 
         for i, sample in enumerate(samples, start=1):
-            messages: List[Dict[str, str]] = sample["messages"]
+            messages: list[dict[str, str]] = sample["messages"]
 
             prompt_messages = messages[:-1]
             gold_completion = messages[-1]["content"].lstrip()
@@ -117,7 +115,7 @@ class ShowCompletionsCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        logs: Dict[str, float] | None = None,
+        logs: dict[str, float] | None = None,
         **kwargs,
     ):
         if not state.is_world_process_zero:
@@ -180,7 +178,7 @@ class GenerationMetricsCallback(TrainerCallback):
         else:
             unique_languages = [None]
 
-        log_dict: Dict[str, float] = {}
+        log_dict: dict[str, float] = {}
 
         for lang in unique_languages:
             if lang is None:
@@ -188,15 +186,15 @@ class GenerationMetricsCallback(TrainerCallback):
                 lang_key = "all"
             else:
                 lang_ds = self.eval_dataset.filter(
-                    lambda x: x["lang"] == lang, load_from_cache_file=False
+                    lambda x, _lang=lang: x["lang"] == _lang, load_from_cache_file=False
                 )
                 lang_key = lang
 
             if len(lang_ds) == 0:
                 continue
 
-            preds: List[str] = []
-            refs: List[str] = []
+            preds: list[str] = []
+            refs: list[str] = []
 
             model.eval()
             with torch.no_grad():

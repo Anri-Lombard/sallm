@@ -1,15 +1,17 @@
 # TODO split into modular files as part of restructuring
-import json
 import argparse
+import json
 import random
-import yaml
-from pathlib import Path
 from collections import defaultdict
+from collections.abc import Generator
 from itertools import groupby
-from typing import List, Dict, NamedTuple, Generator, Any
-from tqdm import tqdm
+from pathlib import Path
+from typing import Any, NamedTuple
+
 import datasets
+import yaml
 from datasets import DatasetDict
+from tqdm import tqdm
 
 
 class FilePointer(NamedTuple):
@@ -89,7 +91,7 @@ class DataProcessor:
         base_code = filename.split(".")[0].lower()
         return self.LANG_MAPPINGS.get(base_code, "unknown")
 
-    def _build_index(self) -> Dict[str, List[FilePointer]]:
+    def _build_index(self) -> dict[str, list[FilePointer]]:
         print("Phase 1: Indexing source files...")
         language_indexes = defaultdict(list)
         jsonl_files = list(self.root_dir.rglob("*.jsonl"))
@@ -113,12 +115,14 @@ class DataProcessor:
         return language_indexes
 
     def _calculate_splits(
-        self, language_indexes: Dict[str, List[FilePointer]]
-    ) -> Dict[str, List[FilePointer]]:
+        self, language_indexes: dict[str, list[FilePointer]]
+    ) -> dict[str, list[FilePointer]]:
         print("Phase 2: Calculating splits with capping...")
         split_pointers = defaultdict(list)
 
-        for lang, pointers in tqdm(language_indexes.items(), desc="Calculating splits"):
+        for _lang, pointers in tqdm(
+            language_indexes.items(), desc="Calculating splits"
+        ):
             random.shuffle(pointers)
 
             n_total = len(pointers)
@@ -155,8 +159,8 @@ class DataProcessor:
         return split_pointers
 
     def _generate_samples(
-        self, pointers: List[FilePointer]
-    ) -> Generator[Dict[str, Any], None, None]:
+        self, pointers: list[FilePointer]
+    ) -> Generator[dict[str, Any], None, None]:
         pointers.sort(key=lambda p: (p.file_path, p.offset))
 
         for file_path, group in groupby(pointers, key=lambda p: p.file_path):
@@ -171,7 +175,7 @@ class DataProcessor:
                     yield {"text": data["text"], "lang": lang}
 
     def _create_and_save_splits(
-        self, split_pointers: Dict[str, List[FilePointer]]
+        self, split_pointers: dict[str, list[FilePointer]]
     ) -> None:
         print("Phase 3: Generating and saving Hugging Face DatasetDict...")
 

@@ -1,11 +1,10 @@
 import logging
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from tokenizers.decoders import ByteLevel
-
 from sallm.config import ExperimentConfig
-from sallm.models.registry import MODEL_CONFIG_REGISTRY, MODEL_CLASS_REGISTRY
+from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY
 from sallm.utils import count_trainable_parameters
+from tokenizers.decoders import ByteLevel
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,10 @@ def build_model(
 
     if getattr(model_conf, "init_checkpoint", None):
         logger.info(
-            f"Loading model of type {model_class.__name__} from checkpoint: {model_conf.init_checkpoint}"
+            "Loading model of type '"
+            f"{model_class.__name__}"
+            "' from checkpoint: "
+            f"{model_conf.init_checkpoint}"
         )
         attn_impl = getattr(model_conf, "attn_implementation", None)
         if attn_impl:
