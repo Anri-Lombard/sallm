@@ -168,6 +168,8 @@ class GenerationMetricsCallback(TrainerCallback):
             return
 
         rouge = _eval_load("rouge")
+        bleu = _eval_load("bleu")
+        chrf = _eval_load("chrf")
 
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
@@ -239,6 +241,18 @@ class GenerationMetricsCallback(TrainerCallback):
                     log_dict[f"eval/{lang_key}_rouge2"] = float(r2)
                 if rl is not None:
                     log_dict[f"eval/{lang_key}_rougeL"] = float(rl)
+
+                bleu_metrics = bleu.compute(
+                    predictions=preds, references=[[r] for r in refs]
+                )
+                bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
+                if bleu_score is not None:
+                    log_dict[f"eval/{lang_key}_bleu"] = float(bleu_score)
+
+                chrf_metrics = chrf.compute(predictions=preds, references=refs)
+                chrf_score = chrf_metrics.get("score") or chrf_metrics.get("chrf")
+                if chrf_score is not None:
+                    log_dict[f"eval/{lang_key}_chrf"] = float(chrf_score)
 
         if log_dict:
             wandb.log(log_dict, step=state.global_step)

@@ -7,16 +7,7 @@ from pathlib import Path
 import requests
 from datasets import load_dataset, DatasetDict
 
-
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/dadelani/AfriHG/main"
-
-
-def _download_file(url: str, dest: Path) -> None:
-    resp = requests.get(url, stream=True)
-    resp.raise_for_status()
-    with open(dest, "wb") as fh:
-        for chunk in resp.iter_content(8192):
-            fh.write(chunk)
 
 
 def load_afrihg_from_github(

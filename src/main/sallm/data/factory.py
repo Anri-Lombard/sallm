@@ -15,6 +15,7 @@ from transformers import AutoTokenizer
 from sallm.config import ExperimentConfig, RunMode, FinetuneTaskType, TemplateChoice
 from sallm.templates import registry as tmpl
 from sallm.data.afrihg import load_afrihg_from_github
+from sallm.data.t2x import load_t2x_from_github
 
 # TODO cleanup this file - way too complicated right now
 
@@ -70,8 +71,13 @@ def build_datasets(
         lang_list = set(ds_cfg.languages or [])
 
         filter_after_load = False
+        # TODO: improve this logic
         if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("github:"):
-            ds_from_github = load_afrihg_from_github(languages=ds_cfg.languages)
+            gh_ref = ds_cfg.hf_name[len("github:") :]
+            if "francois-meyer/t2x" in gh_ref or gh_ref.strip().endswith("/t2x"):
+                ds_from_github = load_t2x_from_github()
+            else:
+                ds_from_github = load_afrihg_from_github(languages=ds_cfg.languages)
             # load_afrihg_from_github returns a DatasetDict. Select concrete
             # Dataset splits to pass to the finetune builder.
             if isinstance(ds_from_github, DatasetDict):
@@ -170,6 +176,7 @@ def _build_finetune_dataset(
     if ds_cfg.task is None:
         raise ValueError("A `dataset.task` must be specified for fine-tuning.")
 
+    # TODO: fix this logic
     def _extract_instruction_pair(ex: Dict[str, Any]) -> Tuple[str, str]:
         """Return (user_prompt, assistant_response) for instruction-style datasets.
 
@@ -185,6 +192,13 @@ def _build_finetune_dataset(
         # Aya / xP3x style
         if "inputs" in ex and "targets" in ex:
             return str(ex["inputs"]), str(ex["targets"])
+        # Common data-to-text style (T2X)
+        if "source" in ex and "target" in ex:
+            return str(ex["source"]), str(ex["target"])
+        if "data" in ex and "text" in ex:
+            return str(ex["data"]), str(ex["text"])
+        if "triple" in ex and "verbalisation" in ex:
+            return str(ex["triple"]), str(ex["verbalisation"])
         # Other common aliases
         if "prompt" in ex and "response" in ex:
             return str(ex["prompt"]), str(ex["response"])
@@ -197,8 +211,25 @@ def _build_finetune_dataset(
             return str(ex["article"]), str(ex["headline"])
 
         # Try to find likely fields as last resort
-        candidates_user = ["instruction", "inputs", "prompt", "query", "input"]
-        candidates_assistant = ["output", "targets", "response", "target", "answer"]
+        candidates_user = [
+            "instruction",
+            "inputs",
+            "prompt",
+            "query",
+            "input",
+            "source",
+            "data",
+            "triple",
+        ]
+        candidates_assistant = [
+            "output",
+            "targets",
+            "response",
+            "target",
+            "answer",
+            "text",
+            "verbalisation",
+        ]
         user_val = next((ex[k] for k in candidates_user if k in ex), None)
         asst_val = next((ex[k] for k in candidates_assistant if k in ex), None)
         if user_val is not None and asst_val is not None:

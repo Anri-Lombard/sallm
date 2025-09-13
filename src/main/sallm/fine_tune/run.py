@@ -58,6 +58,7 @@ def run(config: ExperimentConfig) -> None:
         pass
 
     if config.wandb and config.wandb.project and i_am_main:
+        settings = wandb.Settings(init_timeout=120)
         wandb.init(
             project=config.wandb.project,
             entity=config.wandb.entity,
@@ -65,6 +66,7 @@ def run(config: ExperimentConfig) -> None:
             name=config.wandb.name,
             id=config.wandb.id,
             config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+            settings=settings,
         )
         if config.wandb.id:
             wandb.config.update({"resume": "allow"})
@@ -156,9 +158,18 @@ def run(config: ExperimentConfig) -> None:
     logger.info("Fine-tuning done.")
 
     # TODO: rather just save adapters and merge at eval time to save space
-    merged_model = model.merge_and_unload()
+    if hasattr(model, "merge_and_unload"):
+        merged_model = model.merge_and_unload()
+    else:
+        merged_model = model
 
     output_dir = os.path.join(trainer.args.output_dir, "final_merged_model")
-    merged_model.save_pretrained(output_dir)
+    if hasattr(merged_model, "save_pretrained"):
+        merged_model.save_pretrained(output_dir)
+    else:
+        os.makedirs(output_dir, exist_ok=True)
+        torch.save(
+            merged_model.state_dict(), os.path.join(output_dir, "pytorch_model.bin")
+        )
     tokenizer.save_pretrained(output_dir)
     logger.info(f"Saved final MERGED model to → {output_dir}")

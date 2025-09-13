@@ -9,11 +9,7 @@ model:
   init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
 
 peft:
-  method: "lora"
-  kwargs:
-    r: 128
-    lora_alpha: 256
-    lora_dropout: 0.1
+  method: "none"
 
 dataset:
   hf_name: "github:dadelani/AfriHG"
@@ -32,19 +28,22 @@ tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_zul"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_zul"
-  run_name: "llama-125m-afrihg-zul-lora"
-  learning_rate: 3.0e-5
+  run_name: "llama-125m-afrihg-zul"
+  learning_rate: 5.0e-5
   adam_beta2: 0.95
   lr_scheduler_type: "cosine"
-  warmup_ratio: 0.1
+  warmup_ratio: 0.03
   per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 4
-  num_train_epochs: 20
+  gradient_accumulation_steps: 1
+  num_train_epochs: 3
   bf16: true
+  weight_decay: 0.01
+  max_grad_norm: 1.0
   logging_steps: 10
   logging_first_step: true
-  eval_strategy: "epoch"
+  eval_strategy: "steps"
+  eval_steps: 200
   save_strategy: "no"
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
