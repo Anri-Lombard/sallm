@@ -9,8 +9,7 @@ format:
 
 lint:
 	poetry run ruff check .
-	@poetry run yamllint --config-file pyproject.toml environment.yml || \
-		(poetry run pre-commit run yamllint --all-files)
+	poetry run yamllint src/conf/**/*.yaml
 
 type:
 	poetry run mypy src tokenizer

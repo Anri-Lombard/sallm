@@ -19,6 +19,7 @@ export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
 export TORCH_DISTRIBUTED_TIMEOUT=7200
+export HYDRA_FULL_ERROR=1
 # export NCCL_BLOCKING_WAIT=1
 
 echo "--- Checking GPU availability ---"

@@ -86,6 +86,7 @@ class ShowCompletionsCallback(TrainerCallback):
                     do_sample=False,
                     pad_token_id=pad_id,
                     eos_token_id=eos_id,
+                    use_cache=False,
                 )
 
             generated_ids = gen_ids[0][inputs.shape[-1] :]
@@ -215,6 +216,7 @@ class GenerationMetricsCallback(TrainerCallback):
                         do_sample=False,
                         pad_token_id=pad_id,
                         eos_token_id=eos_id,
+                        use_cache=False,
                     )
 
                     generated_ids = gen_ids[0][inputs.shape[-1] :]
