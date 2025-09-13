@@ -1,0 +1,10 @@
+-
+  vulnerability: "GHSA-x7m3-jprg-wc5g"
+  package:
+    name: "gevent"
+    version: "1.1rc1"
+  path: "/.venv/lib/python3.13/site-packages/wandb/vendor/graphql-core-1.1/setup.py"
+  reason: >
+    Vendored/setup.py reference inside wandb package; no gevent wheel installed in
+    environment. Tracked for follow-up with upstream wandb.
+  match-type: "exact-direct-match"

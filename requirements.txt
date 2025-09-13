@@ -2,7 +2,7 @@ absl-py==2.1.0
 accelerate==1.8.1
 accelerated-scan==0.2.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.12.0
+aiohttp==3.12.14
 aiosignal==1.3.2
 alembic==1.15.1
 annotated-types==0.7.0
@@ -71,17 +71,17 @@ iniconfig @ file:///home/conda/feedstock_root/build_artifacts/iniconfig_17332231
 ipykernel==6.29.5
 ipython==8.32.0
 jedi==0.19.2
-Jinja2==3.1.5
+Jinja2==3.1.6
 joblib==1.4.2
 joypy==0.2.6
 jsonlines==4.0.0
 jsonpatch @ file:///croot/jsonpatch_1710807507480/work
 jsonpointer==2.1
 jupyter_client==8.6.3
-jupyter_core==5.7.2
+jupyter_core==5.8.1
 kiwisolver==1.4.8
 libmambapy @ file:///work/perseverance-python-buildout/croot/mamba-split_1701744133524/work/libmambapy
-lm_eval==0.4.9
+# lm_eval removed to avoid transitive sqlitedict vulnerability
 loguru==0.7.3
 lxml==5.3.0
 Mako==1.3.9
@@ -140,7 +140,7 @@ pluggy @ file:///work/perseverance-python-buildout/croot/pluggy_1698805497733/wo
 portalocker==3.1.1
 prompt_toolkit==3.0.50
 propcache==0.3.1
-protobuf==5.29.3
+protobuf==5.29.5
 psutil==6.1.1
 ptyprocess==0.7.0
 pure_eval==0.2.3
@@ -178,11 +178,11 @@ sentencepiece==0.2.0
 sentry-sdk==2.19.2
 seqeval==1.2.2
 setproctitle==1.3.4
-setuptools==68.2.2
+setuptools>=70.0.0
 six==1.17.0
 smmap==5.0.2
 SQLAlchemy==2.0.38
-sqlitedict==2.1.0
+# sqlitedict removed due to security advisory GHSA-g4r7-86gm-pgqc (no patched release)
 stack-data==0.6.3
 sympy==1.13.1
 tabledata==1.3.4
@@ -195,10 +195,10 @@ tiktoken==0.8.0
 -e /home/lmbanr001/masters/sallm/titans_training
 tokenizers==0.21.2
 tomli @ file:///home/conda/feedstock_root/build_artifacts/tomli_1733256695513/work
-torch==2.6.0
-torchaudio==2.6.0
-torchvision==0.21.0
-tornado==6.4.2
+torch==2.8.0
+torchaudio==2.8.0
+torchvision==0.22.0
+tornado==6.5
 tqdm @ file:///work/perseverance-python-buildout/croot/tqdm_1701735729845/work
 tqdm-multiprocess==0.0.11
 traitlets==5.14.3
