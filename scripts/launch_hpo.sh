@@ -16,8 +16,8 @@ COUNT="${2:-10}"
 
 if [[ -z "$SWEEP_ARG" ]]; then
   echo "Usage: sbatch $0 <sweep_yaml_or_name_without_yaml> [count]" >&2
-  echo "Examples: sbatch $0 sweeps/llama_afrihg_xho_wandb_sweep.yaml 20" >&2
-  echo "          sbatch $0 llama_t2x_xho_wandb_sweep 10" >&2
+  echo "Examples: sbatch $0 sweeps/llama_afrihg_xho.yaml 20" >&2
+  echo "          sbatch $0 llama_t2x_xho 10" >&2
   exit 1
 fi
 
