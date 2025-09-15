@@ -2,30 +2,38 @@ mode: FINETUNE
 
 wandb:
   project: "sallm-ft"
-  name: "llama-125m-afrihg-zul"
+  name: "mamba-125m-t2x-xho"
 
 model:
-  architecture: "llama"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  architecture: "mamba2"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+
+peft:
+  method: "lora"
+  kwargs:
+    r: 128
+    lora_alpha: 256
+    lora_dropout: 0.1
+    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
 
 dataset:
-  hf_name: "github:dadelani/AfriHG"
-  subset: "zul"
+  hf_name: "github:francois-meyer/t2x"
+  subset: "xho"
   splits: {train: "train", val: "validation"}
   task: INSTRUCTION
   templates:
-    - {id: "afrihg_headline/v1", weight: 1}
+    - {id: "t2x_verbalisation/v1", weight: 1}
   template_choice: ALL
   packing: false
   assistant_only_loss: true
-  max_seq_length: 1024
+  max_seq_length: 2048
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_zul"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_zul"
-  run_name: "llama-125m-afrihg-zul"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_t2x_xho"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_t2x_xho"
+  run_name: "mamba-125m-t2x-xho"
   learning_rate: 1.0e-4
   adam_beta2: 0.95
   lr_scheduler_type: "cosine"
@@ -33,10 +41,10 @@ training:
   per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
   gradient_accumulation_steps: 8
-  num_train_epochs: 3
-  bf16: true
+  num_train_epochs: 4
   weight_decay: 0.05
   max_grad_norm: 1.0
+  bf16: true
   gradient_checkpointing: false
   label_smoothing_factor: 0.05
   logging_steps: 10
@@ -46,4 +54,4 @@ training:
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
   report_to: "wandb"
-  ddp_find_unused_parameters: false
+  ddp_find_unused_parameters: true
