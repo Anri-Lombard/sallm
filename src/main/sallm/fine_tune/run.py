@@ -16,6 +16,11 @@ from sallm.training.factory import build_trainer
 logger = logging.getLogger(__name__)
 
 
+def _is_hpo_run(config: ExperimentConfig) -> bool:
+    wandb_id = OmegaConf.select(config, "wandb.id")
+    return isinstance(wandb_id, str) and "sweep" in wandb_id
+
+
 # TODO: improve naming
 # TODO: no defaults for loraconfig, specify in config files
 def _apply_peft_if_needed(model, peft_cfg):
@@ -39,6 +44,7 @@ def _apply_peft_if_needed(model, peft_cfg):
 
 
 def run(config: ExperimentConfig) -> None:
+    is_hpo_run = _is_hpo_run(config)
     sel = OmegaConf.select(config, "runtime.is_main")
     i_am_main = bool(True if sel is None else sel)
 
@@ -160,6 +166,9 @@ def run(config: ExperimentConfig) -> None:
     torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
+
+    if is_hpo_run:
+        return
 
     # TODO: rather just save adapters and merge at eval time to save space
     if hasattr(model, "merge_and_unload"):
