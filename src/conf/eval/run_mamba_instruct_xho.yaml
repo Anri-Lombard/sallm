@@ -16,4 +16,3 @@ training: null
 dataset: null
 peft: null
 template: null
-pipeline: null
