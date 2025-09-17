@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any
 
 from omegaconf import MISSING
-from peft import PeftConfig
+from peft import PeftConfig as HFPEFTConfig
 
 from sallm.utils import RunMode
 
@@ -77,7 +77,7 @@ class ModelEvalConfig:
             has_adapter = adapter_config.exists() and adapter_weights.exists()
             has_full_model = any(path.exists() for path in full_model_weights)
             if has_adapter and not has_full_model:
-                peft_config = PeftConfig.from_pretrained(checkpoint_path)
+                peft_config = HFPEFTConfig.from_pretrained(checkpoint_path)
                 base_model = peft_config.base_model_name_or_path
                 if not base_model:
                     raise ValueError(
