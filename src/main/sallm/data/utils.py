@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from datasets import Dataset
 
@@ -43,8 +44,14 @@ def extract_instruction_pair(example: dict[str, Any]) -> tuple[str, str]:
         "text",
         "verbalisation",
     ]
-    user_val = next((example[k] for k in candidates_user if k in example), None)
-    assistant_val = next((example[k] for k in candidates_assistant if k in example), None)
+    user_val = next(
+        (example[k] for k in candidates_user if k in example),
+        None,
+    )
+    assistant_val = next(
+        (example[k] for k in candidates_assistant if k in example),
+        None,
+    )
     if user_val is None or assistant_val is None:
         raise KeyError(
             "Unable to locate instruction and response fields in example."

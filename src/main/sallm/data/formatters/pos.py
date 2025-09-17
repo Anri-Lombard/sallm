@@ -34,7 +34,8 @@ class POSTaggingFormatter(TaskFormatter):
                 f"Mismatch between tokens ({len(tokens)}) and upos tags ({len(tags)})"
             )
         tuple_list = [
-            f"({repr(token)}, {repr(tag)})" for token, tag in zip(tokens, tags, strict=False)
+            f"({repr(token)}, {repr(tag)})"
+            for token, tag in zip(tokens, tags, strict=False)
         ]
         tuple_repr = "[" + ", ".join(tuple_list) + "]"
         if template is not None:

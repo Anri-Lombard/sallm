@@ -4,11 +4,11 @@ from datasets import Dataset
 
 from sallm.config import FinetuneDatasetConfig, FinetuneTaskType
 
+from .base import TaskFormatter
 from .classification import ClassificationFormatter
 from .instruction import InstructionFormatter
 from .ner import NamedEntityFormatter
 from .pos import POSTaggingFormatter
-from .base import TaskFormatter
 
 
 def build_formatter(

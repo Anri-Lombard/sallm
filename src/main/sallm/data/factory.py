@@ -74,7 +74,9 @@ def _load_template_pairs(
 
 
 def _format_split(
-    raw_ds: Dataset, dataset_conf: FinetuneDatasetConfig, template_pairs: list[tuple[TemplateRef, TemplateSpec]]
+    raw_ds: Dataset,
+    dataset_conf: FinetuneDatasetConfig,
+    template_pairs: list[tuple[TemplateRef, TemplateSpec]],
 ) -> Dataset:
     formatter = build_formatter(dataset_conf.task, raw_ds, dataset_conf)
     if dataset_conf.template_choice == TemplateChoice.ALL:
