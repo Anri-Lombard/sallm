@@ -72,21 +72,18 @@ if [[ ! -f "$SWEEP_FILE" ]]; then
 fi
 
 if [[ -z "${TOKENIZER_PATH:-}" ]]; then
-  if [[ -d "$HOME/masters/sallm/tokenizer/sallm_bpe_tokenizer" ]]; then
-    export TOKENIZER_PATH="$HOME/masters/sallm/tokenizer/sallm_bpe_tokenizer"
-  elif [[ -d "$SCRATCH/masters/sallm/tokenizer/sallm_bpe_tokenizer" ]]; then
-    export TOKENIZER_PATH="$SCRATCH/masters/sallm/tokenizer/sallm_bpe_tokenizer"
-  elif [[ -d "tokenizer/sallm_bpe_tokenizer" ]]; then
-    export TOKENIZER_PATH="$(pwd)/tokenizer/sallm_bpe_tokenizer"
+  TOKENIZER_PATH=$(python -m sallm.hpo.run --tokenizer-path)
+  if [[ -n "$TOKENIZER_PATH" ]]; then
+    export TOKENIZER_PATH
   fi
 fi
 
 CREATE_OUT=$(wandb sweep "$SWEEP_FILE" 2>&1)
 echo "$CREATE_OUT"
 
-SWEEP_PATH=$(printf "%s\n" "$CREATE_OUT" | sed -nE 's/^.*Run sweep agent with: wandb agent ([^[:space:]]+).*$/\1/p' | tail -n1 || true)
+SWEEP_PATH=$(printf "%s\n" "$CREATE_OUT" | sed -nE 's/^.*Run sweep agent with: wandb agent ([^[:space:]]+).*$/\1/p' | tail -n1)
 if [[ -z "$SWEEP_PATH" ]]; then
-  SWEEP_PATH=$(printf "%s\n" "$CREATE_OUT" | sed -nE 's@.*https?://wandb\.ai/([^/]+)/([^/]+)/sweeps/([A-Za-z0-9_-]+).*@\1/\2/\3@p' | tail -n1 || true)
+  SWEEP_PATH=$(printf "%s\n" "$CREATE_OUT" | sed -nE 's@.*https?://wandb\.ai/([^/]+)/([^/]+)/sweeps/([A-Za-z0-9_-]+).*@\1/\2/\3@p' | tail -n1)
 fi
 if [[ -z "$SWEEP_PATH" ]]; then
   echo "Failed to parse sweep ID from wandb output" >&2
