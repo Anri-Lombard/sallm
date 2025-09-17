@@ -85,10 +85,7 @@ class ModelEvalConfig:
                     )
                 base_model_str = str(base_model)
                 base_model_path = Path(base_model_str)
-                if (
-                    not base_model_path.is_absolute()
-                    and not base_model_path.exists()
-                ):
+                if not base_model_path.is_absolute() and not base_model_path.exists():
                     candidate = (checkpoint_path / base_model_path).resolve()
                     if candidate.exists():
                         base_model_str = str(candidate)
