@@ -3,7 +3,7 @@ import logging
 from tokenizers.decoders import ByteLevel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from sallm.config import ExperimentConfig
+from sallm.config import ExperimentConfig, ModelConfig, TokenizerConfig
 from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY
 from sallm.utils import count_trainable_parameters
 
@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
-    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.path)
+    tokenizer_conf: TokenizerConfig | None = config.tokenizer
+    if tokenizer_conf is None:
+        raise ValueError("ExperimentConfig.tokenizer is required")
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_conf.path)
     tokenizer.backend_tokenizer.decoder = ByteLevel()
 
     if tokenizer.pad_token is None:
@@ -27,7 +30,9 @@ def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
 def build_model(
     config: ExperimentConfig, tokenizer: AutoTokenizer
 ) -> AutoModelForCausalLM:
-    model_conf = config.model
+    model_conf: ModelConfig | None = config.model
+    if model_conf is None:
+        raise ValueError("ExperimentConfig.model is required")
     model_class = MODEL_CLASS_REGISTRY.get(model_conf.architecture)
 
     if not model_class:
@@ -53,7 +58,7 @@ def build_model(
         )
 
     model_config_obj = config_class(**model_conf.config)
-    model_config_obj.vocab_size = len(tokenizer)
+    model_config_obj.vocab_size = tokenizer.vocab_size
 
     model = model_class(model_config_obj)
 

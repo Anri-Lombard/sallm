@@ -3,9 +3,8 @@ from transformers import (
     LlamaForCausalLM,
     Mamba2Config,
     Mamba2ForCausalLM,
-    # xLSTMConfig,
-    # xLSTMForCausalLM,
     PretrainedConfig,
+    PreTrainedModel,
 )
 
 # TODO add mamba
@@ -16,8 +15,7 @@ MODEL_CONFIG_REGISTRY: dict[str, type[PretrainedConfig]] = {
     # "xlstm": xLSTMConfig,
 }
 
-MODEL_CLASS_REGISTRY: dict[str, type[PretrainedConfig]] = {
+MODEL_CLASS_REGISTRY: dict[str, type[PreTrainedModel]] = {
     "llama": LlamaForCausalLM,
     "mamba2": Mamba2ForCausalLM,
-    # "xlstm": xLSTMForCausalLM,
 }

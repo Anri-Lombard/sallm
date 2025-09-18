@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import requests
 from datasets import DatasetDict, load_dataset
@@ -19,7 +20,7 @@ def load_afrihg_from_github(
     if languages:
         wanted = [lang for lang in languages if lang in ("xho", "zul")]
     session = requests.Session()
-    splits = {"train": [], "validation": [], "test": []}
+    splits: dict[str, list[str]] = {"train": [], "validation": [], "test": []}
 
     for code in wanted:
         lang_dir = f"data/{code}"
@@ -66,7 +67,7 @@ def load_afrihg_from_github(
             for split in list(dataset_dict.keys()):
                 ds = dataset_dict[split]
 
-                def _in_lang(ex):
+                def _in_lang(ex: dict[str, Any]) -> bool:
                     code = (
                         ex.get("lang") or ex.get("language") or ex.get("language_code")
                     )
