@@ -57,7 +57,7 @@ class ModelEvalConfig:
     peft_adapter: str | None = None
     merge_lora: bool | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         from pathlib import Path
 
         adapter_path = None
@@ -111,7 +111,7 @@ class ModelConfig:
     init_checkpoint: str | None = None
     param_validation: ParamRangeConfig | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.config is None and self.init_checkpoint is None:
             raise ValueError(
                 "Either `config` or `init_checkpoint` must be provided inside `model`."
@@ -170,7 +170,7 @@ class FinetuneDatasetConfig:
     packing: bool = MISSING
     assistant_only_loss: bool = MISSING
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.template_choice == TemplateChoice.ALL and (
             self.templates is None or len(self.templates) == 0
         ):
