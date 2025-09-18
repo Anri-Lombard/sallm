@@ -60,6 +60,19 @@ def _reconstruct_entities_from_iob(
     return entities
 
 
+def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
+    safe: dict[str, str] = {}
+    for k, v in values.items():
+        try:
+            if v is None:
+                safe[k] = ""
+            else:
+                safe[k] = str(v).strip()
+        except Exception:
+            safe[k] = str(v)
+    return prompt.format(**safe)
+
+
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
 ) -> tuple[Dataset, Dataset, Dataset | None]:
@@ -257,7 +270,7 @@ def _build_finetune_dataset(
                 f"Template '{template_spec.id}' is for a classification task "
                 "but is missing 'label_mapping'."
             )
-        user_prompt = template_spec.prompt.format(**ex)
+        user_prompt = _safe_format_prompt(template_spec.prompt, ex)
         raw_label = ex[label_column]
 
         numeric_keys = isinstance(next(iter(template_spec.label_mapping.keys())), int)
@@ -272,9 +285,7 @@ def _build_finetune_dataset(
                     }
                     key_to_use = str_to_int_key_map.get(raw_label.lower())
                     if key_to_use is None:
-                        raise ValueError(
-                            f"Cannot map string label '{raw_label}' to an integer key."
-                        ) from err
+                        raise ValueError("Cannot map label to integer key") from err
             else:
                 key_to_use = int(raw_label)
 
@@ -301,7 +312,7 @@ def _build_finetune_dataset(
                 "but is missing the 'ner_tags' list."
             )
         text_input = " ".join(ex["tokens"])
-        user_prompt = template_spec.prompt.format(text=text_input)
+        user_prompt = _safe_format_prompt(template_spec.prompt, {"text": text_input})
         reconstructed_entities = _reconstruct_entities_from_iob(
             ex["tokens"], ex["ner_tags"], tag_map
         )
@@ -415,7 +426,9 @@ def _build_finetune_dataset(
 
         def to_messages(ex):
             text_input = " ".join(ex["tokens"])
-            user_prompt = template_spec.prompt.format(text=text_input)
+            user_prompt = _safe_format_prompt(
+                template_spec.prompt, {"text": text_input}
+            )
             reconstructed_entities = _reconstruct_entities_from_iob(
                 ex["tokens"], ex["ner_tags"], tag_map
             )
@@ -442,13 +455,29 @@ def _build_finetune_dataset(
         def to_messages(ex):
             user_prompt = template_spec.prompt.format(**ex)
             raw_label = ex[label_column]
-            key_to_use = int(raw_label) if numeric_keys else str(raw_label)
-            if (
-                numeric_keys
-                and key_to_use not in template_spec.label_mapping
-                and (key_to_use - 1) in template_spec.label_mapping
-            ):
-                key_to_use -= 1
+            if numeric_keys:
+                if isinstance(raw_label, str):
+                    try:
+                        key_to_use = int(raw_label)
+                    except ValueError as err:
+                        str_to_int_key_map = {
+                            str(v).lower(): k
+                            for k, v in template_spec.label_mapping.items()
+                        }
+                        key_to_use = str_to_int_key_map.get(raw_label.lower())
+                        if key_to_use is None:
+                            raise ValueError("Cannot map label to integer key") from err
+                else:
+                    key_to_use = int(raw_label)
+
+                if (
+                    key_to_use not in template_spec.label_mapping
+                    and (key_to_use - 1) in template_spec.label_mapping
+                ):
+                    key_to_use -= 1
+            else:
+                key_to_use = str(raw_label)
+
             assistant_response = template_spec.label_mapping[key_to_use]
             return {
                 "messages": [
@@ -475,7 +504,9 @@ def _build_finetune_dataset(
 
             def render_prompt(tokens_list):
                 tokens_repr = "[" + ", ".join(repr(t) for t in tokens_list) + "]"
-                return template_spec.prompt.format(tokens=tokens_repr)
+                return _safe_format_prompt(
+                    template_spec.prompt, {"tokens": tokens_repr}
+                )
 
         else:
 
