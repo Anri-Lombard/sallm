@@ -6,6 +6,7 @@ from typing import Any
 
 import wandb
 from omegaconf import DictConfig, OmegaConf, open_dict
+
 from sallm.config import ExperimentConfig
 from sallm.fine_tune.run import run as run_finetune
 
@@ -89,7 +90,9 @@ def _apply_training_paths(cfg: DictConfig, run_id: str | None) -> None:
             training["logging_dir"] = os.path.join(base_log, run_id)
 
 
-def _apply_updates(cfg: DictConfig, updates: dict[str, Any], run_id: str | None) -> DictConfig:
+def _apply_updates(
+    cfg: DictConfig, updates: dict[str, Any], run_id: str | None
+) -> DictConfig:
     with open_dict(cfg):
         if run_id:
             if cfg.get("wandb") is None:
