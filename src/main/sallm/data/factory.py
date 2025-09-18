@@ -88,9 +88,7 @@ def _format_split(
     else:
         first_spec = template_pairs[0][1] if template_pairs else None
         formatter.validate_template(first_spec, dataset_conf)
-        formatted = _format_single_template(
-            raw_ds, dataset_conf, formatter, first_spec
-        )
+        formatted = _format_single_template(raw_ds, dataset_conf, formatter, first_spec)
     return _ensure_lang_column(formatted, raw_ds, dataset_conf)
 
 
@@ -131,9 +129,7 @@ def _format_with_all_templates(
         desc="Expanding ALL templates",
     )
     if dataset_conf.subset and "lang" not in formatted.column_names:
-        formatted = formatted.add_column(
-            "lang", [dataset_conf.subset] * len(formatted)
-        )
+        formatted = formatted.add_column("lang", [dataset_conf.subset] * len(formatted))
     return formatted.shuffle(seed=42)
 
 
@@ -164,9 +160,7 @@ def _ensure_lang_column(
     if "lang" in processed.column_names:
         return processed
     if dataset_conf.subset:
-        return processed.add_column(
-            "lang", [dataset_conf.subset] * len(processed)
-        )
+        return processed.add_column("lang", [dataset_conf.subset] * len(processed))
     values = resolve_language_column(raw)
     if values is not None:
         return processed.add_column("lang", values)
@@ -185,9 +179,7 @@ def _format_description(task: FinetuneTaskType) -> str:
     return "Format dataset"
 
 
-def _resolve_split(
-    dataset_dict: DatasetDict, preferred_keys: list[str]
-) -> Dataset:
+def _resolve_split(dataset_dict: DatasetDict, preferred_keys: list[str]) -> Dataset:
     for key in preferred_keys:
         if key in dataset_dict:
             return dataset_dict[key]

@@ -24,89 +24,105 @@ class CustomTrainer(Trainer):
         ignore_keys: list[str] | None = None,
         metric_key_prefix: str = "eval",
     ) -> dict[str, float]:
-        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-        if eval_dataset is None:
-            raise ValueError("Trainer: evaluation requires an eval_dataset.")
-
-        if "lang" not in eval_dataset.features:
-            logger.warning("Custom `evaluate` is exiting: 'lang' column not found.")
-            return super().evaluate(eval_dataset, ignore_keys, metric_key_prefix)
-
-        start_time = time.time()
-
-        unique_languages = sorted(list(set(eval_dataset["lang"])))
-        per_language_metrics_for_wandb = {}
-        # TODO remove samples?
-        grand_total_loss = 0.0
-        grand_total_samples = 0
-
-        model = self._wrap_model(self.model, training=False, dataloader=None)
-        model.eval()
-
-        if self._signature_columns is None:
-            raise RuntimeError("Could not find model signature columns.")
-        model_args = self._signature_columns
-
-        for lang in unique_languages:
-            lang_dataset = eval_dataset.filter(
-                lambda x, _lang=lang: x["lang"] == _lang, load_from_cache_file=False
-            )
-            if len(lang_dataset) == 0:
-                continue
-
-            dataloader: DataLoader = self.get_eval_dataloader(lang_dataset)
-            total_loss, num_samples = 0.0, 0
-
-            with torch.no_grad():
-                for batch in dataloader:
-                    batch = self._prepare_inputs(batch)
-                    model_inputs = {k: v for k, v in batch.items() if k in model_args}
-                    outputs = model(**model_inputs)
-                    loss = outputs.loss
-                    batch_size = batch["input_ids"].size(0)
-                    total_loss += loss.item() * batch_size
-                    num_samples += batch_size
-
-            all_losses = self.accelerator.gather(
-                torch.tensor(total_loss, device=self.args.device)
-            )
-            all_samples = self.accelerator.gather(
-                torch.tensor(num_samples, device=self.args.device)
-            )
-
-            total_loss_agg = torch.sum(all_losses).item()
-            total_samples_agg = torch.sum(all_samples).item()
-
-            grand_total_loss += total_loss_agg
-            grand_total_samples += total_samples_agg
-
-            if total_samples_agg > 0:
-                avg_loss = total_loss_agg / total_samples_agg
-                try:
-                    perplexity = math.exp(avg_loss)
-                except OverflowError:
-                    perplexity = float("inf")
-
-                per_language_metrics_for_wandb[f"eval/{lang}_loss"] = avg_loss
-                per_language_metrics_for_wandb[f"eval/{lang}_perplexity"] = perplexity
-
-        if self.is_world_process_zero() and per_language_metrics_for_wandb:
-            wandb.log(per_language_metrics_for_wandb, step=self.state.global_step)
-
-        metrics_to_return = {}
-        if grand_total_samples > 0:
-            overall_loss = grand_total_loss / grand_total_samples
-            metrics_to_return[f"{metric_key_prefix}_loss"] = overall_loss
-
-        runtime = time.time() - start_time
-        metrics_to_return[f"{metric_key_prefix}_runtime"] = runtime
-        metrics_to_return[f"{metric_key_prefix}_samples_per_second"] = (
-            grand_total_samples / runtime
+        ds = (
+            eval_dataset
+            if eval_dataset is not None
+            else getattr(self, "eval_dataset", None)
         )
+        if ds is None:
+            return super().evaluate(
+                eval_dataset=eval_dataset,
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
 
-        self.log(metrics_to_return)
+        if "lang" not in ds.features:
+            return super().evaluate(
+                eval_dataset=ds,
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
 
-        return metrics_to_return
+        try:
+            start_time = time.time()
+            unique_languages = sorted(list(set(ds["lang"])))
+            per_language_metrics: dict[str, float] = {}
+            total_loss_all = 0.0
+            total_samples_all = 0
+
+            if not hasattr(self, "model"):
+                return super().evaluate(
+                    eval_dataset=ds,
+                    ignore_keys=ignore_keys,
+                    metric_key_prefix=metric_key_prefix,
+                )
+            model = self.model
+            model.eval()
+
+            if (
+                not hasattr(self, "_signature_columns")
+                or self._signature_columns is None
+            ):
+                return super().evaluate(
+                    eval_dataset=ds,
+                    ignore_keys=ignore_keys,
+                    metric_key_prefix=metric_key_prefix,
+                )
+            model_args = self._signature_columns
+
+            for lang in unique_languages:
+                lang_ds = ds.filter(
+                    lambda x, _l=lang: x["lang"] == _l, load_from_cache_file=False
+                )
+                if len(lang_ds) == 0:
+                    continue
+                dataloader: DataLoader = self.get_eval_dataloader(lang_ds)
+                lang_total_loss = 0.0
+                lang_samples = 0
+                with torch.no_grad():
+                    for batch in dataloader:
+                        batch_inputs = self._prepare_inputs(batch)
+                        inputs_for_model = {
+                            k: v for k, v in batch_inputs.items() if k in model_args
+                        }
+                        outputs = model(**inputs_for_model)
+                        loss_val = outputs.loss
+                        bsz = batch_inputs["input_ids"].size(0)
+                        lang_total_loss += loss_val.item() * bsz
+                        lang_samples += bsz
+                total_loss_all += lang_total_loss
+                total_samples_all += lang_samples
+                if lang_samples > 0:
+                    avg_loss = lang_total_loss / lang_samples
+                    try:
+                        perplexity = math.exp(avg_loss)
+                    except OverflowError:
+                        perplexity = float("inf")
+                    per_language_metrics[f"eval/{lang}_loss"] = avg_loss
+                    per_language_metrics[f"eval/{lang}_perplexity"] = perplexity
+
+            if hasattr(self, "is_world_process_zero") and self.is_world_process_zero():
+                if per_language_metrics:
+                    wandb.log(per_language_metrics, step=self.state.global_step)
+
+            result: dict[str, float] = {}
+            if total_samples_all > 0:
+                overall_loss = total_loss_all / total_samples_all
+                result[f"{metric_key_prefix}_loss"] = overall_loss
+                elapsed = time.time() - start_time
+                result[f"{metric_key_prefix}_runtime"] = elapsed
+                if elapsed > 0:
+                    result[f"{metric_key_prefix}_samples_per_second"] = (
+                        total_samples_all / elapsed
+                    )
+            self.log(result)
+            return result
+        except Exception:  # fall back to default behavior
+            return super().evaluate(
+                eval_dataset=ds,
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
 
     def save_model(self, output_dir=None, _internal_call=False):
         out = output_dir or self.args.output_dir

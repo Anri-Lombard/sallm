@@ -1,5 +1,7 @@
 PY ?= python
 
+.DEFAULT_GOAL := check
+
 .PHONY: format lint type test check export-req pre-commit-install pre-commit-check
 
 format:

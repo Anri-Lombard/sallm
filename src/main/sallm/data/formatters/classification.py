@@ -10,9 +10,7 @@ from sallm.templates.registry import TemplateSpec
 
 
 class ClassificationFormatter(TaskFormatter):
-    def validate_dataset(
-        self, dataset: Dataset, config: FinetuneDatasetConfig
-    ) -> None:
+    def validate_dataset(self, dataset: Dataset, config: FinetuneDatasetConfig) -> None:
         column = config.label_column or "label"
         if column not in dataset.column_names:
             raise ValueError(
@@ -23,9 +21,7 @@ class ClassificationFormatter(TaskFormatter):
         self, template: TemplateSpec | None, config: FinetuneDatasetConfig
     ) -> None:
         if template is None or not template.label_mapping:
-            raise ValueError(
-                "Classification templates require a label_mapping"
-            )
+            raise ValueError("Classification templates require a label_mapping")
 
     def format(
         self,
@@ -51,9 +47,7 @@ class ClassificationFormatter(TaskFormatter):
         ]
 
 
-def _coerce_numeric_label(
-    raw_label: Any, label_mapping: dict[int, str]
-) -> int:
+def _coerce_numeric_label(raw_label: Any, label_mapping: dict[int, str]) -> int:
     if isinstance(raw_label, str):
         try:
             key = int(raw_label)

@@ -24,4 +24,3 @@ class GithubDatasetLoader(DatasetLoader):
         dataset_dict["train"] = raw
         dataset_dict["validation"] = raw
         return dataset_dict
-

@@ -53,9 +53,7 @@ def extract_instruction_pair(example: dict[str, Any]) -> tuple[str, str]:
         None,
     )
     if user_val is None or assistant_val is None:
-        raise KeyError(
-            "Unable to locate instruction and response fields in example."
-        )
+        raise KeyError("Unable to locate instruction and response fields in example.")
     return str(user_val), str(assistant_val)
 
 
@@ -69,9 +67,7 @@ def reconstruct_entities_from_iob(
         tag_name = tag_map[tag_id]
         if tag_name.startswith("B-"):
             if current_tokens:
-                entities.append(
-                    f"{current_label}: {' '.join(current_tokens)}"
-                )
+                entities.append(f"{current_label}: {' '.join(current_tokens)}")
             current_tokens = [token]
             current_label = tag_name[2:]
         elif tag_name.startswith("I-"):
@@ -79,16 +75,12 @@ def reconstruct_entities_from_iob(
                 current_tokens.append(token)
             else:
                 if current_tokens:
-                    entities.append(
-                        f"{current_label}: {' '.join(current_tokens)}"
-                    )
+                    entities.append(f"{current_label}: {' '.join(current_tokens)}")
                 current_tokens = []
                 current_label = None
         else:
             if current_tokens:
-                entities.append(
-                    f"{current_label}: {' '.join(current_tokens)}"
-                )
+                entities.append(f"{current_label}: {' '.join(current_tokens)}")
             current_tokens = []
             current_label = None
     if current_tokens:

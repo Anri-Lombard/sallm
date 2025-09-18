@@ -9,9 +9,7 @@ from sallm.templates.registry import TemplateSpec
 
 
 class TaskFormatter:
-    def validate_dataset(
-        self, dataset: Dataset, config: FinetuneDatasetConfig
-    ) -> None:
+    def validate_dataset(self, dataset: Dataset, config: FinetuneDatasetConfig) -> None:
         return None
 
     def validate_template(

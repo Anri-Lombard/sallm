@@ -46,9 +46,7 @@ class POSTaggingFormatter(TaskFormatter):
             tokens_repr = "[" + ", ".join(repr(t) for t in tokens) + "]"
             user_prompt = (
                 "Please provide UPOS tags for each token as a list of (token, TAG) "
-                "tuples.\nSentence: "
-                + tokens_repr
-                + "\nOutput: "
+                "tuples.\nSentence: " + tokens_repr + "\nOutput: "
             )
         return [
             {"role": "user", "content": user_prompt},

@@ -8,5 +8,4 @@ from sallm.config import FinetuneDatasetConfig
 
 
 class DatasetLoader(Protocol):
-    def load(self, config: FinetuneDatasetConfig) -> DatasetDict:
-        ...
+    def load(self, config: FinetuneDatasetConfig) -> DatasetDict: ...
