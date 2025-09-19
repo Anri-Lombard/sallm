@@ -32,6 +32,7 @@ def evaluate_pack(
     model_cfg: ModelEvalConfig,
     out_dir: Path,
     overrides: dict[str, dict],
+    save_outputs: bool = True,
 ) -> dict:
     pack_over = overrides.get(pack.name, {})
     task_list = pack_over.get("tasks", pack.tasks)
@@ -65,15 +66,16 @@ def evaluate_pack(
             num_fewshot=fewshot,
             batch_size=batch_size,
             apply_chat_template=apply_chat_template,
-            log_samples=True,
-            write_out=True,
+            log_samples=save_outputs,
+            write_out=save_outputs,
         )
     except TypeError:
         raise
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{pack.name}.json"
-    with out_path.open("w") as f:
-        json.dump(results, f, indent=2, default=_safe_json_encoder)
+    if save_outputs:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{pack.name}.json"
+        with out_path.open("w") as f:
+            json.dump(results, f, indent=2, default=_safe_json_encoder)
 
     return results

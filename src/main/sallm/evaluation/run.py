@@ -28,7 +28,13 @@ def run(config: ExperimentConfig) -> None:
             pack_name,
             len(pack.tasks),
         )
-        results: dict = evaluate_pack(pack, model_cfg, out_root, overrides)
+        results: dict = evaluate_pack(
+            pack,
+            model_cfg,
+            out_root,
+            overrides,
+            save_outputs=eval_cfg.save_outputs,
+        )
         logger.info(json.dumps(results["results"], indent=2))
 
     logger.info("Evaluation done.")

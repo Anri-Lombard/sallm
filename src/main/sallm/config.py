@@ -40,6 +40,7 @@ class EvaluationConfig:
     output_dir: str = MISSING
     overrides: dict[str, Any] = field(default_factory=dict)
     wandb: WandbConfig | None = MISSING
+    save_outputs: bool = True
 
 
 @dataclass

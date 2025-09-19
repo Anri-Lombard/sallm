@@ -27,6 +27,8 @@ parameters:
     values: [true, false]
   dataset.max_seq_length:
     values: [1024, 2048]
+  evaluation.save_outputs:
+    value: false
 command:
   - ${env}
   - python
