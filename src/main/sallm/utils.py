@@ -10,7 +10,6 @@ class RunMode(str, Enum):
     TRAIN = "train"
     FINETUNE = "finetune"
     EVALUATE = "evaluate"
-    ORCHESTRATE = "orchestrate"
 
 
 def count_trainable_parameters(model: nn.Module) -> int:

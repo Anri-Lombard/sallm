@@ -12,7 +12,6 @@ from transformers.utils import logging as hf_logging
 from sallm.config import ExperimentConfig
 from sallm.evaluation.run import run as run_eval
 from sallm.fine_tune.run import run as run_fine_tune
-from sallm.pipeline.run import run as run_orch
 from sallm.training.run import run as run_train
 from sallm.utils import RunMode
 
@@ -89,8 +88,6 @@ def main(cfg: DictConfig) -> None:
         run_fine_tune(config)
     elif config.mode == RunMode.EVALUATE:
         run_eval(config)
-    elif config.mode == RunMode.ORCHESTRATE:
-        run_orch(config)
     else:
         raise ValueError(f"Unsupported mode {config.mode!r}")
 

@@ -140,16 +140,6 @@ class FinetuneDatasetConfig:
 
 
 @dataclass
-class PipelineConfig:
-    base_checkpoint: str = MISSING
-    languages: list[str] = field(default_factory=list)
-    task_name: str = MISSING
-    finetune_base_cfg: str = MISSING
-    eval_stub_cfg: str = MISSING
-    slurm_array: bool = False
-
-
-@dataclass
 class TemplateConfig:
     prompt: str = MISSING
     label_mapping: dict[int | str, str] = field(default_factory=dict)
@@ -174,4 +164,3 @@ class ExperimentConfig:
     dataset: FinetuneDatasetConfig | None = None
     peft: PeftConfig | None = None
     template: TemplateConfig | None = None
-    pipeline: PipelineConfig | None = None
