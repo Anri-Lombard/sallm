@@ -2,6 +2,7 @@ import logging
 import math
 import time
 from pathlib import Path
+from typing import Any, cast
 
 import torch
 import wandb
@@ -10,7 +11,7 @@ from transformers import Trainer
 from transformers.utils import is_datasets_available
 
 if is_datasets_available():
-    import datasets
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -20,70 +21,89 @@ logger = logging.getLogger(__name__)
 class CustomTrainer(Trainer):
     def evaluate(
         self,
-        eval_dataset: datasets.Dataset | None = None,
+        eval_dataset: Any | None = None,
         ignore_keys: list[str] | None = None,
         metric_key_prefix: str = "eval",
     ) -> dict[str, float]:
-        ds = (
+        base_trainer = cast(Trainer, self)
+        trainer_any = cast(Any, self)
+        ds_candidate = (
             eval_dataset
             if eval_dataset is not None
             else getattr(self, "eval_dataset", None)
         )
-        if ds is None:
-            return super().evaluate(
-                eval_dataset=eval_dataset,
-                ignore_keys=ignore_keys,
-                metric_key_prefix=metric_key_prefix,
+        if ds_candidate is None:
+            return cast(
+                dict[str, float],
+                Trainer.evaluate(
+                    base_trainer,
+                    eval_dataset=eval_dataset,
+                    ignore_keys=ignore_keys,
+                    metric_key_prefix=metric_key_prefix,
+                ),
             )
 
-        if "lang" not in ds.features:
-            return super().evaluate(
-                eval_dataset=ds,
-                ignore_keys=ignore_keys,
-                metric_key_prefix=metric_key_prefix,
+        if not hasattr(ds_candidate, "features") or "lang" not in ds_candidate.features:
+            return cast(
+                dict[str, float],
+                Trainer.evaluate(
+                    base_trainer,
+                    eval_dataset=ds_candidate,
+                    ignore_keys=ignore_keys,
+                    metric_key_prefix=metric_key_prefix,
+                ),
             )
 
         try:
             start_time = time.time()
-            unique_languages = sorted(list(set(ds["lang"])))
+            unique_languages = sorted(list(set(ds_candidate["lang"])))
             per_language_metrics: dict[str, float] = {}
             total_loss_all = 0.0
             total_samples_all = 0
 
-            if not hasattr(self, "model"):
-                return super().evaluate(
-                    eval_dataset=ds,
-                    ignore_keys=ignore_keys,
-                    metric_key_prefix=metric_key_prefix,
+            model_obj = getattr(trainer_any, "model", None)
+            if model_obj is None:
+                return cast(
+                    dict[str, float],
+                    Trainer.evaluate(
+                        base_trainer,
+                        eval_dataset=ds_candidate,
+                        ignore_keys=ignore_keys,
+                        metric_key_prefix=metric_key_prefix,
+                    ),
                 )
-            model = self.model
-            model.eval()
+            model: Any = model_obj
+            if hasattr(model, "eval"):
+                model.eval()
 
-            if (
-                not hasattr(self, "_signature_columns")
-                or self._signature_columns is None
-            ):
-                return super().evaluate(
-                    eval_dataset=ds,
-                    ignore_keys=ignore_keys,
-                    metric_key_prefix=metric_key_prefix,
+            signature_columns = getattr(trainer_any, "_signature_columns", None)
+            if signature_columns is None:
+                return cast(
+                    dict[str, float],
+                    Trainer.evaluate(
+                        base_trainer,
+                        eval_dataset=ds_candidate,
+                        ignore_keys=ignore_keys,
+                        metric_key_prefix=metric_key_prefix,
+                    ),
                 )
-            model_args = self._signature_columns
 
             for lang in unique_languages:
-                lang_ds = ds.filter(
+                lang_ds = ds_candidate.filter(
                     lambda x, _l=lang: x["lang"] == _l, load_from_cache_file=False
                 )
                 if len(lang_ds) == 0:
                     continue
-                dataloader: DataLoader = self.get_eval_dataloader(lang_ds)
+                dataloader: DataLoader[Any] = trainer_any.get_eval_dataloader(lang_ds)
                 lang_total_loss = 0.0
                 lang_samples = 0
                 with torch.no_grad():
                     for batch in dataloader:
-                        batch_inputs = self._prepare_inputs(batch)
+                        batch_inputs = trainer_any._prepare_inputs(batch)
                         inputs_for_model = {
-                            k: v for k, v in batch_inputs.items() if k in model_args
+                            k: v
+                            for k, v in batch_inputs.items()
+                            if k in signature_columns
                         }
                         outputs = model(**inputs_for_model)
                         loss_val = outputs.loss
@@ -101,9 +121,10 @@ class CustomTrainer(Trainer):
                     per_language_metrics[f"eval/{lang}_loss"] = avg_loss
                     per_language_metrics[f"eval/{lang}_perplexity"] = perplexity
 
-            if hasattr(self, "is_world_process_zero") and self.is_world_process_zero():
-                if per_language_metrics:
-                    wandb.log(per_language_metrics, step=self.state.global_step)
+            state_obj = getattr(trainer_any, "state", None)
+            if state_obj is not None and hasattr(trainer_any, "is_world_process_zero"):
+                if trainer_any.is_world_process_zero() and per_language_metrics:
+                    wandb.log(per_language_metrics, step=state_obj.global_step)
 
             result: dict[str, float] = {}
             if total_samples_all > 0:
@@ -115,20 +136,30 @@ class CustomTrainer(Trainer):
                     result[f"{metric_key_prefix}_samples_per_second"] = (
                         total_samples_all / elapsed
                     )
-            self.log(result)
+            Trainer.log(base_trainer, result)
             return result
-        except Exception:  # fall back to default behavior
-            return super().evaluate(
-                eval_dataset=ds,
-                ignore_keys=ignore_keys,
-                metric_key_prefix=metric_key_prefix,
+        except Exception:
+            return cast(
+                dict[str, float],
+                Trainer.evaluate(
+                    base_trainer,
+                    eval_dataset=ds_candidate,
+                    ignore_keys=ignore_keys,
+                    metric_key_prefix=metric_key_prefix,
+                ),
             )
 
-    def save_model(self, output_dir=None, _internal_call=False):
-        out = output_dir or self.args.output_dir
+    def save_model(
+        self, output_dir: str | None = None, _internal_call: bool = False
+    ) -> None:
+        trainer_any = cast(Any, self)
+        out = output_dir or trainer_any.args.output_dir
         Path(out).mkdir(parents=True, exist_ok=True)
 
-        self.model.save_pretrained(out, safe_serialization=False)
+        model = getattr(trainer_any, "model", None)
+        if model is not None:
+            model.save_pretrained(out, safe_serialization=False)
 
-        if self.tokenizer is not None:
-            self.tokenizer.save_pretrained(out)
+        tokenizer = getattr(trainer_any, "tokenizer", None)
+        if tokenizer is not None:
+            tokenizer.save_pretrained(out)

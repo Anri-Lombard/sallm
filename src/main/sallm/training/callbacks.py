@@ -1,13 +1,12 @@
 import logging
 import random
+from typing import Any
 
 import torch
 import wandb
 from datasets import Dataset
 from evaluate import load as _eval_load
 from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
     TrainerCallback,
     TrainerControl,
     TrainerState,
@@ -24,12 +23,12 @@ class ShowCompletionsCallback(TrainerCallback):
     def __init__(
         self,
         eval_dataset: Dataset,
-        tokenizer: AutoTokenizer,
+        tokenizer: Any,
         num_samples: int = 5,
         max_new_tokens: int = 100,
-    ):
+    ) -> None:
         self.eval_dataset = eval_dataset
-        self.tokenizer = tokenizer
+        self.tokenizer: Any = tokenizer
         self.num_samples = num_samples
         self.max_new_tokens = max_new_tokens
 
@@ -38,17 +37,18 @@ class ShowCompletionsCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if not state.is_world_process_zero:
             return
 
-        model: AutoModelForCausalLM | None = kwargs.get("model")
-        if model is None:
+        model_obj = kwargs.get("model")
+        if model_obj is None:
             logger.warning(
                 "ShowCompletionsCallback: `model` not found in kwargs. Skipping."
             )
             return
+        model: Any = model_obj
 
         ds_len = len(self.eval_dataset)
         indices: list[int] = (
@@ -58,17 +58,24 @@ class ShowCompletionsCallback(TrainerCallback):
         )
         samples = self.eval_dataset.select(indices)
 
+        epoch_val = state.epoch
+        epoch_int = int(epoch_val) if epoch_val is not None else 0
         logger.info(
             f"\n--- Showing {len(indices)} Generated Examples "
-            f"after Epoch {int(state.epoch):d} ---"
+            f"after Epoch {epoch_int:d} ---"
         )
 
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
-        device = model.device
+        device = getattr(model, "device", None)
+        if device is None:
+            device = torch.device("cpu")
 
         for i, sample in enumerate(samples, start=1):
-            messages: list[dict[str, str]] = sample["messages"]
+            messages = sample["messages"]
+            if not isinstance(messages, list):
+                logger.warning("Expected messages column to be a list")
+                continue
 
             prompt_messages = messages[:-1]
             gold_completion = messages[-1]["content"].lstrip()
@@ -117,8 +124,8 @@ class ShowCompletionsCallback(TrainerCallback):
         state: TrainerState,
         control: TrainerControl,
         logs: dict[str, float] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if not state.is_world_process_zero:
             return
 
@@ -142,11 +149,11 @@ class GenerationMetricsCallback(TrainerCallback):
     def __init__(
         self,
         eval_dataset: Dataset,
-        tokenizer: AutoTokenizer,
+        tokenizer: Any,
         max_new_tokens: int = 64,
-    ):
+    ) -> None:
         self.eval_dataset = eval_dataset
-        self.tokenizer = tokenizer
+        self.tokenizer: Any = tokenizer
         self.max_new_tokens = max_new_tokens
 
     def on_evaluate(
@@ -154,17 +161,18 @@ class GenerationMetricsCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if not state.is_world_process_zero:
             return
 
-        model = kwargs.get("model")
-        if model is None:
+        model_obj = kwargs.get("model")
+        if model_obj is None:
             logger.warning(
                 "GenerationMetricsCallback: `model` not found in kwargs. Skipping."
             )
             return
+        model: Any = model_obj
 
         rouge = _eval_load("rouge")
         bleu = _eval_load("bleu")
@@ -172,7 +180,9 @@ class GenerationMetricsCallback(TrainerCallback):
 
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
-        device = model.device
+        device = getattr(model, "device", None)
+        if device is None:
+            device = torch.device("cpu")
 
         if "lang" in self.eval_dataset.features:
             unique_languages = sorted(list(set(self.eval_dataset["lang"])))
@@ -197,7 +207,8 @@ class GenerationMetricsCallback(TrainerCallback):
             preds: list[str] = []
             refs: list[str] = []
 
-            model.eval()
+            if hasattr(model, "eval"):
+                model.eval()
             with torch.no_grad():
                 for sample in lang_ds:
                     messages = sample["messages"]

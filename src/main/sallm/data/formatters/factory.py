@@ -14,6 +14,7 @@ from .pos import POSTaggingFormatter
 def build_formatter(
     task: FinetuneTaskType, dataset: Dataset, config: FinetuneDatasetConfig
 ) -> TaskFormatter:
+    formatter: TaskFormatter
     if task == FinetuneTaskType.INSTRUCTION:
         formatter = InstructionFormatter()
     elif task == FinetuneTaskType.CLASSIFICATION:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import lm_eval
 import numpy as np
@@ -15,7 +16,7 @@ from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
 
 
-def _safe_json_encoder(obj):
+def _safe_json_encoder(obj: Any) -> Any:
     if isinstance(obj, np.integer) or isinstance(obj, np.floating):
         return obj.item()
     if isinstance(obj, np.ndarray):
@@ -31,16 +32,20 @@ def evaluate_pack(
     pack: TaskPack,
     model_cfg: ModelEvalConfig,
     out_dir: Path,
-    overrides: dict[str, dict],
-) -> dict:
+    overrides: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     pack_over = overrides.get(pack.name, {})
     task_list = pack_over.get("tasks", pack.tasks)
     fewshot = int(pack_over.get("fewshot", pack.fewshot))
     batch_size = int(pack_over.get("batch_size", pack.batch_size))
     apply_chat_template = pack_over.get("apply_chat_template", pack.apply_chat_template)
 
-    tok = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
-    tok.backend_tokenizer.decoder = ByteLevel()
+    tok = cast(
+        AutoTokenizer,
+        AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True),
+    )
+    tok_any = cast(Any, tok)
+    tok_any.backend_tokenizer.decoder = ByteLevel()
 
     hf_model = HFLM(
         pretrained=model_cfg.checkpoint,
@@ -52,14 +57,16 @@ def evaluate_pack(
     )
 
     genconf = hf_model.model.generation_config
-    genconf.eos_token_id = tok.eos_token_id
-    genconf.pad_token_id = tok.pad_token_id or tok.eos_token_id
+    eos_token_id = getattr(tok_any, "eos_token_id", None)
+    pad_token_id = getattr(tok_any, "pad_token_id", None)
+    genconf.eos_token_id = eos_token_id
+    genconf.pad_token_id = pad_token_id or eos_token_id
 
     if model_cfg.merge_lora and isinstance(hf_model.model, PeftModel):
         hf_model._model = hf_model.model.merge_and_unload()
 
     try:
-        results = lm_eval.simple_evaluate(
+        results_any = lm_eval.simple_evaluate(
             model=hf_model,
             tasks=task_list,
             num_fewshot=fewshot,
@@ -68,6 +75,7 @@ def evaluate_pack(
             log_samples=True,
             write_out=True,
         )
+        results = cast(dict[str, Any], results_any)
     except TypeError:
         raise
 

@@ -36,10 +36,16 @@ class ClassificationFormatter(TaskFormatter):
         label_mapping = template.label_mapping
         numeric_keys = isinstance(next(iter(label_mapping.keys())), int)
         if numeric_keys:
-            key = _coerce_numeric_label(raw_label, label_mapping)
+            numeric_mapping = {
+                int(str_key): value
+                for str_key, value in label_mapping.items()
+                if isinstance(str_key, int) or str(str_key).isdigit()
+            }
+            numeric_key = _coerce_numeric_label(raw_label, numeric_mapping)
+            assistant_response = numeric_mapping[numeric_key]
         else:
-            key = str(raw_label)
-        assistant_response = label_mapping[key]
+            str_key = str(raw_label)
+            assistant_response = label_mapping[str_key]
         user_prompt = template.prompt.format(**example)
         return [
             {"role": "user", "content": user_prompt},
@@ -53,11 +59,12 @@ def _coerce_numeric_label(raw_label: Any, label_mapping: dict[int, str]) -> int:
             key = int(raw_label)
         except ValueError as err:
             lookup = {str(v).lower(): k for k, v in label_mapping.items()}
-            key = lookup.get(raw_label.lower())
-            if key is None:
+            mapped_key = lookup.get(raw_label.lower())
+            if mapped_key is None:
                 raise ValueError(
                     f"Cannot map string label '{raw_label}' to a numeric key"
                 ) from err
+            key = mapped_key
     else:
         key = int(raw_label)
     if key not in label_mapping and (key - 1) in label_mapping:

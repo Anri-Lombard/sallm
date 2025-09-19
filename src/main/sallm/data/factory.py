@@ -53,13 +53,14 @@ def _build_finetune_datasets(
 ) -> tuple[Dataset, Dataset, Dataset | None]:
     if dataset_conf.task is None:
         raise ValueError("dataset.task must be specified for fine-tuning")
+    task = dataset_conf.task
     loader = get_loader(dataset_conf)
     dataset_dict = loader.load(dataset_conf)
     train_raw = _resolve_split(dataset_dict, ["train"])
     val_raw = _resolve_split(dataset_dict, ["validation", "val", "dev", "test"])
     template_pairs = _load_template_pairs(dataset_conf)
-    train_ds = _format_split(train_raw, dataset_conf, template_pairs)
-    val_ds = _format_split(val_raw, dataset_conf, template_pairs)
+    train_ds = _format_split(train_raw, dataset_conf, template_pairs, task)
+    val_ds = _format_split(val_raw, dataset_conf, template_pairs, task)
     return train_ds, val_ds, None
 
 
@@ -77,8 +78,9 @@ def _format_split(
     raw_ds: Dataset,
     dataset_conf: FinetuneDatasetConfig,
     template_pairs: list[tuple[TemplateRef, TemplateSpec]],
+    task: FinetuneTaskType,
 ) -> Dataset:
-    formatter = build_formatter(dataset_conf.task, raw_ds, dataset_conf)
+    formatter = build_formatter(task, raw_ds, dataset_conf)
     if dataset_conf.template_choice == TemplateChoice.ALL:
         for _, spec in template_pairs:
             formatter.validate_template(spec, dataset_conf)
@@ -88,7 +90,9 @@ def _format_split(
     else:
         first_spec = template_pairs[0][1] if template_pairs else None
         formatter.validate_template(first_spec, dataset_conf)
-        formatted = _format_single_template(raw_ds, dataset_conf, formatter, first_spec)
+        formatted = _format_single_template(
+            raw_ds, dataset_conf, formatter, first_spec, task
+        )
     return _ensure_lang_column(formatted, raw_ds, dataset_conf)
 
 
@@ -138,8 +142,9 @@ def _format_single_template(
     dataset_conf: FinetuneDatasetConfig,
     formatter: TaskFormatter,
     template_spec: TemplateSpec | None,
+    task: FinetuneTaskType,
 ) -> Dataset:
-    desc = _format_description(dataset_conf.task)
+    desc = _format_description(task)
 
     def _to_messages(example: dict[str, Any]) -> dict[str, Any]:
         messages = formatter.format(example, template_spec, dataset_conf)

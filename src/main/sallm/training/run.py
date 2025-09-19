@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any, cast
 
 import wandb
 from omegaconf import OmegaConf
@@ -33,12 +34,15 @@ def run(config: ExperimentConfig) -> None:
     tokenizer = build_tokenizer(config)
     model = build_model(config, tokenizer)
 
-    model.tokenizer = tokenizer
+    model_any = cast(Any, model)
+    model_any.tokenizer = tokenizer
 
     train_ds, val_ds, test_ds = build_datasets(config, tokenizer, is_hpo=is_hpo_run)
 
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
-    trainer.train(resume_from_checkpoint=config.training.get("resume_from_checkpoint"))
+    training_params: dict[str, Any] = config.training or {}
+    resume_from_checkpoint = training_params.get("resume_from_checkpoint")
+    trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
     if not is_hpo_run:
         out = os.path.join(trainer.args.output_dir, "final_model")

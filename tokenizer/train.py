@@ -2,7 +2,7 @@ import argparse
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -91,7 +91,7 @@ def train_tokenizer(config: dict) -> None:
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    wrapped_tokenizer.save_pretrained(str(output_dir))
+    cast(Any, wrapped_tokenizer).save_pretrained(str(output_dir))
     print(f"Tokenizer saved to {output_dir}")
 
     print("\n--- Verification ---")

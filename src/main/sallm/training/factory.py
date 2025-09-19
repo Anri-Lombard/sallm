@@ -6,6 +6,7 @@ from omegaconf import OmegaConf
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    TrainerCallback,
 )
 from trl import SFTConfig, SFTTrainer
 
@@ -22,7 +23,12 @@ def build_trainer(
     train_dataset: Dataset,
     eval_dataset: Dataset,
 ) -> SFTTrainer:
-    training_args_dict = OmegaConf.to_container(config.training, resolve=True)
+    if config.training is None:
+        raise ValueError("`training` config block must be provided.")
+    training_args_raw = OmegaConf.to_container(config.training, resolve=True)
+    if not isinstance(training_args_raw, dict):
+        raise TypeError("`training` config must resolve to a mapping of options.")
+    training_args_dict = dict(training_args_raw)
 
     # TODO implement cleaner logic for this
     if config.mode == RunMode.FINETUNE:
@@ -74,7 +80,7 @@ def build_trainer(
         logger.info(training_args)
         logger.info("------------------------------------")
 
-    callbacks = []
+    callbacks: list[TrainerCallback] = []
     if config.mode == RunMode.FINETUNE:
         completions_callback = ShowCompletionsCallback(
             eval_dataset=eval_dataset, tokenizer=tokenizer, num_samples=5

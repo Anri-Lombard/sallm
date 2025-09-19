@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import textwrap
+from typing import Any, cast
 
 import peft
 import torch
@@ -23,7 +24,7 @@ def _is_hpo_run(config: ExperimentConfig) -> bool:
 
 # TODO: improve naming
 # TODO: no defaults for loraconfig, specify in config files
-def _apply_peft_if_needed(model, peft_cfg):
+def _apply_peft_if_needed(model: Any, peft_cfg: Any) -> Any:
     if not peft_cfg or peft_cfg.method == "none":
         return model
 
@@ -80,9 +81,11 @@ def run(config: ExperimentConfig) -> None:
 
     logger.info("Tokenizer …")
     tokenizer = build_tokenizer(config)
+    tokenizer_any = cast(Any, tokenizer)
 
     logger.info("Model …")
     model = build_model(config, tokenizer)
+    model_any = cast(Any, model)
 
     logger.info("Adding special tokens and resizing model embeddings.")
     special_tokens_dict = {
@@ -92,14 +95,15 @@ def run(config: ExperimentConfig) -> None:
             "<|assistant|>",
         ]
     }
-    num_added_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    num_added_tokens = tokenizer_any.add_special_tokens(special_tokens_dict)
 
     if num_added_tokens > 0:
-        model.resize_token_embeddings(len(tokenizer))
+        vocab_size = len(cast(Any, tokenizer).get_vocab())
+        model_any.resize_token_embeddings(vocab_size)
 
-    if tokenizer.chat_template is None:
+    if getattr(tokenizer_any, "chat_template", None) is None:
         # TODO: move this template to its own file
-        tokenizer.chat_template = textwrap.dedent(
+        template_text = textwrap.dedent(
             """
             {%- if system_message %}
             <|system|>
@@ -120,19 +124,22 @@ def run(config: ExperimentConfig) -> None:
             """
         ).lstrip()
 
+        tokenizer_any.chat_template = template_text
         logger.info("Tokenizer chat template not found. Applying default template.")
 
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    if getattr(tokenizer_any, "pad_token", None) is None:
+        eos_token = getattr(tokenizer_any, "eos_token", None)
+        tokenizer_any.pad_token = eos_token
         logger.info(
             "tokenizer.pad_token was not set, setting it to eos_token: %s",
-            tokenizer.eos_token,
+            eos_token,
         )
 
     model = _apply_peft_if_needed(model, config.peft)
+    model_any = cast(Any, model)
 
-    if i_am_main and hasattr(model, "print_trainable_parameters"):
-        model.print_trainable_parameters()
+    if i_am_main and hasattr(model_any, "print_trainable_parameters"):
+        model_any.print_trainable_parameters()
 
     logger.info("Datasets …")
     train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
@@ -157,10 +164,11 @@ def run(config: ExperimentConfig) -> None:
         logger.info(f"Messages:\n{sample['messages']}")
         logger.info("-------------------------------------------")
 
-    model.tokenizer = tokenizer
+    model_any.tokenizer = tokenizer
 
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
-    resume_ckpt = config.training.get("resume_from_checkpoint")
+    training_params: dict[str, Any] = config.training or {}
+    resume_ckpt = training_params.get("resume_from_checkpoint")
 
     logger.info("Fine-tuning start …")
     torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
@@ -171,8 +179,8 @@ def run(config: ExperimentConfig) -> None:
         return
 
     # TODO: rather just save adapters and merge at eval time to save space
-    if hasattr(model, "merge_and_unload"):
-        merged_model = model.merge_and_unload()
+    if hasattr(model_any, "merge_and_unload"):
+        merged_model = model_any.merge_and_unload()
     else:
         merged_model = model
 
@@ -184,5 +192,5 @@ def run(config: ExperimentConfig) -> None:
         torch.save(
             merged_model.state_dict(), os.path.join(output_dir, "pytorch_model.bin")
         )
-    tokenizer.save_pretrained(output_dir)
+    tokenizer_any.save_pretrained(output_dir)
     logger.info(f"Saved final MERGED model to → {output_dir}")

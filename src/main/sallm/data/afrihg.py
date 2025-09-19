@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import requests
 from datasets import DatasetDict, load_dataset
@@ -15,13 +17,13 @@ def load_afrihg_from_github(
     if cache_dir is None:
         cache_dir = os.path.join(os.getcwd(), "data", "afrihg_cache")
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    wanted = ["xho", "zul"]
+    target_languages = ["xho", "zul"]
     if languages:
-        wanted = [lang for lang in languages if lang in ("xho", "zul")]
+        target_languages = [lang for lang in languages if lang in ("xho", "zul")]
     session = requests.Session()
-    splits = {"train": [], "validation": [], "test": []}
+    splits: dict[str, list[str]] = {"train": [], "validation": [], "test": []}
 
-    for code in wanted:
+    for code in target_languages:
         lang_dir = f"data/{code}"
         for split_name in ["train", "dev", "validation", "test"]:
             filename = f"{lang_dir}/{split_name}.csv"
@@ -63,14 +65,17 @@ def load_afrihg_from_github(
         else:
             dataset_dict["train"] = hf
         if languages:
+            selected_languages = set(languages)
             for split in list(dataset_dict.keys()):
                 ds = dataset_dict[split]
 
-                def _in_lang(ex):
-                    code = (
+                def _in_lang(ex: Mapping[str, Any]) -> bool:
+                    value = (
                         ex.get("lang") or ex.get("language") or ex.get("language_code")
                     )
-                    return code in languages if code is not None else False
+                    if isinstance(value, str):
+                        return value in selected_languages
+                    return False
 
                 dataset_dict[split] = ds.filter(_in_lang)
 

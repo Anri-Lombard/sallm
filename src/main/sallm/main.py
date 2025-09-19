@@ -28,7 +28,7 @@ def setup_logging(config: DictConfig) -> None:
     is_main = bool(OmegaConf.select(config, "runtime.is_main"))
 
     if is_main:
-        handlers = [logging.StreamHandler(sys.stdout)]
+        handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
 
         log_file_path = None
         if config.training:

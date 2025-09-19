@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from datasets import Dataset
@@ -11,11 +12,15 @@ from sallm.templates.registry import TemplateSpec
 
 class POSTaggingFormatter(TaskFormatter):
     def __init__(self, dataset: Dataset) -> None:
-        upos_feature = dataset.features.get("upos") if dataset.features else None
-        names = None
-        if hasattr(upos_feature, "feature") and hasattr(upos_feature.feature, "names"):
-            names = list(upos_feature.feature.names)
-        self.upos_class_names = names
+        self.upos_class_names: list[str] | None = None
+        features = getattr(dataset, "features", None)
+        upos_feature = (
+            features.get("upos") if features and hasattr(features, "get") else None
+        )
+        feature_meta = getattr(upos_feature, "feature", None)
+        names = getattr(feature_meta, "names", None)
+        if isinstance(names, Sequence):
+            self.upos_class_names = [str(name) for name in names]
 
     def format(
         self,
@@ -25,10 +30,18 @@ class POSTaggingFormatter(TaskFormatter):
     ) -> list[dict[str, str]]:
         tokens = example["tokens"]
         raw_upos = example["upos"]
-        if raw_upos and isinstance(raw_upos[0], int) and self.upos_class_names:
+        tags: list[str]
+        if (
+            isinstance(raw_upos, Sequence)
+            and raw_upos
+            and isinstance(raw_upos[0], int)
+            and self.upos_class_names
+        ):
             tags = [self.upos_class_names[i] for i in raw_upos]
-        else:
+        elif isinstance(raw_upos, Sequence):
             tags = [str(tag) for tag in raw_upos]
+        else:
+            raise TypeError("Expected 'upos' to be a sequence of tags")
         if len(tokens) != len(tags):
             raise ValueError(
                 f"Mismatch between tokens ({len(tokens)}) and upos tags ({len(tags)})"

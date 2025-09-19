@@ -8,8 +8,10 @@ from sallm.evaluation.run import run as run_ev
 from sallm.fine_tune.run import run as run_ft
 
 
-def run(cfg: ExperimentConfig):
+def run(cfg: ExperimentConfig) -> None:
     pipe = cfg.pipeline
+    if pipe is None:
+        raise ValueError("pipeline configuration is required")
     for lang in pipe.languages:
         with hydra.initialize(
             config_path="../../conf", job_name=f"sallm-pipeline-{lang}"
