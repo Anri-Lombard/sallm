@@ -199,7 +199,7 @@ def run(config: ExperimentConfig) -> None:
         if hasattr(model, "base_model_name_or_path"):
             model.base_model_name_or_path = base_checkpoint
         model.save_pretrained(output_dir)
-        tokenizer.save_pretrained(output_dir)
+        tokenizer_any.save_pretrained(output_dir)
         logger.info(f"Saved PEFT adapter to → {output_dir}")
         return
 
