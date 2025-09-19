@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
-    tokenizer_cfg = _require_tokenizer_config(config.tokenizer)
-    tokenizer = cast(AutoTokenizer, AutoTokenizer.from_pretrained(tokenizer_cfg.path))
+    tokenizer_conf: TokenizerConfig | None = config.tokenizer
+    if tokenizer_conf is None:
+        raise ValueError("ExperimentConfig.tokenizer is required")
+    tokenizer = cast(AutoTokenizer, AutoTokenizer.from_pretrained(tokenizer_conf.path))
     tokenizer_any = cast(Any, tokenizer)
     tokenizer_any.backend_tokenizer.decoder = ByteLevel()
     return tokenizer
@@ -22,7 +24,9 @@ def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
 def build_model(
     config: ExperimentConfig, tokenizer: AutoTokenizer
 ) -> AutoModelForCausalLM:
-    model_conf = _require_model_config(config.model)
+    model_conf: ModelConfig | None = config.model
+    if model_conf is None:
+        raise ValueError("ExperimentConfig.model is required")
     model_class = MODEL_CLASS_REGISTRY.get(model_conf.architecture)
 
     if not model_class:

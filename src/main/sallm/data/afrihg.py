@@ -70,11 +70,11 @@ def load_afrihg_from_github(
                 ds = dataset_dict[split]
 
                 def _in_lang(ex: Mapping[str, Any]) -> bool:
-                    value = (
+                    code = (
                         ex.get("lang") or ex.get("language") or ex.get("language_code")
                     )
-                    if isinstance(value, str):
-                        return value in selected_languages
+                    if isinstance(code, str):
+                        return code in selected_languages
                     return False
 
                 dataset_dict[split] = ds.filter(_in_lang)

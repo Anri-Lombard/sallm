@@ -24,6 +24,19 @@ from sallm.templates import registry as tmpl
 from sallm.templates.registry import TemplateSpec
 
 
+def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
+    safe: dict[str, str] = {}
+    for k, v in values.items():
+        try:
+            if v is None:
+                safe[k] = ""
+            else:
+                safe[k] = str(v).strip()
+        except Exception:
+            safe[k] = str(v)
+    return prompt.format(**safe)
+
+
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
 ) -> tuple[Dataset, Dataset, Dataset | None]:

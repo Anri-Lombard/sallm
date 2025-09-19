@@ -178,7 +178,31 @@ def run(config: ExperimentConfig) -> None:
     if is_hpo_run:
         return
 
-    # TODO: rather just save adapters and merge at eval time to save space
+    # Prefer saving adapters when training with PEFT; otherwise merge weights.
+    if (
+        config.peft
+        and config.peft.method
+        and config.peft.method.lower() in {"lora", "qlora"}
+        and isinstance(model, peft.PeftModel)
+    ):
+        base_checkpoint = getattr(config.model, "init_checkpoint", None)
+        if not base_checkpoint:
+            raise ValueError(
+                "Saving PEFT adapters requires `model.init_checkpoint` to be set."
+            )
+        output_dir = os.path.join(trainer.args.output_dir, "final_adapter")
+        os.makedirs(output_dir, exist_ok=True)
+        active_adapter = getattr(model, "active_adapter", "default")
+        peft_cfg = model.peft_config.get(active_adapter)
+        if peft_cfg:
+            peft_cfg.base_model_name_or_path = base_checkpoint
+        if hasattr(model, "base_model_name_or_path"):
+            model.base_model_name_or_path = base_checkpoint
+        model.save_pretrained(output_dir)
+        tokenizer.save_pretrained(output_dir)
+        logger.info(f"Saved PEFT adapter to → {output_dir}")
+        return
+
     if hasattr(model_any, "merge_and_unload"):
         merged_model = model_any.merge_and_unload()
     else:
