@@ -15,9 +15,9 @@ CONFIG_PATH="$1"
 WANDB_RUN_ID="$2"
 
 if [ -z "$CONFIG_PATH" ] || [ -z "$WANDB_RUN_ID" ]; then
-    echo "Error: Missing arguments."
-    echo "Usage: $0 <config_path> <wandb_run_id>"
-    exit 1
+  echo "Error: Missing arguments."
+  echo "Usage: $0 <config_path> <wandb_run_id>"
+  exit 1
 fi
 
 #SBATCH --job-name="sallm-resume-${WANDB_RUN_ID}"
@@ -32,7 +32,7 @@ export HYDRA_FULL_ERROR=1
 
 echo "Launching resumed training run..."
 accelerate launch --num_processes 4 --num_machines 1 --mixed_precision bf16 --dynamo_backend no src/main/sallm/main.py \
-    --config_path "$CONFIG_PATH" \
-    --wandb_run_id "$WANDB_RUN_ID"
+  --config_path "$CONFIG_PATH" \
+  --wandb_run_id "$WANDB_RUN_ID"
 
 echo "Resumed training run finished."

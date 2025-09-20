@@ -95,8 +95,8 @@ if [[ "$COUNT" -lt "$AGENTS_TO_RUN" ]]; then
   AGENTS_TO_RUN="$COUNT"
 fi
 
-BASE_PER_AGENT=$(( COUNT / AGENTS_TO_RUN ))
-REMAINDER=$(( COUNT % AGENTS_TO_RUN ))
+BASE_PER_AGENT=$((COUNT / AGENTS_TO_RUN))
+REMAINDER=$((COUNT % AGENTS_TO_RUN))
 
 echo "Launching $AGENTS_TO_RUN agents across $NUM_GPUS GPUs (total=$COUNT runs)"
 
@@ -104,7 +104,7 @@ PIDS=()
 for IDX in $(seq 0 $((AGENTS_TO_RUN - 1))); do
   PER_AGENT=$BASE_PER_AGENT
   if [[ $IDX -lt $REMAINDER ]]; then
-    PER_AGENT=$(( PER_AGENT + 1 ))
+    PER_AGENT=$((PER_AGENT + 1))
   fi
   if [[ $PER_AGENT -eq 0 ]]; then
     continue

@@ -11,7 +11,8 @@
 
 CONFIG_NAME="$1" # Renamed for clarity
 if [ -z "$CONFIG_NAME" ]; then
-    echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
+  echo "Usage: sbatch $0 <config_name_without_yaml>"
+  exit 1
 fi
 
 export HYDRA_FULL_ERROR=1

@@ -30,6 +30,6 @@ export HYDRA_FULL_ERROR=1
 echo "Launching final training run..."
 
 accelerate launch --num_processes 4 --num_machines 1 --mixed_precision bf16 --dynamo_backend no src/main/sallm/main.py \
-    --config_path "$CONFIG_PATH"
+  --config_path "$CONFIG_PATH"
 
 echo "Final training run finished."

@@ -20,3 +20,25 @@ repos:
     hooks:
       - id: yamllint
         args: [--strict, -c=.yamllint]
+
+  - repo: local
+    hooks:
+      - id: yamlfmt
+        name: yamlfmt
+        entry: yamlfmt
+        language: system
+        types: [yaml]
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.11.0-1
+    hooks:
+      - id: shfmt
+        args: ["-w", "-i", "2", "-ci"]
+        files: ^scripts/.*\.sh$
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: ["--severity=style", "--external-sources", "--exclude=SC1091"]
+        files: ^scripts/.*\.sh$

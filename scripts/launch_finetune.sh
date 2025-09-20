@@ -9,7 +9,11 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1; }
+CFG="$1"
+[[ -z "$CFG" ]] && {
+  echo "Usage: sbatch $0 <config_name_without_yaml>"
+  exit 1
+}
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
@@ -39,17 +43,17 @@ echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICE
 # Determine number of processes to launch based on available GPUs
 NUM_PROCS="${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-}}"
 if [[ -z "$NUM_PROCS" || "$NUM_PROCS" -le 0 ]]; then
-	if command -v nvidia-smi >/dev/null 2>&1; then
-		NUM_PROCS=$(nvidia-smi -L | wc -l | tr -d ' ')
-	else
-		NUM_PROCS=1
-	fi
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    NUM_PROCS=$(nvidia-smi -L | wc -l | tr -d ' ')
+  else
+    NUM_PROCS=1
+  fi
 fi
 
 # pass explicit accelerate options to avoid its default-warning messages
 accelerate launch \
-	--num_processes "$NUM_PROCS" \
-	--num_machines 1 \
-	--mixed_precision bf16 \
-	--dynamo_backend no \
-	-m sallm.main --config-name "$CFG"
+  --num_processes "$NUM_PROCS" \
+  --num_machines 1 \
+  --mixed_precision bf16 \
+  --dynamo_backend no \
+  -m sallm.main --config-name "$CFG"
