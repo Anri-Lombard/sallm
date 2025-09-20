@@ -25,7 +25,7 @@ jobs:
           restore-keys: |
             poetry-cache-${{ runner.os }}-
 
-      - run: poetry install --no-root
+      - run: poetry install --no-root --with dev
 
       - name: Cache pre-commit environments
         uses: actions/cache@v4
