@@ -27,6 +27,7 @@ repos:
         name: yamlfmt
         entry: yamlfmt
         language: system
+        stages: [commit]
         types: [yaml]
 
   - repo: https://github.com/scop/pre-commit-shfmt
