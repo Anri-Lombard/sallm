@@ -11,6 +11,14 @@
 
 CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1; }
 
+if [[ "$CFG" == *.yaml ]]; then
+        CFG="${CFG%.yaml}"
+fi
+
+if [[ "$CFG" != */* ]]; then
+        CFG="finetune/$CFG"
+fi
+
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
 # export TOKENIZERS_PARALLELISM="false"
