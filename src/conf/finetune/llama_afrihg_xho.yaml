@@ -26,18 +26,18 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_xho"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_xho"
   run_name: "llama-125m-afrihg-xho"
-  learning_rate: 1.0e-4
+  learning_rate: 1.4078842498145848e-05
   adam_beta2: 0.95
-  lr_scheduler_type: "cosine"
-  warmup_ratio: 0.1
-  per_device_train_batch_size: 4
+  lr_scheduler_type: "constant_with_warmup"
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
   gradient_accumulation_steps: 8
   num_train_epochs: 3
-  weight_decay: 0.05
+  weight_decay: 0.007615468660511816
   max_grad_norm: 1.0
   bf16: true
-  gradient_checkpointing: false
+  gradient_checkpointing: true
   label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true
