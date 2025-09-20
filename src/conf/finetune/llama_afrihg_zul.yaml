@@ -46,4 +46,4 @@ training:
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
   report_to: "wandb"
-  ddp_find_unused_parameters: true
+  ddp_find_unused_parameters: false
