@@ -22,7 +22,7 @@ parameters:
   training.per_device_train_batch_size:
     values: [2, 4, 8]
   training.num_train_epochs:
-    values: [2, 3]
+    values: [2, 3, 5]
   training.gradient_checkpointing:
     values: [true, false]
   dataset.max_seq_length:
