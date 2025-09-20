@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 def run(config: ExperimentConfig) -> None:
-    assert (
-        config.evaluation and config.eval_model
-    ), "`evaluation` and `eval_model` blocks required."
+    assert config.evaluation and config.eval_model, (
+        "`evaluation` and `eval_model` blocks required."
+    )
 
     eval_cfg = config.evaluation
     model_cfg = config.eval_model

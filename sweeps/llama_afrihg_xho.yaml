@@ -27,6 +27,8 @@ parameters:
     values: [true, false]
   dataset.max_seq_length:
     values: [1024, 2048]
+  peft.method:
+    value: lora
   peft.kwargs.r:
     values: [64, 128, 256]
   peft.kwargs.lora_alpha:
