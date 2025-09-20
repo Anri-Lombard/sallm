@@ -1,0 +1,58 @@
+mode: FINETUNE
+
+wandb:
+  project: "sallm-ft"
+  name: "mamba-125m-sib-nso"
+
+model:
+  architecture: "mamba2"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+
+peft:
+  method: "lora"
+  kwargs:
+    r: 128
+    lora_alpha: 256
+    lora_dropout: 0.1
+    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+
+dataset:
+  hf_name: "Davlan/sib200"
+  subset: "nso_Latn"
+  task: CLASSIFICATION
+  splits: {train: "train", val: "validation"}
+  templates:
+    - {id: "sib_topic_classification/v1", weight: 1.0}
+    - {id: "sib_topic_classification/v5", weight: 1.0}
+  template_choice: ALL
+  label_column: "category"
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 1024
+
+tokenizer:
+  path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_sib_nso"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_sib_nso"
+  run_name: "mamba-125m-sib-lora-nso"
+  learning_rate: 0.00011305978186826184
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 16
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 4
+  eval_accumulation_steps: 1
+  num_train_epochs: 15
+  bf16: true
+  gradient_checkpointing: false  # sweep: true
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "no"
+  dataloader_num_workers: 8
+  report_to: "wandb"
+  ddp_find_unused_parameters: true
+  weight_decay: 0.17520846692141864

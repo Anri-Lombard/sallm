@@ -1,0 +1,44 @@
+name: hpo-belebele-tsn
+project: sallm-ft
+method: bayes
+metric:
+  name: eval_loss
+  goal: minimize
+parameters:
+  training.learning_rate:
+    distribution: log_uniform_values
+    min: 1.0e-5
+    max: 5.0e-4
+  training.weight_decay:
+    distribution: uniform
+    min: 0.0
+    max: 0.2
+  training.warmup_ratio:
+    values: [0.0, 0.05, 0.1]
+  training.lr_scheduler_type:
+    values: [cosine, linear, constant_with_warmup]
+  training.gradient_accumulation_steps:
+    values: [4, 8, 16]
+  training.per_device_train_batch_size:
+    values: [4, 8]
+  training.num_train_epochs:
+    values: [5, 10, 15, 20]
+  training.gradient_checkpointing:
+    values: [true, false]
+  dataset.max_seq_length:
+    values: [1024, 2048]
+  peft.method:
+    value: lora
+  peft.kwargs.r:
+    values: [64, 128, 256]
+  peft.kwargs.lora_alpha:
+    values: [128, 256, 512]
+  peft.kwargs.lora_dropout:
+    values: [0.0, 0.05, 0.1]
+command:
+  - ${env}
+  - python
+  - -u
+  - scripts/run_hpo_trial.py
+  - --base-config
+  - finetune/llama_belebele_tsn
