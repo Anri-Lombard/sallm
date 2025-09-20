@@ -1,5 +1,0 @@
-tasks:
-  - t2x_xho_prompt_1
-fewshot: 0
-batch_size: 1
-apply_chat_template: false
