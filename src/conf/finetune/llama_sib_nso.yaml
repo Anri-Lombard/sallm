@@ -22,7 +22,7 @@ dataset:
   label_column: "category"
   packing: false
   assistant_only_loss: true
-  max_seq_length: 2048
+  max_seq_length: 1024
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
@@ -30,20 +30,22 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sib_nso"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sib_nso"
   run_name: "llama-125m-sib-lora-nso"
-  learning_rate: 3.0e-5
+  learning_rate: 0.00011305978186826184
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 4
+  gradient_accumulation_steps: 16
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
-  per_device_train_batch_size: 4
+  per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
   num_train_epochs: 15
+  weight_decay: 0.17520846692141864
   bf16: true
+  gradient_checkpointing: false
   logging_steps: 10
   eval_strategy: "epoch"
   save_strategy: "no"
   dataloader_num_workers: 8
   report_to: "wandb"
-  ddp_find_unused_parameters: false
+  ddp_find_unused_parameters: true

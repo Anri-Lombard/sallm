@@ -49,4 +49,4 @@ training:
   save_strategy: "no"
   dataloader_num_workers: 8
   report_to: "wandb"
-  ddp_find_unused_parameters: false
+  ddp_find_unused_parameters: true

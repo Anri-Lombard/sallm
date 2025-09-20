@@ -26,29 +26,30 @@ dataset:
   task: CLASSIFICATION
   packing: false
   assistant_only_loss: true
-  max_seq_length: 2048
+  max_seq_length: 1024
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_eng"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_eng"
-  run_name: "llama-125m-news-lora-finetune-messages"
-  learning_rate: 3.0e-5
-  # weight_decay: 0.1
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_eng"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_eng"
+  run_name: "llama-125m-news-eng"
+  learning_rate: 0.00040312231078391055
+  weight_decay: 0.010921752348914172
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 4
-  lr_scheduler_type: "cosine"
+  gradient_accumulation_steps: 8
+  lr_scheduler_type: "linear"
   warmup_ratio: 0.1
-  per_device_train_batch_size: 4
+  per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 20
+  num_train_epochs: 15
   bf16: true
+  gradient_checkpointing: false
   logging_steps: 10
   eval_strategy: "epoch"
   save_strategy: "no"
   dataloader_num_workers: 8
   report_to: "wandb"
-  ddp_find_unused_parameters: false
+  ddp_find_unused_parameters: true
