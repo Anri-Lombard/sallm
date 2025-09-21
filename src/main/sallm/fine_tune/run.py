@@ -10,7 +10,7 @@ import wandb
 from omegaconf import OmegaConf
 from sallm.config import ExperimentConfig
 from sallm.data.factory import build_datasets
-from sallm.models.factory import build_model, build_tokenizer
+from sallm.fine_tune.factory import build_model, build_tokenizer
 from sallm.training.factory import build_trainer
 
 logger = logging.getLogger(__name__)
