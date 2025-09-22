@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from omegaconf import MISSING
@@ -58,10 +59,16 @@ class ModelEvalConfig:
     merge_lora: bool | None = None
 
     def __post_init__(self) -> None:
-        from pathlib import Path
-
         adapter_path = None
         checkpoint_path = Path(self.checkpoint)
+
+        if not checkpoint_path.exists():
+            resolved = self._resolve_missing_checkpoint(checkpoint_path)
+            if resolved is not None:
+                checkpoint_path = resolved
+                self.checkpoint = str(checkpoint_path)
+                if self.merge_lora is False:
+                    self.merge_lora = True
 
         if (
             not self.peft_adapter
@@ -69,12 +76,17 @@ class ModelEvalConfig:
             and checkpoint_path.is_dir()
         ):
             adapter_config = checkpoint_path / "adapter_config.json"
-            adapter_weights = checkpoint_path / "adapter_model.bin"
+            adapter_weights = [
+                checkpoint_path / "adapter_model.bin",
+                checkpoint_path / "adapter_model.safetensors",
+            ]
             full_model_weights = [
                 checkpoint_path / "pytorch_model.bin",
                 checkpoint_path / "model.safetensors",
             ]
-            has_adapter = adapter_config.exists() and adapter_weights.exists()
+            has_adapter = adapter_config.exists() and any(
+                path.exists() for path in adapter_weights
+            )
             has_full_model = any(path.exists() for path in full_model_weights)
             if has_adapter and not has_full_model:
                 peft_config = HFPEFTConfig.from_pretrained(checkpoint_path)
@@ -102,6 +114,20 @@ class ModelEvalConfig:
 
         if self.merge_lora is None and self.peft_adapter:
             self.merge_lora = True
+
+    def _resolve_missing_checkpoint(self, checkpoint_path: Path) -> Path | None:
+        if checkpoint_path.name == "final_merged_model":
+            candidate = checkpoint_path.with_name("final_adapter")
+            if candidate.exists():
+                adapter_config = candidate / "adapter_config.json"
+                adapter_weights = [
+                    candidate / "adapter_model.bin",
+                    candidate / "adapter_model.safetensors",
+                ]
+                has_weights = any(path.exists() for path in adapter_weights)
+                if adapter_config.exists() and has_weights:
+                    return candidate
+        return None
 
 
 @dataclass
