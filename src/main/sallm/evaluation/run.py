@@ -4,7 +4,9 @@ import json
 import logging
 from pathlib import Path
 
-from sallm.config import ExperimentConfig
+from omegaconf import DictConfig, OmegaConf
+
+from sallm.config import ExperimentConfig, ModelEvalConfig
 from sallm.evaluation.harness import evaluate_pack
 from sallm.evaluation.registry import load_task_pack
 
@@ -18,6 +20,10 @@ def run(config: ExperimentConfig) -> None:
 
     eval_cfg = config.evaluation
     model_cfg = config.eval_model
+    if isinstance(model_cfg, DictConfig):
+        structured = OmegaConf.structured(ModelEvalConfig)
+        merged = OmegaConf.merge(structured, model_cfg)
+        model_cfg = OmegaConf.to_object(merged)
     out_root = Path(eval_cfg.output_dir)
     overrides = eval_cfg.overrides or {}
 
