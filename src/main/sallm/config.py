@@ -60,7 +60,20 @@ class ModelEvalConfig:
 
     def __post_init__(self) -> None:
         adapter_path = None
+        if self.checkpoint is None:
+            raise ValueError("eval_model.checkpoint must be provided and non-empty")
+        checkpoint_str = str(self.checkpoint).rstrip("/")
+        if checkpoint_str == "":
+            raise ValueError("eval_model.checkpoint must be provided and non-empty")
+        self.checkpoint = checkpoint_str
         checkpoint_path = Path(self.checkpoint)
+
+        if checkpoint_path.exists():
+            try:
+                checkpoint_path = checkpoint_path.resolve()
+                self.checkpoint = str(checkpoint_path)
+            except Exception:
+                pass
 
         if not checkpoint_path.exists():
             resolved = self._resolve_missing_checkpoint(checkpoint_path)
