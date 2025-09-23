@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import lm_eval
@@ -13,6 +14,8 @@ from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_json_encoder(obj):
@@ -27,6 +30,20 @@ def _safe_json_encoder(obj):
     return str(obj)
 
 
+def _load_tokenizer_and_pretrained(checkpoint: str, trust_remote_code: bool = True):
+    path = Path(checkpoint)
+    if path.exists():
+        resolved = str(path.resolve())
+        logger.info("Loading tokenizer from local checkpoint: %s", resolved)
+        tok = AutoTokenizer.from_pretrained(
+            resolved, trust_remote_code=trust_remote_code, local_files_only=True
+        )
+        return tok, resolved
+    logger.info("Loading tokenizer from HF hub or identifier: %s", checkpoint)
+    tok = AutoTokenizer.from_pretrained(checkpoint, trust_remote_code=trust_remote_code)
+    return tok, checkpoint
+
+
 def evaluate_pack(
     pack: TaskPack,
     model_cfg: ModelEvalConfig,
@@ -39,11 +56,13 @@ def evaluate_pack(
     batch_size = int(pack_over.get("batch_size", pack.batch_size))
     apply_chat_template = pack_over.get("apply_chat_template", pack.apply_chat_template)
 
-    tok = AutoTokenizer.from_pretrained(model_cfg.checkpoint, trust_remote_code=True)
+    tok, pretrained_id = _load_tokenizer_and_pretrained(
+        model_cfg.checkpoint, trust_remote_code=True
+    )
     tok.backend_tokenizer.decoder = ByteLevel()
 
     hf_model = HFLM(
-        pretrained=model_cfg.checkpoint,
+        pretrained=pretrained_id,
         tokenizer=tok,
         peft=model_cfg.peft_adapter,
         device=model_cfg.device,
