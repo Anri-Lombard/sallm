@@ -1,3 +1,12 @@
+"""Dataset building utilities for fine-tuning and evaluation workflows.
+
+This module wraps Hugging Face dataset loading and supports specialized
+loaders for datasets mirrored on GitHub. It also provides conversion helpers
+that format examples into the conversational 'messages' structure expected by
+the fine-tuning pipeline, handles classification/NER/template expansion and
+validates template usage for the requested task.
+"""
+
 from __future__ import annotations
 
 from math import isfinite
@@ -23,6 +32,8 @@ from sallm.templates import registry as tmpl
 def _reconstruct_entities_from_iob(
     tokens: list[str], ner_tag_ids: list[int], tag_map: list[str]
 ) -> list[str]:
+    """Reconstruct entity spans from IOB-formatted token labels."""
+
     entities = []
     current_entity_tokens = []
     current_entity_label = None
@@ -61,6 +72,8 @@ def _reconstruct_entities_from_iob(
 
 
 def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
+    """Safely format template prompts by coercing missing values to empty strings."""
+
     safe: dict[str, str] = {}
     for k, v in values.items():
         try:
@@ -76,6 +89,11 @@ def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
 ) -> tuple[Dataset, Dataset, Dataset | None]:
+    """Return train/validation/(optional) test datasets according to config.
+
+    Supports HF datasets and custom GitHub-based loaders and handles
+    template expansion for instruction, classification and NER tasks.
+    """
     if config.mode == RunMode.FINETUNE:
         assert config.dataset, "Finetune mode requires a `dataset` block."
         ds_cfg = config.dataset

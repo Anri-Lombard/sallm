@@ -1,3 +1,10 @@
+"""Top-level CLI entrypoint for running training, fine-tuning and evaluation.
+
+The module sets up Hydra configuration unwrapping, logging configuration for
+multi-process runs, and dispatches to the appropriate workflow (train,
+finetune, evaluate) based on the ExperimentConfig mode.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -19,11 +26,23 @@ logger = logging.getLogger(__name__)
 
 
 def _is_main_process() -> bool:
+    """Return True when the current process should be treated as the main.
+
+    The function checks for the LOCAL_RANK environment variable and uses
+    HuggingFace's helper to determine whether the local process is the main
+    process in distributed runs.
+    """
     local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
     return (local_rank == -1) or is_main_process(local_rank)
 
 
 def setup_logging(config: DictConfig) -> None:
+    """Configure logging handlers depending on whether this is the main process.
+
+    When running on the main process logs are emitted to stdout and optionally
+    to a training log file. Non-main processes silence logging to reduce noise
+    during distributed training.
+    """
     is_main = bool(OmegaConf.select(config, "runtime.is_main"))
 
     if is_main:
@@ -52,6 +71,12 @@ def setup_logging(config: DictConfig) -> None:
 
 @hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
+    """Hydra entrypoint that builds an ExperimentConfig and dispatches work.
+
+    The function unwraps nested configs, validates the configuration against
+    the structured dataclass schema, sets runtime flags and calls the
+    appropriate runner function for the selected mode.
+    """
     unwrapped_cfg = cfg
 
     keys_in_cfg = list(cfg.keys())

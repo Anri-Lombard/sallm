@@ -9,7 +9,21 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-# set -e
+# ----------------------------------------------------------------------------
+# Resume a previously-started training run using a WandB run id
+#
+# Purpose
+#   Resume training from an existing WandB run by passing the run id and the
+#   configuration path. The script sets up the conda environment and launches
+#   the training entrypoint with the provided run id to allow continuation.
+#
+# Usage
+#   sbatch train_resumed_trial.sh <config_path> <wandb_run_id>
+#
+# Notes
+#   - The script updates the Slurm job name to include the run id for easier
+#     tracking.
+# ----------------------------------------------------------------------------
 
 CONFIG_PATH="$1"
 WANDB_RUN_ID="$2"

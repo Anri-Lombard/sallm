@@ -1,3 +1,10 @@
+"""BPE tokenizer training utilities.
+
+This module trains a Byte-Pair Encoding tokenizer from a Hugging Face
+Dataset stored on disk and saves a HF-compatible tokenizer to the output
+path specified in the configuration.
+"""
+
 import argparse
 import os
 from collections.abc import Iterator
@@ -20,6 +27,7 @@ from transformers import PreTrainedTokenizerFast
 
 # TODO restructure library to use pydantic models for loading configs
 def load_config(config_path: Path) -> Any:
+    """Load a YAML tokenizer training configuration and return the parsed mapping."""
     with config_path.open("r") as f:
         data = yaml.safe_load(f)
         if not isinstance(data, dict):
@@ -28,9 +36,8 @@ def load_config(config_path: Path) -> Any:
 
 
 def train_tokenizer(config: dict) -> None:
-    """
-    Orchestrate the tokenizer training process based on a config dict.
-    """
+    """Train a BPE tokenizer using a dataset on disk and save the tokenizer."""
+
     model_config = config["tokenizer_training"]["bpe_model"]
     path_config = config["tokenizer_training"]["paths"]
 

@@ -1,3 +1,11 @@
+"""Experiment configuration dataclasses and validation helpers.
+
+This module defines structured dataclasses used to load and validate experiment
+configuration values. These dataclasses capture model, tokenizer, dataset,
+training and evaluation related configuration and provide runtime validation
+and small helper logic to normalize paths for checkpoints and adapters.
+"""
+
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -11,6 +19,16 @@ from sallm.utils import RunMode
 
 @dataclass
 class ScriptArguments:
+    """Arguments for auxiliary scripts invoked from the command line.
+
+    Attributes
+    ----------
+    config_path: str
+        Path to the main YAML experiment configuration file.
+    wandb_run_id: str | None
+        Optional WandB run identifier used to resume trials.
+    """
+
     config_path: str = field(
         metadata={"help": "Path to the main YAML experiment config file."}
     )
@@ -51,6 +69,14 @@ class PeftLoadConfig:
 
 @dataclass
 class ModelEvalConfig:
+    """Configuration for evaluating a model checkpoint.
+
+    This class validates that provided checkpoint paths exist or resolve to
+    adapter directories and normalizes the values to absolute paths where
+    possible. It also attempts to detect PEFT adapters and adjusts the
+    merge_lora flag accordingly.
+    """
+
     checkpoint: str = MISSING
     adapter: str = "hf"
     dtype: str = "bfloat16"
@@ -129,6 +155,14 @@ class ModelEvalConfig:
             self.merge_lora = True
 
     def _resolve_missing_checkpoint(self, checkpoint_path: Path) -> Path | None:
+        """Attempt to find a companion adapter directory when a final merged
+        checkpoint path is missing.
+
+        This helps when users point at a 'final_merged_model' directory but the
+        repository contains a separate 'final_adapter' directory with the
+        adapter files instead.
+        """
+
         if checkpoint_path.name == "final_merged_model":
             candidate = checkpoint_path.with_name("final_adapter")
             if candidate.exists():

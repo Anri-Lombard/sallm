@@ -9,6 +9,19 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
+# ----------------------------------------------------------------------------
+# Launch a final training run (non-sweep) on dedicated A100 nodes
+#
+# Purpose
+#   Run a final, non-swept training job using an A100 partition. This script
+#   activates the project's environment and runs `accelerate launch` with the
+#   provided base config.
+#
+# Notes
+#   - Designed for final runs that require multiple GPUs. Adjust resource
+#     directives and conda environment to match your cluster.
+# ----------------------------------------------------------------------------
+
 set -e
 
 CONFIG_PATH="configs/base/llama_125m.yaml"

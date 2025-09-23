@@ -1,3 +1,10 @@
+"""Utilities to fetch and save WandB run configuration and summary fields.
+
+This script connects to the Weights and Biases API, locates the latest run
+matching a display name within a project, and writes non-empty configuration
+and summary fields to CSV for downstream bookkeeping or analysis.
+"""
+
 import math
 import sys
 
@@ -15,6 +22,8 @@ OUT_CSV = f"{TARGET_NAME}.csv"
 
 
 def is_empty(v):
+    """Return True for values that should be considered empty for CSV export."""
+
     if v is None:
         return True
     if isinstance(v, float) and math.isnan(v):
@@ -27,6 +36,8 @@ def is_empty(v):
 
 
 def to_list(v):
+    """Return the input wrapped as a list if it is not already a list."""
+
     return v if isinstance(v, list) else [v]
 
 

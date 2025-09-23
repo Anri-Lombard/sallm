@@ -1,3 +1,11 @@
+"""Helpers to load the AfriHG dataset either from cached CSVs or HF hub.
+
+The loader attempts to download language-specific CSV splits from a GitHub
+mirror, caches the files locally and falls back to loading from the HF hub
+if the raw CSVs are not available. When a languages list is provided the
+returned DatasetDict is filtered to the requested language subset.
+"""
+
 from __future__ import annotations
 
 import os
@@ -13,6 +21,8 @@ GITHUB_RAW_BASE = "https://raw.githubusercontent.com/dadelani/AfriHG/main"
 def load_afrihg_from_github(
     languages: list[str] | None = None, cache_dir: str | None = None
 ) -> DatasetDict:
+    """Fetch AfriHG CSV splits (with local caching) and return a DatasetDict."""
+
     if cache_dir is None:
         cache_dir = os.path.join(os.getcwd(), "data", "afrihg_cache")
     Path(cache_dir).mkdir(parents=True, exist_ok=True)

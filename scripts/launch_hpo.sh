@@ -11,6 +11,26 @@
 
 set -euo pipefail
 
+# ----------------------------------------------------------------------------
+# Launch a Weights & Biases hyperparameter sweep across available GPUs
+#
+# Purpose
+#   Create a WandB sweep from a YAML definition and start multiple agents
+#   across available GPUs on the node to execute the sweep concurrently.
+#
+# Usage
+#   sbatch launch_hpo.sh <sweep_yaml_or_name_without_yaml> [count]
+#
+# Examples
+#   sbatch launch_hpo.sh sweeps/llama_afrihg_xho.yaml 20
+#   sbatch launch_hpo.sh llama_t2x_xho 10
+#
+# Notes
+#   - Requires `wandb` to be authenticated on the compute node.
+#   - The script will attempt to auto-detect or resolve a TOKENIZER_PATH.
+#   - Ensure the `sallm-ner` conda environment exists on the compute node.
+# ----------------------------------------------------------------------------
+
 SWEEP_ARG="${1:-}"
 COUNT="${2:-10}"
 

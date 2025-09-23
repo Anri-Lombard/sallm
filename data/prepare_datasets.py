@@ -1,3 +1,11 @@
+"""Prepare multilingual datasets by indexing JSONL sources and writing HF DatasetDicts.
+
+Builds a byte-offset index across JSONL records, applies token-based capping
+for validation/test splits and materializes the resulting DatasetDict to disk.
+Designed for large, streamed sources where memory efficiency and deterministic
+splitting are important.
+"""
+
 # TODO split into modular files as part of restructuring
 import argparse
 import json
@@ -19,8 +27,17 @@ class FilePointer(NamedTuple):
     offset: int
     char_count: int
 
+    """Pointer to a JSONL record by file and byte offset."""
+
 
 class DataProcessor:
+    """Index, split and save datasets from raw JSONL sources.
+
+    Encapsulates language code normalization, capped split computation and a
+    streaming generator that yields text/lang samples suitable for Dataset
+    construction.
+    """
+
     LANG_MAPPINGS = {
         "af": "afr",
         "afr": "afr",
@@ -61,6 +78,8 @@ class DataProcessor:
         random.seed(self.seed)
 
     def run(self) -> None:
+        """Execute the end-to-end preparation pipeline and persist outputs."""
+
         if not self.root_dir.exists():
             raise FileNotFoundError(
                 f"Source directory not found: {self.root_dir}\n"
@@ -209,6 +228,8 @@ class DataProcessor:
 
 
 def main() -> None:
+    """CLI wrapper: load YAML config, construct DataProcessor and run it."""
+
     parser = argparse.ArgumentParser(
         description="Prepare a multilingual dataset from a YAML config."
     )

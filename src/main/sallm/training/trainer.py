@@ -1,3 +1,11 @@
+"""Custom trainer subclass and training-related utilities.
+
+This module provides a CustomTrainer that aggregates per-language evaluation
+metrics and integrates with Weights & Biases for per-language logging. It
+also customizes model saving to ensure both model and tokenizer are persisted
+in the expected layout.
+"""
+
 import logging
 import math
 import time
@@ -18,12 +26,16 @@ logger = logging.getLogger(__name__)
 # TODO rename to something more appropriate since different models will use
 # different trainers
 class CustomTrainer(Trainer):
+    """Trainer subclass that computes per-language evaluation metrics."""
+
     def evaluate(
         self,
         eval_dataset: datasets.Dataset | None = None,
         ignore_keys: list[str] | None = None,
         metric_key_prefix: str = "eval",
     ) -> dict[str, float]:
+        """Evaluate model per-language and return aggregated metrics."""
+
         eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
         if eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")
@@ -109,6 +121,8 @@ class CustomTrainer(Trainer):
         return metrics_to_return
 
     def save_model(self, output_dir=None, _internal_call=False):
+        """Save model and tokenizer to the specified output directory."""
+
         out = output_dir or self.args.output_dir
         Path(out).mkdir(parents=True, exist_ok=True)
 

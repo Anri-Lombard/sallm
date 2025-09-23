@@ -1,3 +1,10 @@
+"""Evaluation harness for running LM-eval task packs and persisting results.
+
+This module wraps tokenizer/model loading, configures a Hugging Face-backed
+LM wrapper and calls lm_eval to execute task packs. Results are saved as
+JSON files and returned to the caller for further aggregation.
+"""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +26,13 @@ logger = logging.getLogger(__name__)
 
 
 def _safe_json_encoder(obj):
+    """JSON encoder that converts numpy, torch and other non-serializable
+    objects into native Python types for JSON dumping.
+
+    The encoder is provided to json.dump via the `default` argument to ensure
+    evaluation outputs containing numpy arrays or tensors are persisted
+    correctly.
+    """
     if isinstance(obj, np.integer) or isinstance(obj, np.floating):
         return obj.item()
     if isinstance(obj, np.ndarray):
@@ -31,6 +45,12 @@ def _safe_json_encoder(obj):
 
 
 def _load_tokenizer_and_pretrained(checkpoint: str, trust_remote_code: bool = True):
+    """Load a tokenizer either from a local directory or the HF hub.
+
+    When `checkpoint` references a local path the tokenizer is loaded with
+    `local_files_only=True` and the resolved path is returned as the second
+    return value. Otherwise the original checkpoint identifier is returned.
+    """
     path = Path(checkpoint)
     if path.exists():
         resolved = str(path.resolve())
@@ -50,6 +70,11 @@ def evaluate_pack(
     out_dir: Path,
     overrides: dict[str, dict],
 ) -> dict:
+    """Run a TaskPack with lm_eval and persist the resulting JSON output.
+
+    Prepares tokenizer and model wrappers (optionally applying PEFT adapters),
+    executes the LM-eval tasks and writes the results file under `out_dir`.
+    """
     pack_over = overrides.get(pack.name, {})
     task_list = pack_over.get("tasks", pack.tasks)
     fewshot = int(pack_over.get("fewshot", pack.fewshot))

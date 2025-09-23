@@ -9,7 +9,20 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-# TODO make one script instead of seperate final scripts per architecture
+# ----------------------------------------------------------------------------
+# Launch training for Mamba models (final evaluation/experiments)
+#
+# Purpose
+#   Execute a training job using a Mamba model configuration. The script sets
+#   up environment variables and `accelerate launch` flags optimized for the
+#   Mamba model family.
+#
+# Notes
+#   - The script uses bf16 mixed precision and sets MAMBA_SCAN_IMPL.
+#   - Ensure the `sallm-ner` conda environment exists on the compute node.
+# ----------------------------------------------------------------------------
+
+# Consider merging final scripts into a single configurable script
 
 set -euo pipefail
 

@@ -1,3 +1,10 @@
+"""Tokenization and chunking utilities for preparing pretraining datasets.
+
+This module loads a tokenizer, tokenizes and concatenates sequences with EOS
+tokens, chunks them to fixed max sequence lengths and saves the processed
+DatasetDict to disk.
+"""
+
 # TODO reorganize tokenizer code to be DRY across files
 # TODO calculate tokenization distribution
 import argparse
@@ -15,6 +22,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def load_config(config_path: Path) -> dict[str, Any]:
+    """Load a YAML dataset processing configuration and return the mapping."""
+
     with config_path.open("r") as f:
         data = yaml.safe_load(f)
         if not isinstance(data, dict):
@@ -23,6 +32,8 @@ def load_config(config_path: Path) -> dict[str, Any]:
 
 
 def process_dataset(config: dict) -> None:
+    """Tokenize, chunk and save datasets according to the provided config."""
+
     path_config = config["dataset_processing"]["paths"]
     settings_config = config["dataset_processing"]["settings"]
 
