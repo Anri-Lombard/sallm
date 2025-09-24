@@ -4,7 +4,9 @@ import json
 import logging
 from pathlib import Path
 
-from sallm.config import ExperimentConfig
+from omegaconf import OmegaConf
+
+from sallm.config import ExperimentConfig, ModelEvalConfig
 from sallm.evaluation.harness import evaluate_pack
 from sallm.evaluation.registry import load_task_pack
 
@@ -17,7 +19,14 @@ def run(config: ExperimentConfig) -> None:
     ), "`evaluation` and `eval_model` blocks required."
 
     eval_cfg = config.evaluation
-    model_cfg = config.eval_model
+    eval_model_cfg = config.eval_model
+    if isinstance(eval_model_cfg, ModelEvalConfig):
+        model_cfg = eval_model_cfg
+    else:
+        cfg_dict = OmegaConf.to_container(eval_model_cfg, resolve=True)
+        if not isinstance(cfg_dict, dict):
+            raise TypeError("eval_model configuration must resolve to a mapping")
+        model_cfg = ModelEvalConfig(**cfg_dict)
     out_root = Path(eval_cfg.output_dir)
     overrides = eval_cfg.overrides or {}
 
