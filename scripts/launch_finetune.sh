@@ -3,7 +3,7 @@
 #SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=1
+#SBATCH --gpus-per-node=2
 #SBATCH --cpus-per-gpu=4
 #SBATCH --job-name="sallm-ft"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za

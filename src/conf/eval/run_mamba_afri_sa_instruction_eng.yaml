@@ -2,8 +2,8 @@ mode: EVALUATE
 
 # TODO: language agnostic
 eval_model:
-  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_instruct_eng/final_merged_model"
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_instruct_eng/final_merged_model"
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
