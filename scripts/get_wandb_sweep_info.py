@@ -10,7 +10,7 @@ except Exception:
     tqdm = None
 
 PROJECT_PATH = "anri-lombard/sallm-ft"
-TARGET_NAME = "absurd-sweep-7"
+TARGET_NAME = "divine-sweep-24"
 OUT_CSV = f"{TARGET_NAME}.csv"
 
 
