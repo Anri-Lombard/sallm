@@ -23,7 +23,7 @@ dataset:
     - {id: "masakhane_named_entity_recognition/v5", weight: 1.0}
   packing: false
   assistant_only_loss: true
-  max_seq_length: 1024
+  max_seq_length: 2048
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
@@ -31,16 +31,16 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_ner_tsn"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_ner_tsn"
   run_name: "mamba-125m-ner-lora-finetune-tsn"
-  learning_rate: 9.374637925561456e-05
+  learning_rate: 0.00010926178323368845
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 4
-  lr_scheduler_type: "constant_with_warmup"
+  gradient_accumulation_steps: 16
+  lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
-  per_device_train_batch_size: 2
+  per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 30
+  num_train_epochs: 40
   bf16: true
   gradient_checkpointing: false
   logging_steps: 10
@@ -49,4 +49,4 @@ training:
   dataloader_num_workers: 8
   report_to: "wandb"
   ddp_find_unused_parameters: true
-  weight_decay: 0.1256574794270727
+  weight_decay: 0.06597749199484503
