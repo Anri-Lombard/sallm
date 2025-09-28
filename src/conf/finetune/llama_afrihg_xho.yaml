@@ -11,8 +11,8 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 128
-    lora_alpha: 256
+    r: 256
+    lora_alpha: 512
     lora_dropout: 0.1
 
 dataset:
@@ -25,7 +25,7 @@ dataset:
   template_choice: ALL
   packing: false
   assistant_only_loss: true
-  max_seq_length: 1024
+  max_seq_length: 2048
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
@@ -33,15 +33,15 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_xho"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_xho"
   run_name: "llama-125m-afrihg-xho"
-  learning_rate: 1.4078842498145848e-05
+  learning_rate: 0.00013413657020600855
   adam_beta2: 0.95
-  lr_scheduler_type: "constant_with_warmup"
+  lr_scheduler_type: "linear"
   warmup_ratio: 0.05
-  per_device_train_batch_size: 8
+  per_device_train_batch_size: 2
   per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 8
+  gradient_accumulation_steps: 16
   num_train_epochs: 3
-  weight_decay: 0.007615468660511816
+  weight_decay: 0.0970951241029608
   max_grad_norm: 1.0
   bf16: true
   gradient_checkpointing: false  # sweep: true
