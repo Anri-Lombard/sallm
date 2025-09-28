@@ -10,7 +10,11 @@ from transformers import (
 from trl import SFTConfig, SFTTrainer
 
 from sallm.config import ExperimentConfig, RunMode
-from sallm.training.callbacks import GenerationMetricsCallback, ShowCompletionsCallback
+from sallm.training.callbacks import (
+    EnsureStaticGraphCallback,
+    GenerationMetricsCallback,
+    ShowCompletionsCallback,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +73,11 @@ def build_trainer(
         assistant_only_loss=assistant_only_loss,
     )
 
+    if getattr(training_args, "gradient_checkpointing", False) and not getattr(
+        training_args, "gradient_checkpointing_kwargs", None
+    ):
+        training_args.gradient_checkpointing_kwargs = {"use_reentrant": False}
+
     if training_args.local_rank <= 0:
         logger.info("--- Effective Training Arguments ---")
         logger.info(training_args)
@@ -84,6 +93,9 @@ def build_trainer(
             eval_dataset=eval_dataset, tokenizer=tokenizer, max_new_tokens=64
         )
         callbacks.append(gen_metrics_cb)
+
+    if training_args.gradient_checkpointing and training_args.world_size > 1:
+        callbacks.append(EnsureStaticGraphCallback())
 
     trainer = SFTTrainer(
         model=model,
