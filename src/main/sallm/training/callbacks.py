@@ -144,10 +144,12 @@ class GenerationMetricsCallback(TrainerCallback):
         eval_dataset: Dataset,
         tokenizer: AutoTokenizer,
         max_new_tokens: int = 64,
+        max_samples_per_lang: int | None = 64,
     ):
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
+        self.max_samples_per_lang = max_samples_per_lang
 
     def on_evaluate(
         self,
@@ -193,6 +195,23 @@ class GenerationMetricsCallback(TrainerCallback):
 
             if len(lang_ds) == 0:
                 continue
+
+            if (
+                self.max_samples_per_lang is not None
+                and len(lang_ds) > self.max_samples_per_lang
+            ):
+                sample_cap = self.max_samples_per_lang
+                if args.world_size > 1:
+                    sample_cap = max(1, sample_cap // args.world_size)
+
+                indices = sorted(random.sample(range(len(lang_ds)), sample_cap))
+                lang_ds = lang_ds.select(indices)
+                logger.info(
+                    "GenerationMetricsCallback: limiting %s examples to %s "
+                    "for metrics.",
+                    lang_key,
+                    len(lang_ds),
+                )
 
             preds: list[str] = []
             refs: list[str] = []
@@ -256,3 +275,39 @@ class GenerationMetricsCallback(TrainerCallback):
 
         if log_dict:
             wandb.log(log_dict, step=state.global_step)
+
+
+class EnsureStaticGraphCallback(TrainerCallback):
+    def __init__(self) -> None:
+        self._applied = False
+
+    def on_train_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        if self._applied or not args.gradient_checkpointing or args.world_size <= 1:
+            return control
+
+        model = kwargs.get("model")
+        if model is None or not hasattr(model, "_set_static_graph"):
+            return control
+
+        model._set_static_graph()
+        self._applied = True
+        if state.is_world_process_zero:
+            logger.info(
+                "Enabled DDP static graph mode to stabilize gradient "
+                "checkpointing with PEFT."
+            )
+            find_unused = getattr(model, "find_unused_parameters", None)
+            if find_unused:
+                logger.info(
+                    "DDP `find_unused_parameters` is still enabled; expect "
+                    "an informational warning from PyTorch while static-graph "
+                    "mode remains in effect."
+                )
+
+        return control
