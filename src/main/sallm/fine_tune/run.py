@@ -43,6 +43,39 @@ def _apply_peft_if_needed(model, peft_cfg):
     raise ValueError(f"Unsupported PEFT method '{peft_cfg.method}'")
 
 
+def _sync_weight_tying_flag(model) -> None:
+    config = getattr(model, "config", None)
+    if config is None or not hasattr(config, "tie_word_embeddings"):
+        return
+    get_input = getattr(model, "get_input_embeddings", None)
+    get_output = getattr(model, "get_output_embeddings", None)
+    if not callable(get_input) or not callable(get_output):
+        return
+    input_emb = get_input()
+    output_emb = get_output()
+    if input_emb is None or output_emb is None:
+        return
+    input_weight = getattr(input_emb, "weight", None)
+    output_weight = getattr(output_emb, "weight", None)
+    if input_weight is None or output_weight is None:
+        return
+    shared = input_weight is output_weight
+    if not shared:
+        shared = input_weight.data_ptr() == output_weight.data_ptr()
+    if shared and not bool(config.tie_word_embeddings):
+        logger.info(
+            "Detected tied embeddings; updating config.tie_word_embeddings to "
+            "True before saving."
+        )
+        config.tie_word_embeddings = True
+    if not shared and bool(config.tie_word_embeddings):
+        logger.info(
+            "Detected untied embeddings; updating config.tie_word_embeddings to "
+            "False before saving."
+        )
+        config.tie_word_embeddings = False
+
+
 def run(config: ExperimentConfig) -> None:
     is_hpo_run = _is_hpo_run(config)
     sel = OmegaConf.select(config, "runtime.is_main")
@@ -201,7 +234,24 @@ def run(config: ExperimentConfig) -> None:
 
     output_dir = os.path.join(trainer.args.output_dir, "final_merged_model")
     if hasattr(merged_model, "save_pretrained"):
-        merged_model.save_pretrained(output_dir)
+        _sync_weight_tying_flag(merged_model)
+        safe_serialization = True
+        if hasattr(trainer, "args") and hasattr(trainer.args, "save_safetensors"):
+            safe_serialization = bool(trainer.args.save_safetensors)
+        try:
+            merged_model.save_pretrained(
+                output_dir, safe_serialization=safe_serialization
+            )
+        except RuntimeError as exc:
+            message = str(exc)
+            if safe_serialization and "shared tensors" in message:
+                logger.warning(
+                    "Retrying save_pretrained with safe_serialization=False due "
+                    "to shared tensors."
+                )
+                merged_model.save_pretrained(output_dir, safe_serialization=False)
+            else:
+                raise
     else:
         os.makedirs(output_dir, exist_ok=True)
         torch.save(
