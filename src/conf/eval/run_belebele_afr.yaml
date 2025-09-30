@@ -1,8 +1,8 @@
 mode: EVALUATE
 
 eval_model:
-  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_belebele_afr/final_merged_model"
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_belebele_afr/final_merged_model"
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
