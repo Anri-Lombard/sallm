@@ -1,0 +1,40 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_afrihg_xho/final_merged_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_afrihg_xho"
+  generation_tasks:
+    - id: "afrihg_xho"
+      split: "test"
+      max_new_tokens: 64
+      max_samples_per_lang: null
+      include_combined: true
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "xho"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates:
+          - {id: "afrihg_headline/v1", weight: 1}
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 2048
+
+tokenizer: null
+model: null
+data: null
+training: null
+dataset: null
+peft: null
+template: null
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-mamba-125m-afrihg-xho"

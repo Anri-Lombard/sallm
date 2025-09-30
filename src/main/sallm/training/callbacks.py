@@ -4,7 +4,6 @@ import random
 import torch
 import wandb
 from datasets import Dataset
-from evaluate import load as _eval_load
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -13,6 +12,8 @@ from transformers import (
     TrainerState,
     TrainingArguments,
 )
+
+from sallm.evaluation.generation_metrics import GenerationEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -148,8 +149,11 @@ class GenerationMetricsCallback(TrainerCallback):
     ):
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
-        self.max_new_tokens = max_new_tokens
-        self.max_samples_per_lang = max_samples_per_lang
+        self.evaluator = GenerationEvaluator(
+            tokenizer,
+            max_new_tokens=max_new_tokens,
+            max_samples_per_lang=max_samples_per_lang,
+        )
 
     def on_evaluate(
         self,
@@ -168,113 +172,17 @@ class GenerationMetricsCallback(TrainerCallback):
             )
             return
 
-        rouge = _eval_load("rouge")
-        bleu = _eval_load("bleu")
-        chrf = _eval_load("chrf")
+        world_size = getattr(args, "world_size", 1)
+        result = self.evaluator.evaluate(
+            model,
+            self.eval_dataset,
+            world_size=world_size,
+            metric_prefix="eval",
+            collect_examples=False,
+        )
 
-        pad_id = self.tokenizer.pad_token_id
-        eos_id = self.tokenizer.eos_token_id
-        device = model.device
-
-        if "lang" in self.eval_dataset.features:
-            unique_languages = sorted(list(set(self.eval_dataset["lang"])))
-        else:
-            unique_languages = [None]
-
-        log_dict: dict[str, float] = {}
-
-        for lang in unique_languages:
-            if lang is None:
-                lang_ds = self.eval_dataset
-                lang_key = "all"
-            else:
-                lang_ds = self.eval_dataset.filter(
-                    lambda x, _lang=lang: x["lang"] == _lang, load_from_cache_file=False
-                )
-                lang_key = lang
-
-            if len(lang_ds) == 0:
-                continue
-
-            if (
-                self.max_samples_per_lang is not None
-                and len(lang_ds) > self.max_samples_per_lang
-            ):
-                sample_cap = self.max_samples_per_lang
-                if args.world_size > 1:
-                    sample_cap = max(1, sample_cap // args.world_size)
-
-                indices = sorted(random.sample(range(len(lang_ds)), sample_cap))
-                lang_ds = lang_ds.select(indices)
-                logger.info(
-                    "GenerationMetricsCallback: limiting %s examples to %s "
-                    "for metrics.",
-                    lang_key,
-                    len(lang_ds),
-                )
-
-            preds: list[str] = []
-            refs: list[str] = []
-
-            model.eval()
-            with torch.no_grad():
-                for sample in lang_ds:
-                    messages = sample["messages"]
-                    prompt_messages = messages[:-1]
-                    gold_completion = messages[-1]["content"].lstrip()
-
-                    inputs = self.tokenizer.apply_chat_template(
-                        prompt_messages,
-                        add_generation_prompt=True,
-                        return_tensors="pt",
-                    ).to(device)
-
-                    gen_ids = model.generate(
-                        inputs,
-                        max_new_tokens=self.max_new_tokens,
-                        do_sample=False,
-                        pad_token_id=pad_id,
-                        eos_token_id=eos_id,
-                        use_cache=False,
-                    )
-
-                    generated_ids = gen_ids[0][inputs.shape[-1] :]
-                    generated_completion = self.tokenizer.decode(
-                        generated_ids,
-                        skip_special_tokens=False,
-                        clean_up_tokenization_spaces=True,
-                    )
-
-                    preds.append(generated_completion)
-                    refs.append(gold_completion)
-
-            if preds and refs:
-                metrics = rouge.compute(predictions=preds, references=refs)
-                r1 = metrics.get("rouge1")
-                r2 = metrics.get("rouge2")
-                rl = metrics.get("rougeL")
-
-                if r1 is not None:
-                    log_dict[f"eval/{lang_key}_rouge1"] = float(r1)
-                if r2 is not None:
-                    log_dict[f"eval/{lang_key}_rouge2"] = float(r2)
-                if rl is not None:
-                    log_dict[f"eval/{lang_key}_rougeL"] = float(rl)
-
-                bleu_metrics = bleu.compute(
-                    predictions=preds, references=[[r] for r in refs]
-                )
-                bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
-                if bleu_score is not None:
-                    log_dict[f"eval/{lang_key}_bleu"] = float(bleu_score)
-
-                chrf_metrics = chrf.compute(predictions=preds, references=refs)
-                chrf_score = chrf_metrics.get("score") or chrf_metrics.get("chrf")
-                if chrf_score is not None:
-                    log_dict[f"eval/{lang_key}_chrf"] = float(chrf_score)
-
-        if log_dict:
-            wandb.log(log_dict, step=state.global_step)
+        if result.metrics:
+            wandb.log(result.metrics, step=state.global_step)
 
 
 class EnsureStaticGraphCallback(TrainerCallback):

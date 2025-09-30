@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import textwrap
+from pathlib import Path
 
 import peft
 import torch
@@ -76,6 +78,49 @@ def _sync_weight_tying_flag(model) -> None:
         config.tie_word_embeddings = False
 
 
+def _save_tokenizer_with_fallback(
+    tokenizer,
+    output_dir: str,
+    source_path: str | None,
+) -> None:
+    tokenizer.save_pretrained(output_dir)
+    output_root = Path(output_dir)
+    required = (
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+    )
+    missing = [name for name in required if not (output_root / name).exists()]
+    if not missing:
+        return
+    if source_path is None:
+        missing_display = ", ".join(missing)
+        raise FileNotFoundError(f"Tokenizer save missing files: {missing_display}")
+    source_root = Path(source_path)
+    if not source_root.exists():
+        missing_display = ", ".join(missing)
+        raise FileNotFoundError(
+            f"Tokenizer save missing files: {missing_display}. "
+            f"Fallback path '{source_path}' does not exist."
+        )
+    for name in missing:
+        candidate = source_root / name
+        if candidate.exists():
+            shutil.copy2(candidate, output_root / name)
+    remaining = [name for name in required if not (output_root / name).exists()]
+    if remaining:
+        remaining_display = ", ".join(remaining)
+        raise FileNotFoundError(
+            f"Tokenizer save missing files after fallback copy: " f"{remaining_display}"
+        )
+    logger.info(
+        "Copied tokenizer files %s from %s to %s",
+        ", ".join(missing),
+        source_root,
+        output_root,
+    )
+
+
 def run(config: ExperimentConfig) -> None:
     is_hpo_run = _is_hpo_run(config)
     sel = OmegaConf.select(config, "runtime.is_main")
@@ -113,6 +158,9 @@ def run(config: ExperimentConfig) -> None:
 
     logger.info("Tokenizer …")
     tokenizer = build_tokenizer(config)
+    tokenizer_source_path = getattr(config.tokenizer, "path", None)
+    if tokenizer_source_path is not None:
+        tokenizer_source_path = os.path.expanduser(str(tokenizer_source_path))
 
     logger.info("Model …")
     model = build_model(config, tokenizer)
@@ -223,7 +271,11 @@ def run(config: ExperimentConfig) -> None:
         if hasattr(model, "base_model_name_or_path"):
             model.base_model_name_or_path = base_checkpoint
         model.save_pretrained(output_dir)
-        tokenizer.save_pretrained(output_dir)
+        _save_tokenizer_with_fallback(
+            tokenizer,
+            output_dir,
+            tokenizer_source_path,
+        )
         logger.info(f"Saved PEFT adapter to → {output_dir}")
         return
 
@@ -257,5 +309,9 @@ def run(config: ExperimentConfig) -> None:
         torch.save(
             merged_model.state_dict(), os.path.join(output_dir, "pytorch_model.bin")
         )
-    tokenizer.save_pretrained(output_dir)
+    _save_tokenizer_with_fallback(
+        tokenizer,
+        output_dir,
+        tokenizer_source_path,
+    )
     logger.info(f"Saved final MERGED model to → {output_dir}")

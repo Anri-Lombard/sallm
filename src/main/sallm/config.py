@@ -41,6 +41,7 @@ class EvaluationConfig:
     output_dir: str = MISSING
     overrides: dict[str, Any] = field(default_factory=dict)
     wandb: WandbConfig | None = MISSING
+    generation_tasks: list["GenerationEvalTaskConfig"] = field(default_factory=list)
 
 
 @dataclass
@@ -217,6 +218,38 @@ class FinetuneDatasetConfig:
                 "dataset.template_choice is 'ALL' but no templates were provided. "
                 "Add at least one entry under dataset.templates."
             )
+
+
+@dataclass
+class GenerationEvalTaskConfig:
+    id: str = MISSING
+    dataset: FinetuneDatasetConfig = MISSING
+    split: str = MISSING
+    max_new_tokens: int = MISSING
+    max_samples_per_lang: int | None = None
+    sample_seed: int | None = None
+    include_combined: bool = MISSING
+
+
+@dataclass
+class GeneratedExample:
+    prompt_messages: list[dict[str, str]]
+    prompt_text: str
+    prediction: str
+    reference: str
+
+
+@dataclass
+class LanguageEvalResult:
+    key: str
+    metrics: dict[str, float]
+    examples: list[GeneratedExample] = field(default_factory=list)
+
+
+@dataclass
+class GenerationEvalResult:
+    metrics: dict[str, float]
+    per_language: dict[str, LanguageEvalResult] = field(default_factory=dict)
 
 
 @dataclass
