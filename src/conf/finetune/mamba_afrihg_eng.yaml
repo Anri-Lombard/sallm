@@ -1,0 +1,57 @@
+mode: FINETUNE
+
+wandb:
+  project: "sallm-ft"
+  name: "mamba-125m-afrihg-eng"
+
+model:
+  architecture: "mamba2"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+
+peft:
+  method: "lora"
+  kwargs:
+    r: 64
+    lora_alpha: 512
+    lora_dropout: 0
+    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+
+dataset:
+  hf_name: "dadelani/AfriHG"
+  subset: "eng"
+  splits: {train: "train", val: "validation"}
+  task: INSTRUCTION
+  templates:
+    - {id: "afrihg_headline/v1", weight: 1}
+  template_choice: ALL
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 1024
+
+tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_afrihg_eng"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_afrihg_eng"
+  run_name: "mamba-125m-afrihg-eng"
+  learning_rate: 0.0001756660489149231
+  adam_beta2: 0.95
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 8
+  num_train_epochs: 3
+  weight_decay: 0.05612839284631739
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: false
+  label_smoothing_factor: 0.05
+  logging_steps: 10
+  logging_first_step: true
+  eval_strategy: "epoch"
+  save_strategy: "no"
+  dataloader_num_workers: 8
+  eval_accumulation_steps: 1
+  report_to: "wandb"
+  ddp_find_unused_parameters: true

@@ -5,6 +5,7 @@ import random
 import torch
 from datasets import Dataset
 from evaluate import load as eval_load
+from rouge_score import rouge_scorer
 from transformers import AutoTokenizer, PreTrainedModel
 
 from sallm.config import (
@@ -21,7 +22,7 @@ class GenerationEvaluator:
         max_new_tokens: int = 64,
         max_samples_per_lang: int | None = 64,
         sample_seed: int | None = None,
-        skip_special_tokens: bool = False,
+        skip_special_tokens: bool = True,
     ) -> None:
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
@@ -30,9 +31,11 @@ class GenerationEvaluator:
         self.skip_special_tokens = skip_special_tokens
 
         # Lazily initialise evaluation metrics once
-        self._rouge = eval_load("rouge")
         self._bleu = eval_load("bleu")
         self._chrf = eval_load("chrf")
+        self._rouge_scorer = rouge_scorer.RougeScorer(
+            ["rouge1", "rouge2", "rougeL"], use_stemmer=True
+        )
 
     def evaluate(
         self,
@@ -86,7 +89,7 @@ class GenerationEvaluator:
                         continue
 
                     prompt_messages = messages[:-1]
-                    gold_completion = messages[-1]["content"].lstrip()
+                    reference_texts = self._prepare_references(messages[-1]["content"])
 
                     inputs = self.tokenizer.apply_chat_template(
                         prompt_messages,
@@ -109,9 +112,10 @@ class GenerationEvaluator:
                         skip_special_tokens=self.skip_special_tokens,
                         clean_up_tokenization_spaces=True,
                     )
+                    cleaned_prediction = self._clean_text(generated_text)
 
-                    preds.append(generated_text)
-                    refs.append(gold_completion)
+                    preds.append(cleaned_prediction)
+                    refs.append(reference_texts)
 
                     if collect_examples:
                         prompt_text = self.tokenizer.apply_chat_template(
@@ -123,8 +127,8 @@ class GenerationEvaluator:
                             GeneratedExample(
                                 prompt_messages=prompt_messages,
                                 prompt_text=prompt_text,
-                                prediction=generated_text,
-                                reference=gold_completion,
+                                prediction=cleaned_prediction,
+                                reference=" | ".join(reference_texts),
                             )
                         )
 
@@ -179,37 +183,92 @@ class GenerationEvaluator:
     def _compute_metrics(
         self,
         predictions: list[str],
-        references: list[str],
+        references: list[list[str]],
     ) -> dict[str, float]:
         if not predictions or not references:
             return {}
 
-        rouge_metrics = self._rouge.compute(
-            predictions=predictions, references=references
-        )
-        r1 = rouge_metrics.get("rouge1")
-        r2 = rouge_metrics.get("rouge2")
-        rl = rouge_metrics.get("rougeL")
+        cleaned_refs = [self._ensure_reference_list(refs) for refs in references]
+        normalised_refs = self._normalize_reference_counts(cleaned_refs)
+
+        rouge_totals = {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}
+        for prediction, ref_list in zip(predictions, cleaned_refs, strict=False):
+            best_scores = {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}
+            for reference in ref_list:
+                scores = self._rouge_scorer.score(reference, prediction)
+                for key in best_scores:
+                    best_scores[key] = max(best_scores[key], scores[key].fmeasure)
+            for key in rouge_totals:
+                rouge_totals[key] += best_scores[key]
+
+        count = len(predictions)
+        rouge_metrics = {k: rouge_totals[k] / count for k in rouge_totals}
 
         bleu_metrics = self._bleu.compute(
-            predictions=predictions, references=[[ref] for ref in references]
+            predictions=predictions, references=cleaned_refs
         )
         bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
 
         chrf_metrics = self._chrf.compute(
-            predictions=predictions, references=references
+            predictions=predictions, references=normalised_refs
         )
         chrf_score = chrf_metrics.get("score") or chrf_metrics.get("chrf")
 
         out: dict[str, float] = {}
-        if r1 is not None:
-            out["rouge1"] = float(r1)
-        if r2 is not None:
-            out["rouge2"] = float(r2)
-        if rl is not None:
-            out["rougeL"] = float(rl)
+        if rouge_metrics.get("rouge1") is not None:
+            out["rouge1"] = float(rouge_metrics["rouge1"])
+        if rouge_metrics.get("rouge2") is not None:
+            out["rouge2"] = float(rouge_metrics["rouge2"])
+        if rouge_metrics.get("rougeL") is not None:
+            out["rougeL"] = float(rouge_metrics["rougeL"])
         if bleu_score is not None:
             out["bleu"] = float(bleu_score)
         if chrf_score is not None:
             out["chrf"] = float(chrf_score)
         return out
+
+    def _prepare_references(self, text: str) -> list[str]:
+        parts = text.split("*#")
+        cleaned = [self._clean_text(p) for p in parts]
+        filtered = [p for p in cleaned if p]
+        return filtered or [""]
+
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        cleaned = text.strip()
+        trailing_markers = (
+            "[EOS]",
+            "[EOT]",
+            "[eos]",
+            "[eot]",
+            "</s>",
+            "<|endoftext|>",
+            "<|im_end|>",
+            "<|eot_id|>",
+        )
+        for marker in trailing_markers:
+            if cleaned.endswith(marker):
+                cleaned = cleaned[: -len(marker)].strip()
+        return cleaned
+
+    @staticmethod
+    def _ensure_reference_list(refs: list[str]) -> list[str]:
+        cleaned = [r for r in refs if r]
+        return cleaned or [""]
+
+    @staticmethod
+    def _normalize_reference_counts(references: list[list[str]]) -> list[list[str]]:
+        if not references:
+            return references
+        target = max(len(ref_list) for ref_list in references)
+        if target <= 1:
+            return references
+        normalised: list[list[str]] = []
+        for ref_list in references:
+            if len(ref_list) == target:
+                normalised.append(ref_list)
+                continue
+            padded = list(ref_list)
+            padded.extend([ref_list[-1]] * (target - len(ref_list)))
+            normalised.append(padded)
+        return normalised
