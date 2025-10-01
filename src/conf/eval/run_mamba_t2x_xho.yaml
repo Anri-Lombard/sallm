@@ -12,7 +12,7 @@ evaluation:
   generation_tasks:
     - id: "t2x_xho"
       split: "test"
-      max_new_tokens: 128
+      max_new_tokens: 2048
       max_samples_per_lang: null
       dataset:
         hf_name: "github:francois-meyer/t2x"

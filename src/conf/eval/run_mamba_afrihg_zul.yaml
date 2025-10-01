@@ -12,7 +12,7 @@ evaluation:
   generation_tasks:
     - id: "afrihg_zul"
       split: "test"
-      max_new_tokens: 64
+      max_new_tokens: 2048
       max_samples_per_lang: null
       dataset:
         hf_name: "github:dadelani/AfriHG"
