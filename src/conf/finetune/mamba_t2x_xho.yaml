@@ -8,6 +8,14 @@ model:
   architecture: "mamba2"
   init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
 
+peft:
+  method: "lora"
+  kwargs:
+    r: 64
+    lora_alpha: 256
+    lora_dropout: 0.0
+    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+
 dataset:
   hf_name: "github:francois-meyer/t2x"
   subset: "xho"
