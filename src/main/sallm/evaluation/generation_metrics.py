@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Iterable
 
 import torch
 from datasets import Dataset
@@ -23,14 +22,12 @@ class GenerationEvaluator:
         max_samples_per_lang: int | None = 64,
         sample_seed: int | None = None,
         skip_special_tokens: bool = False,
-        include_combined: bool = False,
     ) -> None:
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
         self.max_samples_per_lang = max_samples_per_lang
         self.sample_seed = sample_seed
         self.skip_special_tokens = skip_special_tokens
-        self.include_combined = include_combined
 
         # Lazily initialise evaluation metrics once
         self._rouge = eval_load("rouge")
@@ -59,16 +56,10 @@ class GenerationEvaluator:
         else:
             unique_languages = [None]
 
-        languages_to_process: Iterable[str | None]
-        if self.include_combined and lang_column_present:
-            languages_to_process = list(unique_languages) + [None]
-        else:
-            languages_to_process = unique_languages
-
         metrics: dict[str, float] = {}
         per_language: dict[str, LanguageEvalResult] = {}
 
-        for lang in languages_to_process:
+        for lang in unique_languages:
             if lang is None:
                 lang_dataset = dataset
                 lang_key = "all"

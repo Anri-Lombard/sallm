@@ -228,7 +228,6 @@ class GenerationEvalTaskConfig:
     max_new_tokens: int = MISSING
     max_samples_per_lang: int | None = None
     sample_seed: int | None = None
-    include_combined: bool = MISSING
 
 
 @dataclass

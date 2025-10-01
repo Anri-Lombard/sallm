@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from copy import deepcopy
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,8 @@ def _to_serializable(value: Any) -> Any:
         return [_to_serializable(v) for v in value]
     if isinstance(value, tuple):
         return [_to_serializable(v) for v in value]
+    if isinstance(value, datetime | date):
+        return value.isoformat()
     if isinstance(value, np.generic):
         return value.item()
     if hasattr(value, "tolist"):

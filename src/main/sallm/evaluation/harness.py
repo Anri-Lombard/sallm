@@ -218,7 +218,6 @@ def run_generation_task(
         max_new_tokens=task_cfg.max_new_tokens,
         max_samples_per_lang=task_cfg.max_samples_per_lang,
         sample_seed=task_cfg.sample_seed,
-        include_combined=task_cfg.include_combined,
     )
 
     result = evaluator.evaluate(

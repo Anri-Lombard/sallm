@@ -14,7 +14,6 @@ evaluation:
       split: "test"
       max_new_tokens: 128
       max_samples_per_lang: null
-      include_combined: true
       dataset:
         hf_name: "github:francois-meyer/t2x"
         subset: "xho"

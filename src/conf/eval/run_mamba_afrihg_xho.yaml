@@ -14,7 +14,6 @@ evaluation:
       split: "test"
       max_new_tokens: 64
       max_samples_per_lang: null
-      include_combined: true
       dataset:
         hf_name: "github:dadelani/AfriHG"
         subset: "xho"
