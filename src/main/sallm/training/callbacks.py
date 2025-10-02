@@ -13,6 +13,7 @@ from transformers import (
     TrainingArguments,
 )
 
+from sallm.config import DecodingConfig
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 
 logger = logging.getLogger(__name__)
@@ -28,11 +29,20 @@ class ShowCompletionsCallback(TrainerCallback):
         tokenizer: AutoTokenizer,
         num_samples: int = 5,
         max_new_tokens: int = 100,
+        decoding: DecodingConfig | None = None,
     ):
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
         self.num_samples = num_samples
         self.max_new_tokens = max_new_tokens
+        self.decoding_config = DecodingConfig.from_any(decoding)
+        if (
+            self.decoding_config.num_return_sequences is not None
+            and self.decoding_config.num_return_sequences != 1
+        ):
+            raise ValueError(
+                "ShowCompletionsCallback requires a single return sequence."
+            )
 
     def on_epoch_end(
         self,
@@ -81,13 +91,14 @@ class ShowCompletionsCallback(TrainerCallback):
             ).to(device)
 
             with torch.no_grad():
+                generate_kwargs = self.decoding_config.to_generate_kwargs()
+                generate_kwargs["max_new_tokens"] = self.max_new_tokens
+                generate_kwargs["pad_token_id"] = pad_id
+                generate_kwargs["eos_token_id"] = eos_id
+                generate_kwargs.setdefault("use_cache", False)
                 gen_ids = model.generate(
                     inputs,
-                    max_new_tokens=self.max_new_tokens,
-                    do_sample=False,
-                    pad_token_id=pad_id,
-                    eos_token_id=eos_id,
-                    use_cache=False,
+                    **generate_kwargs,
                 )
 
             generated_ids = gen_ids[0][inputs.shape[-1] :]
@@ -146,13 +157,16 @@ class GenerationMetricsCallback(TrainerCallback):
         tokenizer: AutoTokenizer,
         max_new_tokens: int = 64,
         max_samples_per_lang: int | None = 64,
+        decoding: DecodingConfig | None = None,
     ):
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
+        self.decoding_config = DecodingConfig.from_any(decoding)
         self.evaluator = GenerationEvaluator(
             tokenizer,
             max_new_tokens=max_new_tokens,
             max_samples_per_lang=max_samples_per_lang,
+            decoding=self.decoding_config,
         )
 
     def on_evaluate(

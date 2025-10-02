@@ -9,6 +9,7 @@ from rouge_score import rouge_scorer
 from transformers import AutoTokenizer, PreTrainedModel
 
 from sallm.config import (
+    DecodingConfig,
     GeneratedExample,
     GenerationEvalResult,
     LanguageEvalResult,
@@ -23,12 +24,19 @@ class GenerationEvaluator:
         max_samples_per_lang: int | None = 64,
         sample_seed: int | None = None,
         skip_special_tokens: bool = True,
+        decoding: DecodingConfig | None = None,
     ) -> None:
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
         self.max_samples_per_lang = max_samples_per_lang
         self.sample_seed = sample_seed
         self.skip_special_tokens = skip_special_tokens
+        self.decoding_config = DecodingConfig.from_any(decoding)
+        if (
+            self.decoding_config.num_return_sequences is not None
+            and self.decoding_config.num_return_sequences != 1
+        ):
+            raise ValueError("GenerationEvaluator supports a single return sequence.")
 
         # Lazily initialise evaluation metrics once
         self._bleu = eval_load("bleu")
@@ -97,13 +105,15 @@ class GenerationEvaluator:
                         return_tensors="pt",
                     ).to(device)
 
+                    generate_kwargs = self.decoding_config.to_generate_kwargs()
+                    generate_kwargs["max_new_tokens"] = self.max_new_tokens
+                    generate_kwargs["pad_token_id"] = pad_id
+                    generate_kwargs["eos_token_id"] = eos_id
+                    generate_kwargs.setdefault("use_cache", False)
+
                     gen_ids = model.generate(
                         inputs,
-                        max_new_tokens=self.max_new_tokens,
-                        do_sample=False,
-                        pad_token_id=pad_id,
-                        eos_token_id=eos_id,
-                        use_cache=False,
+                        **generate_kwargs,
                     )
 
                     generated_ids = gen_ids[0][inputs.shape[-1] :]

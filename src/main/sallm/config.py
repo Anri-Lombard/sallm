@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from omegaconf import MISSING
+from omegaconf import MISSING, DictConfig, OmegaConf
 from peft import PeftConfig as HFPEFTConfig
 
 from sallm.utils import RunMode
@@ -221,6 +221,83 @@ class FinetuneDatasetConfig:
 
 
 @dataclass
+class DecodingConfig:
+    strategy: str = "greedy"
+    num_beams: int | None = None
+    num_beam_groups: int | None = None
+    temperature: float | None = None
+    top_p: float | None = None
+    top_k: int | None = None
+    typical_p: float | None = None
+    length_penalty: float | None = None
+    early_stopping: bool | None = None
+    no_repeat_ngram_size: int | None = None
+    repetition_penalty: float | None = None
+    num_return_sequences: int | None = None
+    diversity_penalty: float | None = None
+
+    @classmethod
+    def from_any(cls, value: Any | None) -> "DecodingConfig":
+        if value is None:
+            return cls()
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, DictConfig):
+            data = OmegaConf.to_container(value, resolve=True)
+        elif isinstance(value, dict):
+            data = value
+        else:
+            raise TypeError(
+                f"Unsupported decoding config type {type(value)!r}; "
+                "expected mapping or DecodingConfig."
+            )
+        if not isinstance(data, dict):
+            raise TypeError("DecodingConfig expects a mapping after resolution.")
+        return cls(**data)
+
+    def to_generate_kwargs(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {}
+        strategy = self.strategy.lower()
+        if strategy == "greedy":
+            kwargs["do_sample"] = False
+            kwargs["num_beams"] = 1
+        elif strategy == "beam":
+            kwargs["do_sample"] = False
+            num_beams = self.num_beams or 5
+            if num_beams < 1:
+                raise ValueError("Beam search requires num_beams >= 1")
+            kwargs["num_beams"] = num_beams
+        elif strategy == "sample":
+            kwargs["do_sample"] = True
+            if self.num_beams:
+                if self.num_beams < 1:
+                    raise ValueError("Sampling requires num_beams >= 1 when provided")
+                kwargs["num_beams"] = self.num_beams
+            kwargs["temperature"] = (
+                self.temperature if self.temperature is not None else 1.0
+            )
+        else:
+            raise ValueError(f"Unsupported decoding strategy '{self.strategy}'")
+        optional: dict[str, Any] = {
+            "num_beam_groups": self.num_beam_groups,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "top_k": self.top_k,
+            "typical_p": self.typical_p,
+            "length_penalty": self.length_penalty,
+            "early_stopping": self.early_stopping,
+            "no_repeat_ngram_size": self.no_repeat_ngram_size,
+            "repetition_penalty": self.repetition_penalty,
+            "num_return_sequences": self.num_return_sequences,
+            "diversity_penalty": self.diversity_penalty,
+        }
+        for key, value in optional.items():
+            if value is not None:
+                kwargs[key] = value
+        return kwargs
+
+
+@dataclass
 class GenerationEvalTaskConfig:
     id: str = MISSING
     dataset: FinetuneDatasetConfig = MISSING
@@ -228,6 +305,7 @@ class GenerationEvalTaskConfig:
     max_new_tokens: int = MISSING
     max_samples_per_lang: int | None = None
     sample_seed: int | None = None
+    decoding: DecodingConfig = field(default_factory=DecodingConfig)
 
 
 @dataclass
@@ -276,3 +354,4 @@ class ExperimentConfig:
     dataset: FinetuneDatasetConfig | None = None
     peft: PeftConfig | None = None
     template: TemplateConfig | None = None
+    generation_decoding: DecodingConfig | None = None
