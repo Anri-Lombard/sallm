@@ -12,7 +12,7 @@ evaluation:
   generation_tasks:
     - id: "afrihg_eng"
       split: "test"
-      max_new_tokens: 1024
+      max_new_tokens: 2048
       max_samples_per_lang: null
       decoding:
         strategy: "beam"

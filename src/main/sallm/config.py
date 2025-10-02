@@ -83,6 +83,19 @@ class ModelEvalConfig:
                 self.checkpoint = str(checkpoint_path)
                 if self.merge_lora is False:
                     self.merge_lora = True
+            else:
+                path_hint = checkpoint_path.name
+                parent = checkpoint_path.parent
+                alt = parent / "final_adapter"
+                suggestion = None
+                if path_hint == "final_merged_model" and parent.exists():
+                    suggestion = str(alt)
+                raise ValueError(
+                    f"Checkpoint path not found: '{self.checkpoint}'. "
+                    f"If this run saved only PEFT adapters, point to the adapter "
+                    f"directory (e.g., '{suggestion}' if available) or set "
+                    f"`eval_model.peft_adapter` to the adapter path."
+                )
 
         if (
             not self.peft_adapter
