@@ -1,0 +1,9 @@
+id: "t2x_verbalisation/v1"
+prompt: |
+  Convert the structured triple below into a fluent sentence.
+
+  Triple:
+  {source}
+
+  Sentence:
+task: t2x_verbalisation

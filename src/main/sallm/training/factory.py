@@ -86,11 +86,17 @@ def build_trainer(
     callbacks = []
     if config.mode == RunMode.FINETUNE:
         completions_callback = ShowCompletionsCallback(
-            eval_dataset=eval_dataset, tokenizer=tokenizer, num_samples=5
+            eval_dataset=eval_dataset,
+            tokenizer=tokenizer,
+            num_samples=5,
+            decoding=config.generation_decoding,
         )
         callbacks.append(completions_callback)
         gen_metrics_cb = GenerationMetricsCallback(
-            eval_dataset=eval_dataset, tokenizer=tokenizer, max_new_tokens=64
+            eval_dataset=eval_dataset,
+            tokenizer=tokenizer,
+            max_new_tokens=64,
+            decoding=config.generation_decoding,
         )
         callbacks.append(gen_metrics_cb)
 

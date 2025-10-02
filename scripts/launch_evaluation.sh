@@ -14,6 +14,10 @@ if [ -z "$CONFIG_NAME" ]; then
     echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
 fi
 
+if [[ "$CONFIG_NAME" != */* ]]; then
+    CONFIG_NAME="eval/$CONFIG_NAME"
+fi
+
 export HYDRA_FULL_ERROR=1
 
 export SCRATCH="/scratch/lmbanr001"

@@ -159,8 +159,8 @@ def build_datasets(
             train_raw = train_raw.filter(_in_lang_list)
             val_raw = val_raw.filter(_in_lang_list)
 
-        train_ds = _build_finetune_dataset(train_raw, config)
-        val_ds = _build_finetune_dataset(val_raw, config)
+        train_ds = build_conversation_dataset(train_raw, config)
+        val_ds = build_conversation_dataset(val_raw, config)
         return train_ds, val_ds, None
 
     data_conf = config.data
@@ -181,7 +181,7 @@ def build_datasets(
     return train_ds, val_ds, test_ds
 
 
-def _build_finetune_dataset(
+def build_conversation_dataset(
     raw_ds: Dataset,
     cfg: ExperimentConfig,
 ) -> Dataset:
