@@ -1,0 +1,23 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sib_all/final_merged_model"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+
+evaluation:
+  task_packs: ["sib_afr", "sib_eng", "sib_nso", "sib_sot", "sib_xho", "sib_zul"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_sib_all"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-llama-125m-sib-all"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null
