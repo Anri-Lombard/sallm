@@ -6,6 +6,7 @@ from typing import Any
 from datasets import (
     Dataset,
     DatasetDict,
+    concatenate_datasets,
     get_dataset_config_names,
     load_dataset,
     load_from_disk,
@@ -117,22 +118,58 @@ def build_datasets(
             )
             load_name = ds_cfg.subset
             filter_after_load = False
-            if ds_cfg.subset not in available_configs:
-                load_name = None
-                filter_after_load = True
+            lang_list_cfg = list(ds_cfg.languages or [])
 
-            train_raw = load_dataset(
-                ds_cfg.hf_name,
-                name=load_name,
-                split=splits["train"],
-                trust_remote_code=True,
-            )
-            val_raw = load_dataset(
-                ds_cfg.hf_name,
-                name=load_name,
-                split=splits["val"],
-                trust_remote_code=True,
-            )
+            if lang_list_cfg:
+                can_multi_load = all(
+                    lang_code in available_configs for lang_code in lang_list_cfg
+                )
+                if can_multi_load:
+                    train_parts: list[Dataset] = []
+                    val_parts: list[Dataset] = []
+                    for lang_code in lang_list_cfg:
+                        tr = load_dataset(
+                            ds_cfg.hf_name,
+                            name=lang_code,
+                            split=splits["train"],
+                            trust_remote_code=True,
+                        )
+                        va = load_dataset(
+                            ds_cfg.hf_name,
+                            name=lang_code,
+                            split=splits["val"],
+                            trust_remote_code=True,
+                        )
+                        if "lang" not in tr.column_names:
+                            tr = tr.add_column("lang", [lang_code] * len(tr))
+                        if "lang" not in va.column_names:
+                            va = va.add_column("lang", [lang_code] * len(va))
+                        train_parts.append(tr)
+                        val_parts.append(va)
+                    train_raw = concatenate_datasets(train_parts)
+                    val_raw = concatenate_datasets(val_parts)
+                    load_name = None
+                    filter_after_load = False
+                else:
+                    load_name = None
+                    filter_after_load = True
+            else:
+                if ds_cfg.subset not in available_configs:
+                    load_name = None
+                    filter_after_load = True
+
+                train_raw = load_dataset(
+                    ds_cfg.hf_name,
+                    name=load_name,
+                    split=splits["train"],
+                    trust_remote_code=True,
+                )
+                val_raw = load_dataset(
+                    ds_cfg.hf_name,
+                    name=load_name,
+                    split=splits["val"],
+                    trust_remote_code=True,
+                )
 
         if filter_after_load and lang_tag:
 
@@ -376,14 +413,17 @@ def build_conversation_dataset(
                     for _ in range(w):
                         out_messages.append(msgs)
                         out_template_ids.append(t_id)
-                        if ds_cfg.subset:
+                        lang_val = ex.get("lang") if isinstance(ex, dict) else None
+                        if lang_val:
+                            out_langs.append(str(lang_val))
+                        elif ds_cfg.subset:
                             out_langs.append(ds_cfg.subset)
 
             out: dict[str, list[Any]] = {
                 "messages": out_messages,
                 "template_id": out_template_ids,
             }
-            if ds_cfg.subset:
+            if out_langs:
                 out["lang"] = out_langs
             return out
 
@@ -564,9 +604,7 @@ def build_conversation_dataset(
         remove_columns=raw_ds.column_names,
         desc=desc,
     )
-    # Add/normalize 'lang' column
     if "lang" not in processed_ds.column_names:
-        # Use subset, language_code, or language to populate lang
         if ds_cfg.subset:
             processed_ds = processed_ds.add_column(
                 "lang", [ds_cfg.subset] * len(processed_ds)
@@ -579,5 +617,7 @@ def build_conversation_dataset(
             processed_ds = processed_ds.add_column(
                 "lang", [v for v in raw_ds["language"]]
             )
+        elif "lang" in raw_ds.column_names:
+            processed_ds = processed_ds.add_column("lang", [v for v in raw_ds["lang"]])
 
     return processed_ds
