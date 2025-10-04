@@ -1,0 +1,15 @@
+prompt: |
+  Read the passage: {flores_passage}
+  Then answer the question: {question}
+  Options:
+  A. {mc_answer1}
+  B. {mc_answer2}
+  C. {mc_answer3}
+  D. {mc_answer4}
+  Please choose the correct option from the above list:
+label_mapping:
+  0: "A"
+  1: "B"
+  2: "C"
+  3: "D"
+task: belebele

@@ -1,0 +1,22 @@
+prompt: |
+  You are a Named Entity Recognition expert.
+  Extract all named entities from the following text and categorize them into
+  PERSON, LOCATION, ORGANIZATION, or DATE.
+
+  Ensure the output strictly follows the format: label: entity $$ label: entity,
+  with each unique entity on a separate label line, avoiding grouped entities
+  (e.g., avoid LOC: entity, entity) or irrelevant entries like none. Return only
+  the output.
+
+  Text: {text}
+task: "masakhane_named_entity_recognition"
+ner_tags:
+  - "O"
+  - "B-PER"
+  - "I-PER"
+  - "B-ORG"
+  - "I-ORG"
+  - "B-LOC"
+  - "I-LOC"
+  - "B-DATE"
+  - "I-DATE"

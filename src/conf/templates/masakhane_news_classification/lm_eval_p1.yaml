@@ -1,0 +1,12 @@
+prompt: |
+  Given the categories technology, business, politics, sports, health,
+  entertainment, or religion; what category does the text: '{headline_text}' belong to:
+label_mapping:
+  0: "business"
+  1: "entertainment"
+  2: "health"
+  3: "politics"
+  4: "religion"
+  5: "sports"
+  6: "technology"
+task: "masakhane_news_classification"
