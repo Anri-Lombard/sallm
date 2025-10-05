@@ -2,7 +2,8 @@ mode: EVALUATE
 
 eval_model:
   # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_ner_zul/final_merged_model"
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_ner_all/final_merged_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
@@ -10,12 +11,12 @@ eval_model:
 
 evaluation:
   task_packs:
-    - "masakhaner_tsn"
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_ner_tsn"
+    - "masakhaner_zul"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_ner_zul"
 
 wandb:
   project: "sallm-eval"
-  name: "eval-ft-llama-125m-ner-tsn"
+  name: "eval-ft-llama-125m-ner-zul"
 
 model: null
 data: null

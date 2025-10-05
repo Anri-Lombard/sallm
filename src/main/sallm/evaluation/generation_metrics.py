@@ -63,7 +63,9 @@ class GenerationEvaluator:
         lang_column_present = "lang" in dataset.features
         unique_languages: list[str | None]
         if lang_column_present:
-            unique_languages = sorted(set(dataset["lang"]))  # type: ignore[index]
+            raw_langs = set(dataset["lang"])  # type: ignore[index]
+            str_langs = sorted({x for x in raw_langs if isinstance(x, str) and x})
+            unique_languages = str_langs if str_langs else [None]
         else:
             unique_languages = [None]
 
