@@ -84,6 +84,37 @@ def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
 ) -> tuple[Dataset, Dataset, Dataset | None]:
+    def _load_split_with_fallback(
+        hf_name: str, name: str | None, split: str
+    ) -> Dataset:
+        try:
+            return load_dataset(hf_name, name=name, split=split, trust_remote_code=True)
+        except Exception as err:
+            s = split.lower()
+            if s in ("validation", "valid", "val"):
+                candidates = ["validation", "dev", "val", "valid", "test"]
+            elif s == "dev":
+                candidates = ["dev", "validation", "val", "valid", "test"]
+            elif s == "test":
+                candidates = ["test", "validation", "dev", "val", "valid"]
+            else:
+                candidates = [split, "validation", "dev", "val", "valid", "test"]
+
+            seen: set[str] = set()
+            last_err = err
+            for alt in candidates:
+                if alt in seen:
+                    continue
+                seen.add(alt)
+                try:
+                    return load_dataset(
+                        hf_name, name=name, split=alt, trust_remote_code=True
+                    )
+                except Exception as e:
+                    last_err = e
+                    continue
+            raise last_err from None
+
     if config.mode == RunMode.FINETUNE:
         assert config.dataset, "Finetune mode requires a `dataset` block."
         ds_cfg = config.dataset
@@ -153,11 +184,8 @@ def build_datasets(
                                 split=comp.splits["train"],
                                 trust_remote_code=True,
                             )
-                            va = load_dataset(
-                                comp.hf_name,
-                                name=lang_code,
-                                split=comp.splits["val"],
-                                trust_remote_code=True,
+                            va = _load_split_with_fallback(
+                                comp.hf_name, lang_code, comp.splits["val"]
                             )
                             if "lang" not in tr.column_names:
                                 tr = tr.add_column("lang", [lang_code] * len(tr))
@@ -174,11 +202,8 @@ def build_datasets(
                     split=comp.splits["train"],
                     trust_remote_code=True,
                 )
-                va = load_dataset(
-                    comp.hf_name,
-                    name=load_name,
-                    split=comp.splits["val"],
-                    trust_remote_code=True,
+                va = _load_split_with_fallback(
+                    comp.hf_name, load_name, comp.splits["val"]
                 )
                 return tr, va
 
@@ -210,10 +235,23 @@ def build_datasets(
                         task=FinetuneTaskType.CLASSIFICATION,
                         splits={"train": "train", "val": "validation"},
                         templates=[
-                            TemplateRef(id="sib_topic_classification/v1", weight=1.0),
-                            TemplateRef(id="sib_topic_classification/v5", weight=1.0),
+                            TemplateRef(
+                                id="sib_topic_classification/lm_eval_p1", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="sib_topic_classification/lm_eval_p2", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="sib_topic_classification/lm_eval_p3", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="sib_topic_classification/lm_eval_p4", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="sib_topic_classification/lm_eval_p5", weight=1.0
+                            ),
                         ],
-                        template_choice=TemplateChoice.ALL,
+                        template_choice=TemplateChoice.CYCLE,
                         label_column="category",
                         max_seq_length=common_seq_len,
                         packing=common_packing,
@@ -268,7 +306,13 @@ def build_datasets(
                         ],
                         task=FinetuneTaskType.CLASSIFICATION,
                         splits={"train": "test", "val": "test"},
-                        templates=[TemplateRef(id="belebele/v5", weight=1.0)],
+                        templates=[
+                            TemplateRef(id="belebele/lm_eval_p1", weight=1.0),
+                            TemplateRef(id="belebele/lm_eval_p2", weight=1.0),
+                            TemplateRef(id="belebele/lm_eval_p3", weight=1.0),
+                            TemplateRef(id="belebele/lm_eval_p4", weight=1.0),
+                            TemplateRef(id="belebele/lm_eval_p5", weight=1.0),
+                        ],
                         template_choice=TemplateChoice.CYCLE,
                         label_column="correct_answer_num",
                         max_seq_length=common_seq_len,
@@ -283,10 +327,27 @@ def build_datasets(
                         splits={"train": "train", "val": "validation"},
                         templates=[
                             TemplateRef(
-                                id="masakhane_named_entity_recognition/v5", weight=1.0
-                            )
+                                id="masakhane_named_entity_recognition/lm_eval_p1",
+                                weight=1.0,
+                            ),
+                            TemplateRef(
+                                id="masakhane_named_entity_recognition/lm_eval_p2",
+                                weight=1.0,
+                            ),
+                            TemplateRef(
+                                id="masakhane_named_entity_recognition/lm_eval_p3",
+                                weight=1.0,
+                            ),
+                            TemplateRef(
+                                id="masakhane_named_entity_recognition/lm_eval_p4",
+                                weight=1.0,
+                            ),
+                            TemplateRef(
+                                id="masakhane_named_entity_recognition/lm_eval_p5",
+                                weight=1.0,
+                            ),
                         ],
-                        template_choice=TemplateChoice.ALL,
+                        template_choice=TemplateChoice.CYCLE,
                         max_seq_length=common_seq_len,
                         packing=common_packing,
                         assistant_only_loss=common_asst_only,
@@ -298,9 +359,23 @@ def build_datasets(
                         task=FinetuneTaskType.POS_TAGGING,
                         splits={"train": "train", "val": "validation"},
                         templates=[
-                            TemplateRef(id="masakhane_pos_tagging/v1", weight=1.0)
+                            TemplateRef(
+                                id="masakhane_pos_tagging/lm_eval_p1", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="masakhane_pos_tagging/lm_eval_p2", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="masakhane_pos_tagging/lm_eval_p3", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="masakhane_pos_tagging/lm_eval_p4", weight=1.0
+                            ),
+                            TemplateRef(
+                                id="masakhane_pos_tagging/lm_eval_p5", weight=1.0
+                            ),
                         ],
-                        template_choice=TemplateChoice.ALL,
+                        template_choice=TemplateChoice.CYCLE,
                         max_seq_length=common_seq_len,
                         packing=common_packing,
                         assistant_only_loss=common_asst_only,
@@ -312,7 +387,7 @@ def build_datasets(
                         task=FinetuneTaskType.INSTRUCTION,
                         splits={"train": "train", "val": "validation"},
                         templates=[TemplateRef(id="afrihg_headline/v1", weight=1.0)],
-                        template_choice=TemplateChoice.ALL,
+                        template_choice=TemplateChoice.CYCLE,
                         max_seq_length=common_seq_len,
                         packing=common_packing,
                         assistant_only_loss=common_asst_only,
@@ -324,7 +399,7 @@ def build_datasets(
                         task=FinetuneTaskType.INSTRUCTION,
                         splits={"train": "train", "val": "validation"},
                         templates=[TemplateRef(id="t2x_verbalisation/v1", weight=1.0)],
-                        template_choice=TemplateChoice.ALL,
+                        template_choice=TemplateChoice.CYCLE,
                         max_seq_length=(
                             1024 if common_seq_len > 1024 else common_seq_len
                         ),
@@ -398,11 +473,8 @@ def build_datasets(
                             split=splits["train"],
                             trust_remote_code=True,
                         )
-                        va = load_dataset(
-                            ds_cfg.hf_name,
-                            name=lang_code,
-                            split=splits["val"],
-                            trust_remote_code=True,
+                        va = _load_split_with_fallback(
+                            ds_cfg.hf_name, lang_code, splits["val"]
                         )
                         if "lang" not in tr.column_names:
                             tr = tr.add_column("lang", [lang_code] * len(tr))
@@ -428,11 +500,8 @@ def build_datasets(
                     split=splits["train"],
                     trust_remote_code=True,
                 )
-                val_raw = load_dataset(
-                    ds_cfg.hf_name,
-                    name=load_name,
-                    split=splits["val"],
-                    trust_remote_code=True,
+                val_raw = _load_split_with_fallback(
+                    ds_cfg.hf_name, load_name, splits["val"]
                 )
 
         if filter_after_load and lang_tag:
@@ -523,6 +592,8 @@ def build_conversation_dataset(
             return str(ex["text"]), str(ex["title"])
         if "article" in ex and "headline" in ex:
             return str(ex["article"]), str(ex["headline"])
+        if "text" in ex and "headline" in ex:
+            return str(ex["text"]), str(ex["headline"])
 
         # Try to find likely fields as last resort
         candidates_user = [
@@ -542,6 +613,7 @@ def build_conversation_dataset(
             "target",
             "answer",
             "text",
+            "headline",
             "verbalisation",
         ]
         user_val = next((ex[k] for k in candidates_user if k in ex), None)
@@ -649,6 +721,45 @@ def build_conversation_dataset(
                     "not found in dataset."
                 )
 
+        upos_class_names = None
+        if ds_cfg.task == FinetuneTaskType.POS_TAGGING:
+            try:
+                upos_feat = raw_ds.features.get("upos")
+                if hasattr(upos_feat, "feature") and hasattr(
+                    upos_feat.feature, "names"
+                ):
+                    upos_class_names = list(upos_feat.feature.names)
+            except Exception:
+                upos_class_names = None
+
+        def _format_pos(ex: dict[str, Any], template_id: str) -> list[dict[str, str]]:
+            tokens: list[str] = ex["tokens"]
+            raw_upos = ex["upos"]
+            if raw_upos and isinstance(raw_upos[0], int) and upos_class_names:
+                upos_tags = [upos_class_names[i] for i in raw_upos]
+            else:
+                upos_tags = [str(t) for t in raw_upos]
+            if len(tokens) != len(upos_tags):
+                raise ValueError(
+                    "MasakhaPOS sample length mismatch: "
+                    f"tokens={len(tokens)} vs upos={len(upos_tags)}"
+                )
+            tuple_list_str = (
+                "["
+                + ", ".join(
+                    f"({repr(tok)}, {repr(tag)})"
+                    for tok, tag in zip(tokens, upos_tags, strict=False)
+                )
+                + "]"
+            )
+            spec = tmpl.get(template_id)
+            tokens_repr = "[" + ", ".join(repr(t) for t in tokens) + "]"
+            user_prompt = _safe_format_prompt(spec.prompt, {"tokens": tokens_repr})
+            return [
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": tuple_list_str},
+            ]
+
         def _expand_batch(batch: dict[str, list[Any]]) -> dict[str, list[Any]]:
             out_messages: list[list[dict[str, str]]] = []
             out_template_ids: list[str] = []
@@ -671,6 +782,8 @@ def build_conversation_dataset(
                         )
                     elif ds_cfg.task == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
                         msgs = _format_ner(ex, t_id)
+                    elif ds_cfg.task == FinetuneTaskType.POS_TAGGING:
+                        msgs = _format_pos(ex, t_id)
                     else:
                         raise ValueError(f"Unsupported task type: {ds_cfg.task}")
 
@@ -713,6 +826,29 @@ def build_conversation_dataset(
             raise ValueError(
                 "dataset.template_choice is 'CYCLE' but no templates were provided."
             )
+
+        if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
+
+            def _cycle_instruction(ex: dict[str, Any], idx: int) -> dict[str, Any]:
+                t_id = cycle_template_ids[idx % len(cycle_template_ids)]
+                msgs = _format_instruction(ex)
+                out: dict[str, Any] = {"messages": msgs, "template_id": t_id}
+                lang_val = ex.get("lang") if isinstance(ex, dict) else None
+                if lang_val:
+                    out["lang"] = str(lang_val)
+                elif ds_cfg.subset:
+                    out["lang"] = ds_cfg.subset
+                return out
+
+            processed_ds = raw_ds.map(
+                _cycle_instruction,
+                batched=False,
+                with_indices=True,
+                remove_columns=raw_ds.column_names,
+                desc="Cycling instruction templates",
+            )
+
+            return processed_ds
 
         if ds_cfg.task == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
             for t_id in cycle_template_ids:

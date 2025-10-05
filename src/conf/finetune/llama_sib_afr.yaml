@@ -16,9 +16,12 @@ dataset:
   task: CLASSIFICATION
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "sib_topic_classification/v1", weight: 1.0}
-    - {id: "sib_topic_classification/v5", weight: 1.0}
-  template_choice: ALL
+    - {id: "sib_topic_classification/lm_eval_p1", weight: 1.0}
+    - {id: "sib_topic_classification/lm_eval_p2", weight: 1.0}
+    - {id: "sib_topic_classification/lm_eval_p3", weight: 1.0}
+    - {id: "sib_topic_classification/lm_eval_p4", weight: 1.0}
+    - {id: "sib_topic_classification/lm_eval_p5", weight: 1.0}
+  template_choice: CYCLE
   label_column: "category"
   packing: false
   assistant_only_loss: true

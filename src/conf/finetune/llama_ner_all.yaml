@@ -22,7 +22,12 @@ dataset:
   task: NAMED_ENTITY_RECOGNITION
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "masakhane_named_entity_recognition/v5", weight: 1.0}
+    - {id: "masakhane_named_entity_recognition/lm_eval_p1", weight: 1.0}
+    - {id: "masakhane_named_entity_recognition/lm_eval_p2", weight: 1.0}
+    - {id: "masakhane_named_entity_recognition/lm_eval_p3", weight: 1.0}
+    - {id: "masakhane_named_entity_recognition/lm_eval_p4", weight: 1.0}
+    - {id: "masakhane_named_entity_recognition/lm_eval_p5", weight: 1.0}
+  template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
@@ -42,7 +47,7 @@ training:
   per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 50
+  num_train_epochs: 10
   bf16: true
   logging_steps: 10
   eval_strategy: "epoch"

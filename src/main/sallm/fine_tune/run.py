@@ -11,7 +11,7 @@ import torch
 import wandb
 from omegaconf import OmegaConf
 from sallm.config import ExperimentConfig
-from sallm.data.factory import build_datasets
+from sallm.data.factory import build_conversation_dataset, build_datasets
 from sallm.models.factory import build_model, build_tokenizer
 from sallm.training.factory import build_trainer
 
@@ -217,6 +217,19 @@ def run(config: ExperimentConfig) -> None:
 
     logger.info("Datasets …")
     train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
+
+    if "messages" not in train_ds.column_names:
+        logger.warning(
+            "Training dataset lacks 'messages'; applying "
+            "conversational formatter fallback."
+        )
+        train_ds = build_conversation_dataset(train_ds, config)
+    if val_ds and "messages" not in val_ds.column_names:
+        logger.warning(
+            "Validation dataset lacks 'messages'; applying "
+            "conversational formatter fallback."
+        )
+        val_ds = build_conversation_dataset(val_ds, config)
 
     assert "messages" in train_ds.column_names, (
         "Training dataset is missing the required 'messages' column. "

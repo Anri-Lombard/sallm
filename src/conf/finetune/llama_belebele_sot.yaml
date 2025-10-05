@@ -20,7 +20,12 @@ dataset:
   subset: "sot_Latn"
   splits: {train: "test", val: "test"}
   templates:
-    - {id: "belebele/v5", weight: 1.0}
+    - {id: "belebele/lm_eval_p1", weight: 1.0}
+    - {id: "belebele/lm_eval_p2", weight: 1.0}
+    - {id: "belebele/lm_eval_p3", weight: 1.0}
+    - {id: "belebele/lm_eval_p4", weight: 1.0}
+    - {id: "belebele/lm_eval_p5", weight: 1.0}
+  template_choice: CYCLE
   label_column: "correct_answer_num"
   task: CLASSIFICATION
   packing: false
