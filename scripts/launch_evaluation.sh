@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
-#SBATCH --partition=l40s
+#SBATCH --account=nlpgroup
+#SBATCH --partition=a100
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2

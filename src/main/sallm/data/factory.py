@@ -355,7 +355,7 @@ def build_datasets(
                     FinetuneDatasetConfig(
                         hf_name="github:dadelani/AfriHG",
                         subset=None,
-                        languages=["eng", "xho", "zul"],
+                        languages=["xho", "zul"],
                         task=FinetuneTaskType.INSTRUCTION,
                         splits={"train": "train", "val": "validation"},
                         templates=[TemplateRef(id="afrihg_headline/v1", weight=1.0)],
@@ -402,7 +402,8 @@ def build_datasets(
             if "francois-meyer/t2x" in gh_ref or gh_ref.strip().endswith("/t2x"):
                 ds_from_github = load_t2x_from_github()
             else:
-                ds_from_github = load_afrihg_from_github(languages=ds_cfg.languages)
+                langs = [ds_cfg.subset] if ds_cfg.subset else ds_cfg.languages
+                ds_from_github = load_afrihg_from_github(languages=langs)
             # load_afrihg_from_github returns a DatasetDict. Select concrete
             # Dataset splits to pass to the finetune builder.
             if isinstance(ds_from_github, DatasetDict):
@@ -492,14 +493,20 @@ def build_datasets(
             val_raw = val_raw.filter(_matches_lang)
 
         # Optional multi-language filtering if a languages list is provided
+        # Only apply when a language indicator column exists, otherwise skip.
         if lang_list:
 
             def _in_lang_list(ex: dict[str, Any]) -> bool:
                 code = ex.get("lang") or ex.get("language_code") or ex.get("language")
                 return code in lang_list
 
-            train_raw = train_raw.filter(_in_lang_list)
-            val_raw = val_raw.filter(_in_lang_list)
+            has_lang_col = any(
+                col in train_raw.column_names
+                for col in ("lang", "language_code", "language")
+            )
+            if has_lang_col:
+                train_raw = train_raw.filter(_in_lang_list)
+                val_raw = val_raw.filter(_in_lang_list)
 
         train_ds = build_conversation_dataset(train_raw, config)
         val_ds = build_conversation_dataset(val_raw, config)
@@ -530,6 +537,9 @@ def build_conversation_dataset(
     ds_cfg = cfg.dataset
     if ds_cfg.task is None:
         raise ValueError("A `dataset.task` must be specified for fine-tuning.")
+
+    if "messages" in raw_ds.column_names:
+        return raw_ds
 
     # TODO: fix this logic
     def _extract_instruction_pair(ex: dict[str, Any]) -> tuple[str, str]:
@@ -803,7 +813,16 @@ def build_conversation_dataset(
 
             def _cycle_instruction(ex: dict[str, Any], idx: int) -> dict[str, Any]:
                 t_id = cycle_template_ids[idx % len(cycle_template_ids)]
-                msgs = _format_instruction(ex)
+                user_text, assistant_text = _extract_instruction_pair(ex)
+                try:
+                    spec = tmpl.get(t_id)
+                    user_prompt = _safe_format_prompt(spec.prompt, ex)
+                except Exception:
+                    user_prompt = user_text
+                msgs = [
+                    {"role": "user", "content": user_prompt},
+                    {"role": "assistant", "content": assistant_text},
+                ]
                 out: dict[str, Any] = {"messages": msgs, "template_id": t_id}
                 lang_val = ex.get("lang") if isinstance(ex, dict) else None
                 if lang_val:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import textwrap
 
 import torch
 from datasets import Dataset
@@ -53,6 +54,28 @@ class GenerationEvaluator:
         metric_prefix: str = "eval",
         collect_examples: bool = False,
     ) -> GenerationEvalResult:
+        fallback_template = None
+        if getattr(self.tokenizer, "chat_template", None) is None:
+            fallback_template = textwrap.dedent(
+                """
+                {%- if system_message %}
+                <|system|>
+                {{ system_message }}{{ eos_token }}
+                {%- endif %}
+                {%- for message in messages %}
+                    {%- if message['role'] == 'user' %}
+                        <|user|>
+                        {{ message['content'] }}{{ eos_token }}
+                    {%- elif message['role'] == 'assistant' %}
+                        {%- generation -%}
+                        <|assistant|>
+                        {{ message['content'] }}{{ eos_token }}
+                        {%- endgeneration -%}
+                    {%- endif %}
+                {%- endfor %}
+                {%- if add_generation_prompt %}<|assistant|>{%- endif %}
+                """
+            ).lstrip()
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
 
@@ -105,6 +128,7 @@ class GenerationEvaluator:
                         prompt_messages,
                         add_generation_prompt=True,
                         return_tensors="pt",
+                        chat_template=fallback_template,
                     ).to(device)
 
                     generate_kwargs = self.decoding_config.to_generate_kwargs()
@@ -134,6 +158,7 @@ class GenerationEvaluator:
                             prompt_messages,
                             tokenize=False,
                             add_generation_prompt=True,
+                            chat_template=fallback_template,
                         )
                         examples.append(
                             GeneratedExample(

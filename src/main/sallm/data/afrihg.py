@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
 
 import requests
 from datasets import DatasetDict, load_dataset
@@ -16,9 +15,17 @@ def load_afrihg_from_github(
     if cache_dir is None:
         cache_dir = os.path.join(os.getcwd(), "data", "afrihg_cache")
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    wanted = ["xho", "zul"]
-    if languages:
-        wanted = [lang for lang in languages if lang in ("xho", "zul")]
+    supported = {"xho", "zul"}
+    if languages is None:
+        wanted = ["xho", "zul"]
+    else:
+        unknown = [lang for lang in languages if lang not in supported]
+        if unknown:
+            raise ValueError(
+                f"Unsupported AFriHG languages: {unknown}. "
+                f"Supported: {sorted(supported)}"
+            )
+        wanted = list(languages)
     session = requests.Session()
     splits: dict[str, list[str]] = {"train": [], "validation": [], "test": []}
 
@@ -55,24 +62,14 @@ def load_afrihg_from_github(
     if splits["test"]:
         dataset_dict["test"] = load_dataset("csv", data_files=splits["test"])["train"]
 
+    if len(wanted) == 1:
+        lang_code = wanted[0]
+        for split_name, ds in list(dataset_dict.items()):
+            if "lang" not in ds.column_names:
+                dataset_dict[split_name] = ds.add_column("lang", [lang_code] * len(ds))
+
     if not dataset_dict:
-        hf = load_dataset("dadelani/AfriHG", trust_remote_code=True)
-        if isinstance(hf, DatasetDict):
-            for k in hf.keys():
-                target_k = "validation" if k in ("dev", "validation", "val") else k
-                dataset_dict[target_k] = hf[k]
-        else:
-            dataset_dict["train"] = hf
-        if languages:
-            for split in list(dataset_dict.keys()):
-                ds = dataset_dict[split]
-
-                def _in_lang(ex: dict[str, Any]) -> bool:
-                    code = (
-                        ex.get("lang") or ex.get("language") or ex.get("language_code")
-                    )
-                    return code in languages if code is not None else False
-
-                dataset_dict[split] = ds.filter(_in_lang)
+        requested = languages if languages is not None else sorted(list(supported))
+        raise RuntimeError(f"No AFriHG CSVs found on GitHub for languages={requested}.")
 
     return dataset_dict

@@ -52,7 +52,7 @@ class PeftLoadConfig:
 
 @dataclass
 class ModelEvalConfig:
-    checkpoint: str = MISSING
+    checkpoint: Any = MISSING
     adapter: str = "hf"
     dtype: str = "bfloat16"
     device: str = "cuda:0"
@@ -63,39 +63,57 @@ class ModelEvalConfig:
         adapter_path = None
         if self.checkpoint is None:
             raise ValueError("eval_model.checkpoint must be provided and non-empty")
-        checkpoint_str = str(self.checkpoint).rstrip("/")
-        if checkpoint_str == "":
+
+        if isinstance(self.checkpoint, list | tuple):
+            candidates = [str(p).rstrip("/") for p in self.checkpoint if p is not None]
+        else:
+            candidates = [str(self.checkpoint).rstrip("/")]
+
+        candidates = [c for c in candidates if c]
+        if not candidates:
             raise ValueError("eval_model.checkpoint must be provided and non-empty")
-        self.checkpoint = checkpoint_str
-        checkpoint_path = Path(self.checkpoint)
 
-        if checkpoint_path.exists():
-            try:
-                checkpoint_path = checkpoint_path.resolve()
-                self.checkpoint = str(checkpoint_path)
-            except Exception:
-                pass
+        chosen_path: Path | None = None
+        used_adapter_fallback = False
+        last_checked: Path | None = None
 
-        if not checkpoint_path.exists():
+        for cp in candidates:
+            checkpoint_path = Path(cp)
+            last_checked = checkpoint_path
+            if checkpoint_path.exists():
+                try:
+                    checkpoint_path = checkpoint_path.resolve()
+                except Exception:
+                    pass
+                chosen_path = checkpoint_path
+                break
             resolved = self._resolve_missing_checkpoint(checkpoint_path)
             if resolved is not None:
-                checkpoint_path = resolved
-                self.checkpoint = str(checkpoint_path)
-                if self.merge_lora is False:
-                    self.merge_lora = True
-            else:
-                path_hint = checkpoint_path.name
-                parent = checkpoint_path.parent
-                alt = parent / "final_adapter"
-                suggestion = None
-                if path_hint == "final_merged_model" and parent.exists():
-                    suggestion = str(alt)
-                raise ValueError(
-                    f"Checkpoint path not found: '{self.checkpoint}'. "
-                    f"If this run saved only PEFT adapters, point to the adapter "
-                    f"directory (e.g., '{suggestion}' if available) or set "
-                    f"`eval_model.peft_adapter` to the adapter path."
-                )
+                chosen_path = resolved
+                used_adapter_fallback = True
+                break
+
+        if chosen_path is None:
+            # Build a helpful error with a suggestion when possible
+            hint = None
+            if last_checked is not None:
+                parent = last_checked.parent
+                if last_checked.name == "final_merged_model" and parent.exists():
+                    alt = parent / "final_adapter"
+                    hint = str(alt)
+            attempted = ", ".join(candidates)
+            raise ValueError(
+                "Checkpoint path not found. Attempted: "
+                f"{attempted}. If this run saved only PEFT adapters, point to "
+                f"the adapter directory (e.g., '{hint}' if available) or set "
+                "`eval_model.peft_adapter` to the adapter path."
+            )
+
+        self.checkpoint = str(chosen_path)
+        checkpoint_path = chosen_path
+
+        if used_adapter_fallback and self.merge_lora is False:
+            self.merge_lora = True
 
         if (
             not self.peft_adapter
