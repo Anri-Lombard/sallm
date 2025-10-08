@@ -31,6 +31,7 @@ command:
   - ${env}
   - python
   - -u
-  - scripts/run_hpo_trial.py
+  - -m
+  - sallm.hpo.run
   - --base-config
   - finetune/mamba_injongointent_xho

@@ -39,6 +39,7 @@ command:
   - ${env}
   - python
   - -u
-  - scripts/run_hpo_trial.py
+  - -m
+  - sallm.hpo.run
   - --base-config
   - finetune/llama_afrihg_xho

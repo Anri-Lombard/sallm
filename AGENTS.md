@@ -33,3 +33,4 @@
 - Follow the repository history: concise, imperative commit headers (e.g., `Fix eval yamls`, `Add tokenizer metrics`).
 - Keep changes scoped; run `make check` locally before pushing.
 - Pull requests need a focused summary, validation evidence, and linked issues or context. Attach metrics or screenshots for training/eval updates when relevant.
+- Follow the principle of fail fast rather than defaulting.
