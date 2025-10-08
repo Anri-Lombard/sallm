@@ -1,7 +1,7 @@
 mode: EVALUATE
 
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_xho/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all/final_merged_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
@@ -12,11 +12,12 @@ evaluation:
   generation_tasks:
     - id: "afrihg_xho"
       split: "test"
-      max_new_tokens: 2048
+      max_new_tokens: 256
       max_samples_per_lang: null
       decoding:
         strategy: "beam"
         num_beams: 5
+        batch_size: 6
         length_penalty: 0.7
         early_stopping: true
       dataset:

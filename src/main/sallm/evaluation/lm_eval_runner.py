@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import textwrap
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 import numpy as np
 import torch
 from lm_eval import evaluator
+from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
@@ -20,7 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 def _format_model_args(
-    pretrained_path: str, dtype: str | None, peft_adapter: str | None
+    pretrained_path: str,
+    dtype: str | None,
+    peft_adapter: str | None,
+    tokenizer_override: str | None = None,
 ) -> str:
     args: list[str] = [
         f"pretrained={pretrained_path}",
@@ -30,6 +35,8 @@ def _format_model_args(
         args.append(f"dtype={dtype}")
     if peft_adapter:
         args.append(f"peft={peft_adapter}")
+    if tokenizer_override:
+        args.append(f"tokenizer={tokenizer_override}")
     return ",".join(args)
 
 
@@ -91,6 +98,79 @@ def _materialize_model_for_lm_eval(
     return str(merged_dir), None
 
 
+def _fallback_chat_template() -> str:
+    return textwrap.dedent(
+        """
+        {%- if system_message %}
+        <|system|>
+        {{ system_message }}{{ eos_token }}
+        {%- endif %}
+        {%- for message in messages %}
+            {%- if message['role'] == 'user' %}
+                <|user|>
+                {{ message['content'] }}{{ eos_token }}
+            {%- elif message['role'] == 'assistant' %}
+                {%- generation -%}
+                <|assistant|>
+                {{ message['content'] }}{{ eos_token }}
+                {%- endgeneration -%}
+            {%- endif %}
+        {%- endfor %}
+        {%- if add_generation_prompt %}<|assistant|>{%- endif %}
+        """
+    ).lstrip()
+
+
+def _prepare_tokenizer_for_lm_eval(
+    pretrained_path: str,
+    cache_root: Path,
+    require_chat_template: bool,
+) -> str | None:
+    cache_root.mkdir(parents=True, exist_ok=True)
+    tok_out = cache_root / "tokenizer"
+    if tok_out.exists():
+        return str(tok_out)
+
+    try:
+        tok = AutoTokenizer.from_pretrained(
+            pretrained_path, trust_remote_code=True, local_files_only=True
+        )
+    except Exception:
+        try:
+            tok = AutoTokenizer.from_pretrained(pretrained_path, trust_remote_code=True)
+        except Exception:
+            return None
+
+    needs_template = (
+        require_chat_template and getattr(tok, "chat_template", None) is None
+    )
+    if needs_template:
+        logger.info("Injecting fallback chat template for lm-eval tokenizer.")
+        try:
+            tok.chat_template = _fallback_chat_template()  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+    try:
+        tok_out.mkdir(parents=True, exist_ok=True)
+        tok.save_pretrained(tok_out)
+        if needs_template and getattr(tok, "chat_template", None) is None:
+            import json as _json
+
+            cfg_path = tok_out / "tokenizer_config.json"
+            data = {}
+            if cfg_path.exists():
+                try:
+                    data = _json.loads(cfg_path.read_text())
+                except Exception:
+                    data = {}
+            data["chat_template"] = _fallback_chat_template()
+            cfg_path.write_text(_json.dumps(data, indent=2))
+        return str(tok_out)
+    except Exception:
+        return None
+
+
 def _run_pack(
     pack_name: str,
     model_cfg: ModelEvalConfig,
@@ -103,7 +183,12 @@ def _run_pack(
     pack_out = output_dir / pack_name
     pack_out.mkdir(parents=True, exist_ok=True)
 
-    model_args = _format_model_args(pretrained_path, model_cfg.dtype, peft_adapter)
+    tokenizer_override = _prepare_tokenizer_for_lm_eval(
+        pretrained_path, output_dir / "_tokenizer", pack.apply_chat_template
+    )
+    model_args = _format_model_args(
+        pretrained_path, model_cfg.dtype, peft_adapter, tokenizer_override
+    )
 
     if model_cfg.peft_adapter and peft_adapter is None:
         logger.info("Using merged checkpoint for lm-eval: %s", pretrained_path)

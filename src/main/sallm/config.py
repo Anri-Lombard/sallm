@@ -52,7 +52,7 @@ class PeftLoadConfig:
 
 @dataclass
 class ModelEvalConfig:
-    checkpoint: str = MISSING
+    checkpoint: Any = MISSING
     adapter: str = "hf"
     dtype: str = "bfloat16"
     device: str = "cuda:0"
@@ -63,39 +63,65 @@ class ModelEvalConfig:
         adapter_path = None
         if self.checkpoint is None:
             raise ValueError("eval_model.checkpoint must be provided and non-empty")
-        checkpoint_str = str(self.checkpoint).rstrip("/")
-        if checkpoint_str == "":
+
+        if isinstance(self.checkpoint, list | tuple):
+            candidates = [str(p).rstrip("/") for p in self.checkpoint if p is not None]
+        else:
+            candidates = [str(self.checkpoint).rstrip("/")]
+
+        candidates = [c for c in candidates if c]
+        if not candidates:
             raise ValueError("eval_model.checkpoint must be provided and non-empty")
-        self.checkpoint = checkpoint_str
-        checkpoint_path = Path(self.checkpoint)
 
-        if checkpoint_path.exists():
-            try:
-                checkpoint_path = checkpoint_path.resolve()
-                self.checkpoint = str(checkpoint_path)
-            except Exception:
-                pass
+        chosen_path: Path | None = None
+        used_adapter_fallback = False
+        last_checked: Path | None = None
 
-        if not checkpoint_path.exists():
+        for cp in candidates:
+            checkpoint_path = Path(cp)
+            last_checked = checkpoint_path
+            if checkpoint_path.exists():
+                try:
+                    checkpoint_path = checkpoint_path.resolve()
+                except Exception:
+                    pass
+                chosen_path = checkpoint_path
+                break
             resolved = self._resolve_missing_checkpoint(checkpoint_path)
             if resolved is not None:
-                checkpoint_path = resolved
-                self.checkpoint = str(checkpoint_path)
-                if self.merge_lora is False:
-                    self.merge_lora = True
-            else:
-                path_hint = checkpoint_path.name
-                parent = checkpoint_path.parent
-                alt = parent / "final_adapter"
-                suggestion = None
-                if path_hint == "final_merged_model" and parent.exists():
-                    suggestion = str(alt)
-                raise ValueError(
-                    f"Checkpoint path not found: '{self.checkpoint}'. "
-                    f"If this run saved only PEFT adapters, point to the adapter "
-                    f"directory (e.g., '{suggestion}' if available) or set "
-                    f"`eval_model.peft_adapter` to the adapter path."
+                chosen_path = resolved
+                used_adapter_fallback = True
+                break
+
+        if chosen_path is None:
+            alt_hint = None
+            if last_checked is not None:
+                parent = last_checked.parent
+                if last_checked.name == "final_merged_model" and parent.exists():
+                    alt_hint = str(parent / "final_adapter")
+            attempted = ", ".join(candidates)
+            base_msg = f"Checkpoint path not found. Attempted: {attempted}."
+            if alt_hint:
+                suggestion = (
+                    " If this run saved only PEFT adapters, point "
+                    "`eval_model.checkpoint` to the adapter directory, e.g. '"
+                    f"{alt_hint}'"
+                    ", or set `eval_model.peft_adapter` to the adapter path."
                 )
+            else:
+                suggestion = (
+                    " If this run saved only PEFT adapters, set "
+                    "`eval_model.peft_adapter` to the adapter path and ensure "
+                    "`eval_model.checkpoint` refers to the base model used during "
+                    "fine-tuning."
+                )
+            raise ValueError(base_msg + suggestion)
+
+        self.checkpoint = str(chosen_path)
+        checkpoint_path = chosen_path
+
+        if used_adapter_fallback and self.merge_lora is False:
+            self.merge_lora = True
 
         if (
             not self.peft_adapter
@@ -143,17 +169,42 @@ class ModelEvalConfig:
             self.merge_lora = True
 
     def _resolve_missing_checkpoint(self, checkpoint_path: Path) -> Path | None:
-        if checkpoint_path.name == "final_merged_model":
-            candidate = checkpoint_path.with_name("final_adapter")
-            if candidate.exists():
-                adapter_config = candidate / "adapter_config.json"
+        name = checkpoint_path.name
+        parent = checkpoint_path.parent
+
+        candidates: list[Path] = []
+
+        if name in {"final_merged_model", "final_adapter", "final_model"}:
+            if name != "final_merged_model":
+                candidates.append(parent / "final_merged_model")
+            if name != "final_adapter":
+                candidates.append(parent / "final_adapter")
+            if name != "final_model":
+                candidates.append(parent / "final_model")
+        else:
+            candidates.extend(
+                [
+                    checkpoint_path / "final_merged_model",
+                    checkpoint_path / "final_adapter",
+                    checkpoint_path / "final_model",
+                ]
+            )
+
+        for cand in candidates:
+            if not cand.exists():
+                continue
+            if cand.name == "final_adapter":
+                adapter_config = cand / "adapter_config.json"
                 adapter_weights = [
-                    candidate / "adapter_model.bin",
-                    candidate / "adapter_model.safetensors",
+                    cand / "adapter_model.bin",
+                    cand / "adapter_model.safetensors",
                 ]
                 has_weights = any(path.exists() for path in adapter_weights)
                 if adapter_config.exists() and has_weights:
-                    return candidate
+                    return cand
+                continue
+            return cand
+
         return None
 
 
@@ -248,6 +299,7 @@ class DecodingConfig:
     repetition_penalty: float | None = None
     num_return_sequences: int | None = None
     diversity_penalty: float | None = None
+    batch_size: int | None = None
 
     @classmethod
     def from_any(cls, value: Any | None) -> "DecodingConfig":

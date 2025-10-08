@@ -11,7 +11,7 @@ import torch
 import wandb
 from omegaconf import OmegaConf
 from sallm.config import ExperimentConfig
-from sallm.data.factory import build_datasets
+from sallm.data.factory import build_conversation_dataset, build_datasets
 from sallm.models.factory import build_model, build_tokenizer
 from sallm.training.factory import build_trainer
 
@@ -19,8 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 def _is_hpo_run(config: ExperimentConfig) -> bool:
-    wandb_id = OmegaConf.select(config, "wandb.id")
-    return isinstance(wandb_id, str) and "sweep" in wandb_id
+    wb = getattr(config, "wandb", None)
+    wb_id = getattr(wb, "id", None) if wb is not None else None
+    return isinstance(wb_id, str) and "sweep" in wb_id
 
 
 # TODO: improve naming
@@ -30,7 +31,13 @@ def _apply_peft_if_needed(model, peft_cfg):
         return model
 
     if peft_cfg.method.lower() in {"lora", "qlora"}:
-        peft_kwargs = OmegaConf.to_container(peft_cfg.kwargs, resolve=True)
+        kwargs_obj = getattr(peft_cfg, "kwargs", {})
+        if hasattr(kwargs_obj, "_parent") or hasattr(kwargs_obj, "_metadata"):
+            peft_kwargs = OmegaConf.to_container(kwargs_obj, resolve=True)
+        elif isinstance(kwargs_obj, dict):
+            peft_kwargs = dict(kwargs_obj)
+        else:
+            peft_kwargs = {}
         lora_conf = peft.LoraConfig(
             r=peft_kwargs.get("r", 64),
             lora_alpha=peft_kwargs.get("lora_alpha", 16),
@@ -121,10 +128,17 @@ def _save_tokenizer_with_fallback(
     )
 
 
+def _is_main_process() -> bool:
+    try:
+        local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
+    except Exception:
+        return True
+    return local_rank in (-1, 0)
+
+
 def run(config: ExperimentConfig) -> None:
     is_hpo_run = _is_hpo_run(config)
-    sel = OmegaConf.select(config, "runtime.is_main")
-    i_am_main = bool(True if sel is None else sel)
+    i_am_main = _is_main_process()
 
     # Ensure each process sets its local CUDA device to avoid NCCL warnings
     try:
@@ -142,15 +156,18 @@ def run(config: ExperimentConfig) -> None:
     except Exception:
         pass
 
-    if config.wandb and config.wandb.project and i_am_main:
+    if config.wandb and config.wandb.project and i_am_main and (not is_hpo_run):
         settings = wandb.Settings(init_timeout=120)
+        cfg_for_wandb = OmegaConf.to_container(
+            OmegaConf.structured(config), resolve=True, throw_on_missing=True
+        )
         wandb.init(
             project=config.wandb.project,
             entity=config.wandb.entity,
             group=config.wandb.group,
             name=config.wandb.name,
             id=config.wandb.id,
-            config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+            config=cfg_for_wandb,
             settings=settings,
         )
         if config.wandb.id:
@@ -217,6 +234,19 @@ def run(config: ExperimentConfig) -> None:
 
     logger.info("Datasets …")
     train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
+
+    if "messages" not in train_ds.column_names:
+        logger.warning(
+            "Training dataset lacks 'messages'; applying "
+            "conversational formatter fallback."
+        )
+        train_ds = build_conversation_dataset(train_ds, config)
+    if val_ds and "messages" not in val_ds.column_names:
+        logger.warning(
+            "Validation dataset lacks 'messages'; applying "
+            "conversational formatter fallback."
+        )
+        val_ds = build_conversation_dataset(val_ds, config)
 
     assert "messages" in train_ds.column_names, (
         "Training dataset is missing the required 'messages' column. "

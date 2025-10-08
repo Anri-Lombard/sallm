@@ -2,7 +2,7 @@ import inspect
 import logging
 
 from datasets import Dataset
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -26,7 +26,13 @@ def build_trainer(
     train_dataset: Dataset,
     eval_dataset: Dataset,
 ) -> SFTTrainer:
-    training_args_dict = OmegaConf.to_container(config.training, resolve=True)
+    training_raw = config.training or {}
+    if isinstance(training_raw, DictConfig):
+        training_args_dict = OmegaConf.to_container(training_raw, resolve=True)
+    elif isinstance(training_raw, dict):
+        training_args_dict = dict(training_raw)
+    else:
+        raise TypeError(f"Unsupported type for training config: {type(training_raw)!r}")
 
     # TODO implement cleaner logic for this
     if config.mode == RunMode.FINETUNE:

@@ -22,7 +22,7 @@ dataset:
   task: INSTRUCTION
   templates:
     - {id: "t2x_verbalisation/v1", weight: 1}
-  template_choice: ALL
+  template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 1024

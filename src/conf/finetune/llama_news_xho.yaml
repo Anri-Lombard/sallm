@@ -20,8 +20,12 @@ dataset:
   subset: "xho"
   splits: {train: "train", val: "validation"}
   templates:
-    - {id: "masakhane_news_classification/v5", weight: 1.0}
-  template_choice: ALL
+    - {id: "masakhane_news_classification/lm_eval_p1", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p2", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p3", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p4", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p5", weight: 1.0}
+  template_choice: CYCLE
   label_column: "label"
   task: CLASSIFICATION
   packing: false

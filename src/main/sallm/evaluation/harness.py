@@ -88,7 +88,6 @@ def load_model_and_tokenizer(
         adapter_path=model_cfg.peft_adapter,
     )
     tokenizer.backend_tokenizer.decoder = ByteLevel()
-
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -139,7 +138,8 @@ def _load_raw_split(
         if "francois-meyer/t2x" in gh_ref or gh_ref.strip().endswith("/t2x"):
             dataset_dict = load_t2x_from_github()
         else:
-            dataset_dict = load_afrihg_from_github(languages=ds_cfg.languages)
+            langs = [ds_cfg.subset] if ds_cfg.subset else ds_cfg.languages
+            dataset_dict = load_afrihg_from_github(languages=langs)
 
         if not isinstance(dataset_dict, DatasetDict):
             raise TypeError(

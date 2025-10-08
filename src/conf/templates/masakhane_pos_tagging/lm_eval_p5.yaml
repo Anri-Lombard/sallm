@@ -1,0 +1,30 @@
+prompt: |
+  Given the following sentence, identify the part of speech (POS) for each word.
+  Use the following POS tag set:
+  NOUN: Noun (person, place, thing),
+  VERB: Verb (action, state),
+  ADJ: Adjective (describes a noun),
+  ADV: Adverb (modifies a verb, adjective, or adverb),
+  PRON: Pronoun (replaces a noun),
+  DET: Determiner (introduces a noun),
+  ADP: Adposition (preposition or postposition),
+  CCONJ: Conjunction (connects words, phrases, clauses),
+  PUNCT: Punctuation,
+  PROPN: Proper Noun,
+  AUX: Auxiliary verb (helper verb),
+  SCONJ: Subordinating conjunction,
+  PART: Particle,
+  SYM: Symbol,
+  INTJ: Interjection,
+  NUM: Numeral,
+  X: others.
+
+  The output format should be a list of tuples, where each tuple consists of a word
+  from the input text and its corresponding POS tag label key only from the POS tag set
+  provided. Your response should include only a list of tuples, in the order that the words
+  appear in the input sentence, including punctuations, with each tuple containing the corresponding
+  POS tag label for a word.
+
+  Sentence: {tokens}
+  Output:
+task: "masakhane_pos_tagging"

@@ -12,20 +12,30 @@ from sallm.training.factory import build_trainer
 logger = logging.getLogger(__name__)
 
 
+def _is_main_process() -> bool:
+    try:
+        local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
+    except Exception:
+        return True
+    return local_rank in (-1, 0)
+
+
 def run(config: ExperimentConfig) -> None:
     is_hpo_run = config.wandb.id is not None and "sweep" in config.wandb.id
 
-    sel = OmegaConf.select(config, "runtime.is_main")
-    i_am_main = bool(True if sel is None else sel)
+    i_am_main = _is_main_process()
 
     if config.wandb and config.wandb.project and (not is_hpo_run) and i_am_main:
+        cfg_for_wandb = OmegaConf.to_container(
+            OmegaConf.structured(config), resolve=True, throw_on_missing=True
+        )
         wandb.init(
             project=config.wandb.project,
             entity=config.wandb.entity,
             group=config.wandb.group,
             name=config.wandb.name,
             id=config.wandb.id,
-            config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+            config=cfg_for_wandb,
         )
         if config.wandb.id:
             wandb.config.update({"resume": "allow"})

@@ -1,0 +1,13 @@
+prompt: |
+  Does this topic; '{text}' belong to one of the following categories:
+  science/technology, travel, politics, sports, health, entertainment, or geography?
+  category only
+label_mapping:
+  0: "science/technology"
+  1: "travel"
+  2: "politics"
+  3: "sports"
+  4: "health"
+  5: "entertainment"
+  6: "geography"
+task: "sib_topic_classification"

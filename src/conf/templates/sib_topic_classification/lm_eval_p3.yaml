@@ -1,0 +1,18 @@
+prompt: |
+  You are an assistant able to classify topics in texts.
+
+  Given the categories science/technology, travel, politics, sports, health,
+  entertainment, or geography; what is the topic of the statement below?
+  Return only the category.
+
+  text: {text}
+  category:
+label_mapping:
+  0: "science/technology"
+  1: "travel"
+  2: "politics"
+  3: "sports"
+  4: "health"
+  5: "entertainment"
+  6: "geography"
+task: "sib_topic_classification"
