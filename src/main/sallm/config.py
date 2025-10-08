@@ -94,20 +94,28 @@ class ModelEvalConfig:
                 break
 
         if chosen_path is None:
-            # Build a helpful error with a suggestion when possible
-            hint = None
+            alt_hint = None
             if last_checked is not None:
                 parent = last_checked.parent
                 if last_checked.name == "final_merged_model" and parent.exists():
-                    alt = parent / "final_adapter"
-                    hint = str(alt)
+                    alt_hint = str(parent / "final_adapter")
             attempted = ", ".join(candidates)
-            raise ValueError(
-                "Checkpoint path not found. Attempted: "
-                f"{attempted}. If this run saved only PEFT adapters, point to "
-                f"the adapter directory (e.g., '{hint}' if available) or set "
-                "`eval_model.peft_adapter` to the adapter path."
-            )
+            base_msg = f"Checkpoint path not found. Attempted: {attempted}."
+            if alt_hint:
+                suggestion = (
+                    " If this run saved only PEFT adapters, point "
+                    "`eval_model.checkpoint` to the adapter directory, e.g. '"
+                    f"{alt_hint}'"
+                    ", or set `eval_model.peft_adapter` to the adapter path."
+                )
+            else:
+                suggestion = (
+                    " If this run saved only PEFT adapters, set "
+                    "`eval_model.peft_adapter` to the adapter path and ensure "
+                    "`eval_model.checkpoint` refers to the base model used during "
+                    "fine-tuning."
+                )
+            raise ValueError(base_msg + suggestion)
 
         self.checkpoint = str(chosen_path)
         checkpoint_path = chosen_path
@@ -161,17 +169,42 @@ class ModelEvalConfig:
             self.merge_lora = True
 
     def _resolve_missing_checkpoint(self, checkpoint_path: Path) -> Path | None:
-        if checkpoint_path.name == "final_merged_model":
-            candidate = checkpoint_path.with_name("final_adapter")
-            if candidate.exists():
-                adapter_config = candidate / "adapter_config.json"
+        name = checkpoint_path.name
+        parent = checkpoint_path.parent
+
+        candidates: list[Path] = []
+
+        if name in {"final_merged_model", "final_adapter", "final_model"}:
+            if name != "final_merged_model":
+                candidates.append(parent / "final_merged_model")
+            if name != "final_adapter":
+                candidates.append(parent / "final_adapter")
+            if name != "final_model":
+                candidates.append(parent / "final_model")
+        else:
+            candidates.extend(
+                [
+                    checkpoint_path / "final_merged_model",
+                    checkpoint_path / "final_adapter",
+                    checkpoint_path / "final_model",
+                ]
+            )
+
+        for cand in candidates:
+            if not cand.exists():
+                continue
+            if cand.name == "final_adapter":
+                adapter_config = cand / "adapter_config.json"
                 adapter_weights = [
-                    candidate / "adapter_model.bin",
-                    candidate / "adapter_model.safetensors",
+                    cand / "adapter_model.bin",
+                    cand / "adapter_model.safetensors",
                 ]
                 has_weights = any(path.exists() for path in adapter_weights)
                 if adapter_config.exists() and has_weights:
-                    return candidate
+                    return cand
+                continue
+            return cand
+
         return None
 
 
@@ -266,6 +299,7 @@ class DecodingConfig:
     repetition_penalty: float | None = None
     num_return_sequences: int | None = None
     diversity_penalty: float | None = None
+    batch_size: int | None = None
 
     @classmethod
     def from_any(cls, value: Any | None) -> "DecodingConfig":
