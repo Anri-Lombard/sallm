@@ -88,7 +88,6 @@ def load_model_and_tokenizer(
         adapter_path=model_cfg.peft_adapter,
     )
     tokenizer.backend_tokenizer.decoder = ByteLevel()
-
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
