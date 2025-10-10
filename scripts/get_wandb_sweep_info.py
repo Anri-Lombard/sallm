@@ -1,3 +1,4 @@
+import json
 import math
 import sys
 from argparse import ArgumentParser
@@ -43,23 +44,31 @@ out_csv = args.out or f"{target_name}.csv"
 api = wandb.Api()
 runs = list(api.runs(project_path, filters={"display_name": target_name}))
 iterator = tqdm(runs, total=len(runs), desc="Scanning runs") if tqdm else runs
-selected = []
-for r in iterator:
-    if r.name == target_name:
-        selected.append(r)
+selected = [r for r in iterator if getattr(r, "name", None) == target_name]
 if not selected:
     sys.exit(f"No run found with name {target_name!r} in {project_path}.")
+
 run = sorted(selected, key=lambda r: r.created_at, reverse=True)[0]
-config = {k: v for k, v in run.config.items() if not str(k).startswith("_")}
-summary = dict(run.summary)
+
+raw_cfg = run.config
+parsed_cfg = json.loads(raw_cfg) if isinstance(raw_cfg, str) else dict(raw_cfg)
+config = {k: v for k, v in parsed_cfg.items() if not str(k).startswith("_")}
+
+raw_summary = run.summary
+if isinstance(raw_summary, str):
+    summary = json.loads(raw_summary)
+elif hasattr(raw_summary, "_json_dict") and isinstance(raw_summary._json_dict, dict):
+    summary = raw_summary._json_dict
+else:
+    summary = dict(raw_summary)
+
 cfg_df = pd.json_normalize(config, sep=".")
 cfg_df.columns = [f"config.{c}" for c in cfg_df.columns]
 sum_df = pd.json_normalize(summary, sep=".")
 sum_df.columns = [f"summary.{c}" for c in sum_df.columns]
-row_df = pd.concat([cfg_df, sum_df], axis=1)
-row = row_df.iloc[0].to_dict()
-non_empty_cols = {k: v for k, v in row.items() if not is_empty(v)}
-pd.DataFrame([non_empty_cols]).to_csv(out_csv, index=False)
+row = pd.concat([cfg_df, sum_df], axis=1).iloc[0].to_dict()
+non_empty = {k: v for k, v in row.items() if not is_empty(v)}
+pd.DataFrame([non_empty]).to_csv(out_csv, index=False)
 print(f"Saved non-empty fields to {out_csv}")
-for col, val in sorted(non_empty_cols.items()):
+for col, val in sorted(non_empty.items()):
     print(f"{col}: {to_list(val)}")
