@@ -4,6 +4,6 @@ tasks:
   - masakhaner_tn_prompt_3
   - masakhaner_tn_prompt_4
   - masakhaner_tn_prompt_5
-fewshot: 1
+fewshot: 3
 batch_size: 8
 apply_chat_template: true

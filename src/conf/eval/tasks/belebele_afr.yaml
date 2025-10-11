@@ -4,6 +4,6 @@ tasks:
   - belebele_afr_prompt_3
   - belebele_afr_prompt_4
   - belebele_afr_prompt_5
-fewshot: 1
+fewshot: 3
 batch_size: 8
 apply_chat_template: true
