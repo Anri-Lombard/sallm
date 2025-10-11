@@ -4,6 +4,6 @@ tasks:
   - masakhanews_xho_prompt_3
   - masakhanews_xho_prompt_4
   - masakhanews_xho_prompt_5
-fewshot: 3
+fewshot: 0
 batch_size: 8
 apply_chat_template: false

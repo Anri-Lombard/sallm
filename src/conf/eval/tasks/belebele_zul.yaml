@@ -4,6 +4,6 @@ tasks:
   - belebele_zul_prompt_3
   - belebele_zul_prompt_4
   - belebele_zul_prompt_5
-fewshot: 3
+fewshot: 0
 batch_size: 8
 apply_chat_template: true
