@@ -235,35 +235,59 @@ def run(config: ExperimentConfig) -> None:
     logger.info("Datasets …")
     train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
 
-    if "messages" not in train_ds.column_names:
-        logger.warning(
-            "Training dataset lacks 'messages'; applying "
-            "conversational formatter fallback."
-        )
-        train_ds = build_conversation_dataset(train_ds, config)
-    if val_ds and "messages" not in val_ds.column_names:
-        logger.warning(
-            "Validation dataset lacks 'messages'; applying "
-            "conversational formatter fallback."
-        )
-        val_ds = build_conversation_dataset(val_ds, config)
+    def _has_messages(ds) -> bool:
+        if hasattr(ds, "column_names"):
+            return "messages" in ds.column_names
+        try:
+            ex = ds[0]
+        except Exception:
+            try:
+                ex = next(iter(ds))
+            except Exception:
+                return False
+        return isinstance(ex, dict) and ("messages" in ex)
 
-    assert "messages" in train_ds.column_names, (
-        "Training dataset is missing the required 'messages' column. "
-        "Please ensure your data processing pipeline is creating the correct "
-        "conversational format."
+    if not _has_messages(train_ds):
+        if hasattr(train_ds, "column_names"):
+            logger.warning("Training dataset lacks 'messages'; applying formatter.")
+            train_ds = build_conversation_dataset(train_ds, config)
+        else:
+            raise ValueError(
+                "Training dataset lacks 'messages' and cannot be auto-formatted."
+            )
+
+    if val_ds and not _has_messages(val_ds):
+        if hasattr(val_ds, "column_names"):
+            logger.warning("Validation dataset lacks 'messages'; applying formatter.")
+            val_ds = build_conversation_dataset(val_ds, config)
+        else:
+            raise ValueError(
+                "Validation dataset lacks 'messages' and cannot be auto-formatted."
+            )
+
+    def _safe_len(ds):
+        try:
+            return len(ds)
+        except Exception:
+            return None
+
+    n_train = _safe_len(train_ds)
+    n_val = _safe_len(val_ds)
+    logger.info(
+        "Samples: train=%s, val=%s",
+        n_train if n_train is not None else "?",
+        n_val if n_val is not None else "?",
     )
-    if val_ds:
-        assert "messages" in val_ds.column_names, (
-            "Validation dataset is missing the required 'messages' column. "
-            "Please ensure your data processing pipeline is creating the correct "
-            "conversational format."
-        )
 
-    logger.info(f"Samples: train={len(train_ds)}, val={len(val_ds)}")
-
-    if train_ds and len(train_ds) > 0:
+    sample = None
+    try:
         sample = train_ds[0]
+    except Exception:
+        try:
+            sample = next(iter(train_ds))
+        except Exception:
+            sample = None
+    if sample:
         logger.info("--- Inspecting a single training sample ---")
         logger.info(f"Messages:\n{sample['messages']}")
         logger.info("-------------------------------------------")

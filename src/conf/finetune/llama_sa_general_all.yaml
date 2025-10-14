@@ -21,6 +21,17 @@ dataset:
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
+  mix_weights:
+    sib: 3.0
+    news: 3.0
+    ner: 2.0
+    pos: 4.0
+    afrihg: 0.6
+    t2x: 0.8
+  mix_temperature: 0.3
+  mix_epoch_size: "sum"
+  mix_min_prob: 0.02
+  mix_max_prob: 0.6
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
