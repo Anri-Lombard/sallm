@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from random import Random
 
 from torch.utils.data import Dataset as TorchDataset
+from torch.utils.data import get_worker_info
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,7 @@ class WeightedMultiTaskDataset(TorchDataset):
             raise ValueError("All mix weights are non-positive")
         self._components = components
         self._base_seed = seed
-        self._rng = Random(seed)
+        self._epoch = 0
         self._temperature = temperature
         self._epoch_size = epoch_size or sum(c.size for c in components)
         if self._epoch_size <= 0:
@@ -126,11 +127,18 @@ class WeightedMultiTaskDataset(TorchDataset):
     def __len__(self) -> int:
         return self._epoch_size
 
-    def __getitem__(self, _: int) -> dict:
-        choice = self._draw_component()
+    def __getitem__(self, index: int) -> dict:
+        wi = get_worker_info()
+        worker_seed = int(getattr(wi, "seed", 0) or 0)
+        epoch_term = 1_000_003 * (self._epoch + 1)
+        per_item_seed = (
+            int(self._base_seed) ^ int(worker_seed) ^ int(index + 1) ^ int(epoch_term)
+        )
+        rnd = Random(per_item_seed)
+        choice = self._draw_component(rnd)
         component = self._components[choice]
-        index = self._rng.randrange(component.size)
-        example = component.dataset[index]
+        comp_index = rnd.randrange(component.size)
+        example = component.dataset[comp_index]
         if not isinstance(example, dict):
             raise TypeError("Expected dict samples from component datasets")
         result = dict(example)
@@ -138,12 +146,12 @@ class WeightedMultiTaskDataset(TorchDataset):
             result["task_name"] = component.name
         return result
 
-    def _draw_component(self) -> int:
-        value = self._rng.random()
+    def _draw_component(self, rnd: Random) -> int:
+        value = rnd.random()
         return bisect.bisect_left(self._cdf, value)
 
     def set_epoch(self, epoch: int) -> None:
-        self._rng = Random(self._base_seed + epoch)
+        self._epoch = int(epoch)
 
     @property
     def probabilities(self) -> list[float]:
