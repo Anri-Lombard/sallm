@@ -468,7 +468,6 @@ def build_datasets(
 
                 logger.info("SA General mix distribution | %s", train_mix.describe())
 
-                # Materialize one epoch worth of samples into an in-memory HF Dataset
                 materialized = [train_mix[i] for i in range(len(train_mix))]
                 hf_ep_dataset = Dataset.from_list(materialized)
 
@@ -692,10 +691,35 @@ def build_conversation_dataset(
             "(instruction, output) or (inputs, targets) or (prompt/query, response)."
         )
 
-    def _format_instruction(ex: dict[str, Any]) -> list[dict[str, str]]:
+    def _render_instruction_prompt(
+        ex: dict[str, Any], template_id: str | None = None
+    ) -> tuple[str, str]:
         user_text, assistant_text = _extract_instruction_pair(ex)
+        if template_id:
+            try:
+                spec = tmpl.get(template_id)
+                prompt_text = _safe_format_prompt(spec.prompt, ex)
+                return prompt_text, assistant_text
+            except Exception:
+                return user_text, assistant_text
+
+        if ds_cfg.templates:
+            primary_template = ds_cfg.templates[0].id
+            try:
+                spec = tmpl.get(primary_template)
+                prompt_text = _safe_format_prompt(spec.prompt, ex)
+                return prompt_text, assistant_text
+            except Exception:
+                return user_text, assistant_text
+
+        return user_text, assistant_text
+
+    def _format_instruction(
+        ex: dict[str, Any], template_id: str | None = None
+    ) -> list[dict[str, str]]:
+        user_prompt, assistant_text = _render_instruction_prompt(ex, template_id)
         return [
-            {"role": "user", "content": user_text},
+            {"role": "user", "content": user_prompt},
             {"role": "assistant", "content": assistant_text},
         ]
 
@@ -842,7 +866,7 @@ def build_conversation_dataset(
                     w = max(w, 1)
 
                     if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
-                        msgs = _format_instruction(ex)
+                        msgs = _format_instruction(ex, t_id)
                     elif ds_cfg.task == FinetuneTaskType.CLASSIFICATION:
                         msgs = _format_classification(
                             ex, t_id, ds_cfg.label_column or "label"
@@ -898,16 +922,7 @@ def build_conversation_dataset(
 
             def _cycle_instruction(ex: dict[str, Any], idx: int) -> dict[str, Any]:
                 t_id = cycle_template_ids[idx % len(cycle_template_ids)]
-                user_text, assistant_text = _extract_instruction_pair(ex)
-                try:
-                    spec = tmpl.get(t_id)
-                    user_prompt = _safe_format_prompt(spec.prompt, ex)
-                except Exception:
-                    user_prompt = user_text
-                msgs = [
-                    {"role": "user", "content": user_prompt},
-                    {"role": "assistant", "content": assistant_text},
-                ]
+                msgs = _format_instruction(ex, t_id)
                 out: dict[str, Any] = {"messages": msgs, "template_id": t_id}
                 lang_val = ex.get("lang") if isinstance(ex, dict) else None
                 if lang_val:
@@ -1052,10 +1067,10 @@ def build_conversation_dataset(
     if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
 
         def to_messages(ex):
-            user_text, assistant_text = _extract_instruction_pair(ex)
+            user_prompt, assistant_text = _render_instruction_prompt(ex, None)
             return {
                 "messages": [
-                    {"role": "user", "content": user_text},
+                    {"role": "user", "content": user_prompt},
                     {"role": "assistant", "content": assistant_text},
                 ]
             }

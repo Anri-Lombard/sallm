@@ -241,6 +241,12 @@ class TemplateChoice(str, Enum):
     ALL = "all"
 
 
+class FewshotTemplateMode(str, Enum):
+    SAME = "same"
+    RANDOM = "random"
+    CYCLE = "cycle"
+
+
 class TaskType(str, Enum):
     CAUSAL_LM = "causal_lm"
     CLASSIFICATION = "classification"
@@ -408,6 +414,14 @@ class GenerationEvalTaskConfig:
     max_samples_per_lang: int | None = None
     sample_seed: int | None = None
     decoding: DecodingConfig = field(default_factory=DecodingConfig)
+    fewshot: int = 0
+    fewshot_split: str = "train"
+    fewshot_seed: int | None = None
+    fewshot_lang_match: bool = True
+    fewshot_template_mode: FewshotTemplateMode = FewshotTemplateMode.SAME
+    fewshot_token_budget: int | None = None
+    prompt_headroom_tokens: int | None = None
+    system_prompt: str | None = None
 
 
 @dataclass

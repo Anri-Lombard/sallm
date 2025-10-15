@@ -174,6 +174,7 @@ class GenerationEvaluator:
 
                     for sample in batch_samples:
                         messages: list[dict[str, str]] = sample["messages"]
+                        system_message = sample.get("system_message")
                         if not messages:
                             prompt_messages_list.append([])
                             reference_lists.append([""])
@@ -183,11 +184,16 @@ class GenerationEvaluator:
                         reference_texts = self._prepare_references(
                             messages[-1]["content"]
                         )
+                        template_kwargs: dict[str, str] = {}
+                        if isinstance(system_message, str) and system_message.strip():
+                            template_kwargs["system_message"] = system_message
+                            template_kwargs["system_prompt"] = system_message
                         prompt_text = self.tokenizer.apply_chat_template(
                             prompt_messages,
                             tokenize=False,
                             add_generation_prompt=True,
                             chat_template=fallback_template,
+                            **template_kwargs,
                         )
                         prompt_messages_list.append(prompt_messages)
                         reference_lists.append(reference_texts)

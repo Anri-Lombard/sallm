@@ -1,7 +1,7 @@
 mode: EVALUATE
 
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
@@ -12,8 +12,16 @@ evaluation:
   generation_tasks:
     - id: "afrihg_xho"
       split: "test"
-      max_new_tokens: 256
+      max_new_tokens: 512
       max_samples_per_lang: null
+      fewshot: 3
+      fewshot_split: "train"
+      fewshot_seed: 42
+      fewshot_lang_match: true
+      fewshot_template_mode: "SAME"
+      fewshot_token_budget: 1792
+      prompt_headroom_tokens: 256
+      system_prompt: "You are a concise isiXhosa news editor who drafts punchy headlines from article excerpts."
       decoding:
         strategy: "beam"
         num_beams: 5
