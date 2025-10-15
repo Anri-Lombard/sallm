@@ -14,6 +14,13 @@ evaluation:
       split: "test"
       max_new_tokens: 256
       max_samples_per_lang: null
+      fewshot: 3
+      fewshot_split: "train"
+      fewshot_seed: 42
+      fewshot_lang_match: true
+      fewshot_template_mode: "SAME"
+      fewshot_token_budget: 1792
+      prompt_headroom_tokens: 256
       decoding:
         strategy: "beam"
         num_beams: 5

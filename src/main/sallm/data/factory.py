@@ -12,6 +12,7 @@ from datasets import (
     load_dataset,
     load_from_disk,
 )
+from torch.utils.data import Dataset as TorchDataset
 from transformers import AutoTokenizer
 
 from sallm.config import (
@@ -88,7 +89,7 @@ def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
 
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
-) -> tuple[Dataset, Dataset, Dataset | None]:
+) -> tuple[Dataset | TorchDataset, Dataset, Dataset | None]:
     def _load_split_with_fallback(
         hf_name: str, name: str | None, split: str
     ) -> Dataset:
@@ -468,14 +469,8 @@ def build_datasets(
 
                 logger.info("SA General mix distribution | %s", train_mix.describe())
 
-                materialized = [train_mix[i] for i in range(len(train_mix))]
-                hf_ep_dataset = Dataset.from_list(materialized)
-
-                return (
-                    hf_ep_dataset,
-                    concatenate_datasets(val_parts),
-                    None,
-                )
+                # Return the torch dataset directly so per-epoch sampling works
+                return (train_mix, concatenate_datasets(val_parts), None)
 
             raise ValueError(f"Unsupported dataset mix '{mix_name}'")
 
