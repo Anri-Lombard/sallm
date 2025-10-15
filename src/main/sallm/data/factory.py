@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from math import isfinite
 from typing import Any
 
@@ -11,6 +12,7 @@ from datasets import (
     load_dataset,
     load_from_disk,
 )
+from torch.utils.data import Dataset as TorchDataset
 from transformers import AutoTokenizer
 
 from sallm.config import (
@@ -22,10 +24,14 @@ from sallm.config import (
     TemplateRef,
 )
 from sallm.data.afrihg import load_afrihg_from_github
+from sallm.data.multitask import TaskComponent, WeightedMultiTaskDataset
 from sallm.data.t2x import load_t2x_from_github
 from sallm.templates import registry as tmpl
 
 # TODO cleanup this file - way too complicated right now
+
+
+logger = logging.getLogger(__name__)
 
 
 def _reconstruct_entities_from_iob(
@@ -83,7 +89,7 @@ def _safe_format_prompt(prompt: str, values: dict[str, Any]) -> str:
 
 def build_datasets(
     config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
-) -> tuple[Dataset, Dataset, Dataset | None]:
+) -> tuple[Dataset | TorchDataset, Dataset, Dataset | None]:
     def _load_split_with_fallback(
         hf_name: str, name: str | None, split: str
     ) -> Dataset:
@@ -220,178 +226,251 @@ def build_datasets(
                 common_packing = ds_cfg.packing
                 common_asst_only = ds_cfg.assistant_only_loss
 
-                mix_components: list[FinetuneDatasetConfig] = [
-                    FinetuneDatasetConfig(
-                        hf_name="Davlan/sib200",
-                        subset=None,
-                        languages=[
-                            "afr_Latn",
-                            "eng_Latn",
-                            "nso_Latn",
-                            "sot_Latn",
-                            "xho_Latn",
-                            "zul_Latn",
-                        ],
-                        task=FinetuneTaskType.CLASSIFICATION,
-                        splits={"train": "train", "val": "validation"},
-                        templates=[
-                            TemplateRef(
-                                id="sib_topic_classification/lm_eval_p1", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="sib_topic_classification/lm_eval_p2", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="sib_topic_classification/lm_eval_p3", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="sib_topic_classification/lm_eval_p4", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="sib_topic_classification/lm_eval_p5", weight=1.0
-                            ),
-                        ],
-                        template_choice=TemplateChoice.CYCLE,
-                        label_column="category",
-                        max_seq_length=common_seq_len,
-                        packing=common_packing,
-                        assistant_only_loss=common_asst_only,
-                    ),
-                    FinetuneDatasetConfig(
-                        hf_name="masakhane/masakhanews",
-                        subset=None,
-                        languages=["eng", "xho"],
-                        task=FinetuneTaskType.CLASSIFICATION,
-                        splits={"train": "train", "val": "validation"},
-                        templates=[
-                            TemplateRef(
-                                id="masakhane_news_classification/lm_eval_p1",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_news_classification/lm_eval_p2",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_news_classification/lm_eval_p3",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_news_classification/lm_eval_p4",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_news_classification/lm_eval_p5",
-                                weight=1.0,
-                            ),
-                        ],
-                        template_choice=TemplateChoice.CYCLE,
-                        label_column="label",
-                        max_seq_length=common_seq_len,
-                        packing=common_packing,
-                        assistant_only_loss=common_asst_only,
-                    ),
-                    FinetuneDatasetConfig(
-                        hf_name="masakhane/masakhaner2",
-                        subset=None,
-                        languages=["tsn", "xho", "zul"],
-                        task=FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
-                        splits={"train": "train", "val": "validation"},
-                        templates=[
-                            TemplateRef(
-                                id="masakhane_named_entity_recognition/lm_eval_p1",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_named_entity_recognition/lm_eval_p2",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_named_entity_recognition/lm_eval_p3",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_named_entity_recognition/lm_eval_p4",
-                                weight=1.0,
-                            ),
-                            TemplateRef(
-                                id="masakhane_named_entity_recognition/lm_eval_p5",
-                                weight=1.0,
-                            ),
-                        ],
-                        template_choice=TemplateChoice.CYCLE,
-                        max_seq_length=common_seq_len,
-                        packing=common_packing,
-                        assistant_only_loss=common_asst_only,
-                    ),
-                    FinetuneDatasetConfig(
-                        hf_name="masakhane/masakhapos",
-                        subset=None,
-                        languages=["tsn", "xho", "zul"],
-                        task=FinetuneTaskType.POS_TAGGING,
-                        splits={"train": "train", "val": "validation"},
-                        templates=[
-                            TemplateRef(
-                                id="masakhane_pos_tagging/lm_eval_p1", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="masakhane_pos_tagging/lm_eval_p2", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="masakhane_pos_tagging/lm_eval_p3", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="masakhane_pos_tagging/lm_eval_p4", weight=1.0
-                            ),
-                            TemplateRef(
-                                id="masakhane_pos_tagging/lm_eval_p5", weight=1.0
-                            ),
-                        ],
-                        template_choice=TemplateChoice.CYCLE,
-                        max_seq_length=common_seq_len,
-                        packing=common_packing,
-                        assistant_only_loss=common_asst_only,
-                    ),
-                    FinetuneDatasetConfig(
-                        hf_name="github:dadelani/AfriHG",
-                        subset=None,
-                        languages=["xho", "zul"],
-                        task=FinetuneTaskType.INSTRUCTION,
-                        splits={"train": "train", "val": "validation"},
-                        templates=[TemplateRef(id="afrihg_headline/v1", weight=1.0)],
-                        template_choice=TemplateChoice.CYCLE,
-                        max_seq_length=common_seq_len,
-                        packing=common_packing,
-                        assistant_only_loss=common_asst_only,
-                    ),
-                    FinetuneDatasetConfig(
-                        hf_name="github:francois-meyer/t2x",
-                        subset="xho",
-                        languages=None,
-                        task=FinetuneTaskType.INSTRUCTION,
-                        splits={"train": "train", "val": "validation"},
-                        templates=[TemplateRef(id="t2x_verbalisation/v1", weight=1.0)],
-                        template_choice=TemplateChoice.CYCLE,
-                        max_seq_length=(
-                            1024 if common_seq_len > 1024 else common_seq_len
+                mix_components: list[tuple[str, FinetuneDatasetConfig]] = [
+                    (
+                        "sib",
+                        FinetuneDatasetConfig(
+                            hf_name="Davlan/sib200",
+                            subset=None,
+                            languages=[
+                                "afr_Latn",
+                                "eng_Latn",
+                                "nso_Latn",
+                                "sot_Latn",
+                                "xho_Latn",
+                                "zul_Latn",
+                            ],
+                            task=FinetuneTaskType.CLASSIFICATION,
+                            splits={"train": "train", "val": "validation"},
+                            templates=[
+                                TemplateRef(
+                                    id="sib_topic_classification/lm_eval_p1",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="sib_topic_classification/lm_eval_p2",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="sib_topic_classification/lm_eval_p3",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="sib_topic_classification/lm_eval_p4",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="sib_topic_classification/lm_eval_p5",
+                                    weight=1.0,
+                                ),
+                            ],
+                            template_choice=TemplateChoice.CYCLE,
+                            label_column="category",
+                            max_seq_length=common_seq_len,
+                            packing=common_packing,
+                            assistant_only_loss=common_asst_only,
                         ),
-                        packing=common_packing,
-                        assistant_only_loss=common_asst_only,
+                    ),
+                    (
+                        "news",
+                        FinetuneDatasetConfig(
+                            hf_name="masakhane/masakhanews",
+                            subset=None,
+                            languages=["eng", "xho"],
+                            task=FinetuneTaskType.CLASSIFICATION,
+                            splits={"train": "train", "val": "validation"},
+                            templates=[
+                                TemplateRef(
+                                    id="masakhane_news_classification/lm_eval_p1",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_news_classification/lm_eval_p2",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_news_classification/lm_eval_p3",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_news_classification/lm_eval_p4",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_news_classification/lm_eval_p5",
+                                    weight=1.0,
+                                ),
+                            ],
+                            template_choice=TemplateChoice.CYCLE,
+                            label_column="label",
+                            max_seq_length=common_seq_len,
+                            packing=common_packing,
+                            assistant_only_loss=common_asst_only,
+                        ),
+                    ),
+                    (
+                        "ner",
+                        FinetuneDatasetConfig(
+                            hf_name="masakhane/masakhaner2",
+                            subset=None,
+                            languages=["tsn", "xho", "zul"],
+                            task=FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
+                            splits={"train": "train", "val": "validation"},
+                            templates=[
+                                TemplateRef(
+                                    id="masakhane_named_entity_recognition/lm_eval_p1",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_named_entity_recognition/lm_eval_p2",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_named_entity_recognition/lm_eval_p3",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_named_entity_recognition/lm_eval_p4",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_named_entity_recognition/lm_eval_p5",
+                                    weight=1.0,
+                                ),
+                            ],
+                            template_choice=TemplateChoice.CYCLE,
+                            max_seq_length=common_seq_len,
+                            packing=common_packing,
+                            assistant_only_loss=common_asst_only,
+                        ),
+                    ),
+                    (
+                        "pos",
+                        FinetuneDatasetConfig(
+                            hf_name="masakhane/masakhapos",
+                            subset=None,
+                            languages=["tsn", "xho", "zul"],
+                            task=FinetuneTaskType.POS_TAGGING,
+                            splits={"train": "train", "val": "validation"},
+                            templates=[
+                                TemplateRef(
+                                    id="masakhane_pos_tagging/lm_eval_p1",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_pos_tagging/lm_eval_p2",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_pos_tagging/lm_eval_p3",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_pos_tagging/lm_eval_p4",
+                                    weight=1.0,
+                                ),
+                                TemplateRef(
+                                    id="masakhane_pos_tagging/lm_eval_p5",
+                                    weight=1.0,
+                                ),
+                            ],
+                            template_choice=TemplateChoice.CYCLE,
+                            max_seq_length=common_seq_len,
+                            packing=common_packing,
+                            assistant_only_loss=common_asst_only,
+                        ),
+                    ),
+                    (
+                        "afrihg",
+                        FinetuneDatasetConfig(
+                            hf_name="github:dadelani/AfriHG",
+                            subset=None,
+                            languages=["xho", "zul"],
+                            task=FinetuneTaskType.INSTRUCTION,
+                            splits={"train": "train", "val": "validation"},
+                            templates=[
+                                TemplateRef(id="afrihg_headline/v1", weight=1.0)
+                            ],
+                            template_choice=TemplateChoice.CYCLE,
+                            max_seq_length=common_seq_len,
+                            packing=common_packing,
+                            assistant_only_loss=common_asst_only,
+                        ),
+                    ),
+                    (
+                        "t2x",
+                        FinetuneDatasetConfig(
+                            hf_name="github:francois-meyer/t2x",
+                            subset="xho",
+                            languages=None,
+                            task=FinetuneTaskType.INSTRUCTION,
+                            splits={"train": "train", "val": "validation"},
+                            templates=[
+                                TemplateRef(id="t2x_verbalisation/v1", weight=1.0)
+                            ],
+                            template_choice=TemplateChoice.CYCLE,
+                            max_seq_length=(
+                                1024 if common_seq_len > 1024 else common_seq_len
+                            ),
+                            packing=common_packing,
+                            assistant_only_loss=common_asst_only,
+                        ),
                     ),
                 ]
 
-                train_parts: list[Dataset] = []
-                val_parts: list[Dataset] = []
-                for comp in mix_components:
-                    tr_proc, va_proc = _process_component(comp)
-                    train_parts.append(tr_proc)
-                    val_parts.append(va_proc)
+                weight_map = dict(ds_cfg.mix_weights)
+                missing_weights = [
+                    name for name, _ in mix_components if name not in weight_map
+                ]
+                if missing_weights:
+                    raise ValueError(
+                        f"Missing mix weights for components: {sorted(missing_weights)}"
+                    )
 
-                return (
-                    concatenate_datasets(train_parts),
-                    concatenate_datasets(val_parts),
-                    None,
+                train_components: list[TaskComponent] = []
+                val_parts: list[Dataset] = []
+                for name, comp_cfg in mix_components:
+                    train_processed, val_processed = _process_component(comp_cfg)
+                    train_components.append(
+                        TaskComponent(
+                            name=name,
+                            dataset=train_processed,
+                            weight=weight_map[name],
+                        )
+                    )
+                    val_parts.append(val_processed)
+
+                epoch_size_cfg = ds_cfg.mix_epoch_size
+                if isinstance(epoch_size_cfg, str):
+                    epoch_size_value = None if epoch_size_cfg == "sum" else None
+                elif isinstance(epoch_size_cfg, int):
+                    epoch_size_value = epoch_size_cfg
+                else:
+                    epoch_size_value = None
+
+                seed_value = 0
+                training_cfg = config.training
+                if training_cfg is not None:
+                    try:
+                        seed_candidate = training_cfg.get("seed", 0)
+                        if seed_candidate is not None:
+                            seed_value = int(seed_candidate)
+                    except Exception:
+                        seed_value = 0
+
+                train_mix = WeightedMultiTaskDataset(
+                    train_components,
+                    seed=seed_value,
+                    temperature=ds_cfg.mix_temperature,
+                    epoch_size=epoch_size_value,
+                    min_prob=ds_cfg.mix_min_prob,
+                    max_prob=ds_cfg.mix_max_prob,
                 )
+
+                logger.info("SA General mix distribution | %s", train_mix.describe())
+
+                # Return the torch dataset directly so per-epoch sampling works
+                return (train_mix, concatenate_datasets(val_parts), None)
 
             raise ValueError(f"Unsupported dataset mix '{mix_name}'")
 
@@ -607,10 +686,35 @@ def build_conversation_dataset(
             "(instruction, output) or (inputs, targets) or (prompt/query, response)."
         )
 
-    def _format_instruction(ex: dict[str, Any]) -> list[dict[str, str]]:
+    def _render_instruction_prompt(
+        ex: dict[str, Any], template_id: str | None = None
+    ) -> tuple[str, str]:
         user_text, assistant_text = _extract_instruction_pair(ex)
+        if template_id:
+            try:
+                spec = tmpl.get(template_id)
+                prompt_text = _safe_format_prompt(spec.prompt, ex)
+                return prompt_text, assistant_text
+            except Exception:
+                return user_text, assistant_text
+
+        if ds_cfg.templates:
+            primary_template = ds_cfg.templates[0].id
+            try:
+                spec = tmpl.get(primary_template)
+                prompt_text = _safe_format_prompt(spec.prompt, ex)
+                return prompt_text, assistant_text
+            except Exception:
+                return user_text, assistant_text
+
+        return user_text, assistant_text
+
+    def _format_instruction(
+        ex: dict[str, Any], template_id: str | None = None
+    ) -> list[dict[str, str]]:
+        user_prompt, assistant_text = _render_instruction_prompt(ex, template_id)
         return [
-            {"role": "user", "content": user_text},
+            {"role": "user", "content": user_prompt},
             {"role": "assistant", "content": assistant_text},
         ]
 
@@ -757,7 +861,7 @@ def build_conversation_dataset(
                     w = max(w, 1)
 
                     if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
-                        msgs = _format_instruction(ex)
+                        msgs = _format_instruction(ex, t_id)
                     elif ds_cfg.task == FinetuneTaskType.CLASSIFICATION:
                         msgs = _format_classification(
                             ex, t_id, ds_cfg.label_column or "label"
@@ -813,16 +917,7 @@ def build_conversation_dataset(
 
             def _cycle_instruction(ex: dict[str, Any], idx: int) -> dict[str, Any]:
                 t_id = cycle_template_ids[idx % len(cycle_template_ids)]
-                user_text, assistant_text = _extract_instruction_pair(ex)
-                try:
-                    spec = tmpl.get(t_id)
-                    user_prompt = _safe_format_prompt(spec.prompt, ex)
-                except Exception:
-                    user_prompt = user_text
-                msgs = [
-                    {"role": "user", "content": user_prompt},
-                    {"role": "assistant", "content": assistant_text},
-                ]
+                msgs = _format_instruction(ex, t_id)
                 out: dict[str, Any] = {"messages": msgs, "template_id": t_id}
                 lang_val = ex.get("lang") if isinstance(ex, dict) else None
                 if lang_val:
@@ -967,10 +1062,10 @@ def build_conversation_dataset(
     if ds_cfg.task == FinetuneTaskType.INSTRUCTION:
 
         def to_messages(ex):
-            user_text, assistant_text = _extract_instruction_pair(ex)
+            user_prompt, assistant_text = _render_instruction_prompt(ex, None)
             return {
                 "messages": [
-                    {"role": "user", "content": user_text},
+                    {"role": "user", "content": user_prompt},
                     {"role": "assistant", "content": assistant_text},
                 ]
             }

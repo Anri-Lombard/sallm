@@ -1,4 +1,4 @@
-#SBATCH --account=a100
+#SBATCH --account=nlpgroup
 #SBATCH --partition=a100
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
@@ -8,8 +8,8 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-#SBATCH --account=a100
-#SBATCH --partition=a100
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2

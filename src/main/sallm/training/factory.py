@@ -3,9 +3,13 @@ import logging
 
 from datasets import Dataset
 from omegaconf import DictConfig, OmegaConf
+from torch.utils.data import Dataset as TorchDataset
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
 )
 from trl import SFTConfig, SFTTrainer
 
@@ -19,12 +23,40 @@ from sallm.training.callbacks import (
 logger = logging.getLogger(__name__)
 
 
+class _DatasetEpochCallback(TrainerCallback):
+    def __init__(self, dataset) -> None:
+        self._dataset = dataset
+
+    def on_train_begin(
+        self,
+        args,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        if hasattr(self._dataset, "set_epoch"):
+            self._dataset.set_epoch(0)
+        return control
+
+    def on_epoch_begin(
+        self,
+        args,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        if hasattr(self._dataset, "set_epoch"):
+            epoch_index = int(state.epoch or 0)
+            self._dataset.set_epoch(epoch_index)
+        return control
+
+
 def build_trainer(
     config: ExperimentConfig,
     model: AutoModelForCausalLM,
     tokenizer: AutoTokenizer,
-    train_dataset: Dataset,
-    eval_dataset: Dataset,
+    train_dataset: Dataset | TorchDataset,
+    eval_dataset: Dataset | TorchDataset,
 ) -> SFTTrainer:
     training_raw = config.training or {}
     if isinstance(training_raw, DictConfig):
@@ -108,6 +140,9 @@ def build_trainer(
 
     if training_args.gradient_checkpointing and training_args.world_size > 1:
         callbacks.append(EnsureStaticGraphCallback())
+
+    if hasattr(train_dataset, "set_epoch"):
+        callbacks.append(_DatasetEpochCallback(train_dataset))
 
     trainer = SFTTrainer(
         model=model,

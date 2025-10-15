@@ -8,7 +8,7 @@ model:
 
 peft:
   method: "lora"
-  kwargs: {r: 128, lora_alpha: 256, lora_dropout: 0.1}
+  kwargs: {r: 128, lora_alpha: 512, lora_dropout: 0.0}
 
 dataset:
   hf_name: "mix:sa_general"
@@ -21,6 +21,17 @@ dataset:
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
+  mix_weights:
+    sib: 3.0
+    news: 3.0
+    ner: 2.0
+    pos: 4.0
+    afrihg: 0.6
+    t2x: 0.8
+  mix_temperature: 0.3
+  mix_epoch_size: "sum"
+  mix_min_prob: 0.02
+  mix_max_prob: 0.6
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
@@ -28,15 +39,15 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sa_general_all"
   run_name: "llama-125m-sa-general-all"
-  learning_rate: 3.0e-5
+  learning_rate: 1.5685964815188856e-05
   adam_beta2: 0.95
-  lr_scheduler_type: "cosine"
-  warmup_ratio: 0.1
-  per_device_train_batch_size: 2
+  lr_scheduler_type: "linear"
+  warmup_ratio: 0.0
+  per_device_train_batch_size: 8
   per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 16
-  num_train_epochs: 3
-  weight_decay: 0.05
+  gradient_accumulation_steps: 4
+  num_train_epochs: 5
+  weight_decay: 0.12048819100816038
   max_grad_norm: 1.0
   bf16: true
   gradient_checkpointing: false

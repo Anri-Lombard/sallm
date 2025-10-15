@@ -4,6 +4,6 @@ tasks:
   - afrimgsm_sot_prompt_3
   - afrimgsm_sot_prompt_4
   - afrimgsm_sot_prompt_5
-fewshot: 5
+fewshot: 0
 batch_size: 8
 apply_chat_template: false

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import random
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -12,7 +14,11 @@ from peft import PeftModel
 from tokenizers.decoders import ByteLevel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from sallm.config import GenerationEvalTaskConfig, ModelEvalConfig
+from sallm.config import (
+    FewshotTemplateMode,
+    GenerationEvalTaskConfig,
+    ModelEvalConfig,
+)
 from sallm.data.afrihg import load_afrihg_from_github
 from sallm.data.factory import build_conversation_dataset
 from sallm.data.t2x import load_t2x_from_github
@@ -126,11 +132,9 @@ def load_model_and_tokenizer(
     return model, tokenizer
 
 
-def _load_raw_split(
-    task_cfg: GenerationEvalTaskConfig,
-) -> Dataset:
+def _load_raw_split(task_cfg: GenerationEvalTaskConfig, split_key: str) -> Dataset:
     ds_cfg = task_cfg.dataset
-    split_name = ds_cfg.splits.get(task_cfg.split, task_cfg.split)
+    split_name = ds_cfg.splits.get(split_key, split_key)
     lang_list = set(ds_cfg.languages or [])
 
     if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("github:"):
@@ -194,10 +198,134 @@ def _load_raw_split(
 
 
 def build_evaluation_dataset(task_cfg: GenerationEvalTaskConfig) -> Dataset:
-    raw_ds = _load_raw_split(task_cfg)
+    raw_ds = _load_raw_split(task_cfg, task_cfg.split)
     cfg_stub = SimpleNamespace(dataset=task_cfg.dataset)
     processed = build_conversation_dataset(raw_ds, cfg_stub)
-    return processed
+
+    if task_cfg.fewshot <= 0:
+        if task_cfg.system_prompt and len(processed) > 0:
+            system_column = [task_cfg.system_prompt] * len(processed)
+            processed = processed.add_column("system_message", system_column)
+        return processed
+
+    demo_raw = _load_raw_split(task_cfg, task_cfg.fewshot_split)
+    demo_ds = build_conversation_dataset(demo_raw, cfg_stub)
+
+    if len(demo_ds) == 0:
+        raise RuntimeError(
+            f"Few-shot evaluation requested with split '{task_cfg.fewshot_split}' "
+            "but no examples were found."
+        )
+
+    seed = (
+        task_cfg.fewshot_seed
+        if task_cfg.fewshot_seed is not None
+        else (task_cfg.sample_seed if task_cfg.sample_seed is not None else 13)
+    )
+    rng = random.Random(seed)
+
+    demo_pool = [demo_ds[i] for i in range(len(demo_ds))]
+
+    effective_budget = task_cfg.fewshot_token_budget
+    if effective_budget is not None and task_cfg.prompt_headroom_tokens is not None:
+        effective_budget = max(0, effective_budget - task_cfg.prompt_headroom_tokens)
+
+    def _approx_prompt_tokens(messages: list[dict[str, str]]) -> int:
+        return sum(len(msg.get("content", "").split()) for msg in messages)
+
+    def _copy_messages(messages: list[dict[str, str]]) -> list[dict[str, str]]:
+        return [{"role": msg["role"], "content": msg["content"]} for msg in messages]
+
+    def _filtered_pool(
+        target_lang: str | None, target_template: str | None
+    ) -> list[dict[str, Any]]:
+        candidates = demo_pool
+        if task_cfg.fewshot_lang_match and target_lang:
+            lang_filtered = [
+                rec for rec in candidates if rec.get("lang") == target_lang
+            ]
+            if lang_filtered:
+                candidates = lang_filtered
+        if (
+            task_cfg.fewshot_template_mode == FewshotTemplateMode.SAME
+            and target_template
+        ):
+            template_filtered = [
+                rec for rec in candidates if rec.get("template_id") == target_template
+            ]
+            if template_filtered:
+                candidates = template_filtered
+        return candidates
+
+    def _select_demos(pool: list[dict[str, Any]], idx: int) -> list[dict[str, Any]]:
+        if not pool:
+            return []
+        k = task_cfg.fewshot
+        mode = task_cfg.fewshot_template_mode
+        if mode == FewshotTemplateMode.CYCLE:
+            total = len(pool)
+            return [pool[(idx + offset) % total] for offset in range(k)]
+        if mode == FewshotTemplateMode.RANDOM:
+            if len(pool) >= k:
+                return rng.sample(pool, k)
+            return [rng.choice(pool) for _ in range(k)]
+        # SAME mode or fallback deterministic selection
+        if len(pool) >= k:
+            return pool[:k]
+        out = list(pool)
+        while len(out) < k:
+            out.append(pool[len(out) % len(pool)])
+        return out
+
+    records: list[dict[str, Any]] = []
+    for idx in range(len(processed)):
+        example = processed[idx]
+        target_lang = example.get("lang")
+        target_template = example.get("template_id")
+        pool = _filtered_pool(target_lang, target_template)
+        if not pool and task_cfg.fewshot_template_mode == FewshotTemplateMode.SAME:
+            pool = _filtered_pool(target_lang, None)
+        if not pool:
+            pool = demo_pool
+
+        selected = _select_demos(pool, idx)
+
+        if effective_budget is not None:
+            base_prompt_tokens = _approx_prompt_tokens(example["messages"][:-1])
+            remaining = max(effective_budget - base_prompt_tokens, 0)
+            trimmed: list[dict[str, Any]] = []
+            consumed = 0
+            for demo in selected:
+                demo_tokens = _approx_prompt_tokens(demo["messages"])
+                if demo_tokens <= 0:
+                    trimmed.append(demo)
+                    continue
+                if consumed + demo_tokens > remaining:
+                    if not trimmed:
+                        trimmed.append(demo)
+                    break
+                trimmed.append(demo)
+                consumed += demo_tokens
+            selected = trimmed
+
+        final_messages: list[dict[str, str]] = []
+        for demo in selected:
+            final_messages.extend(_copy_messages(demo["messages"]))
+        final_messages.extend(_copy_messages(example["messages"]))
+
+        record = {key: deepcopy(example[key]) for key in example.keys()}
+        record["messages"] = final_messages
+        record["fewshot_k"] = len(selected)
+        record["fewshot_template_ids"] = [
+            demo.get("template_id")
+            for demo in selected
+            if demo.get("template_id") is not None
+        ]
+        if task_cfg.system_prompt:
+            record["system_message"] = task_cfg.system_prompt
+        records.append(record)
+
+    return Dataset.from_list(records)
 
 
 def run_generation_task(

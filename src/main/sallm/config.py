@@ -241,6 +241,12 @@ class TemplateChoice(str, Enum):
     ALL = "all"
 
 
+class FewshotTemplateMode(str, Enum):
+    SAME = "same"
+    RANDOM = "random"
+    CYCLE = "cycle"
+
+
 class TaskType(str, Enum):
     CAUSAL_LM = "causal_lm"
     CLASSIFICATION = "classification"
@@ -273,6 +279,12 @@ class FinetuneDatasetConfig:
     max_seq_length: int = MISSING
     packing: bool = MISSING
     assistant_only_loss: bool = MISSING
+    mix_name: str | None = None
+    mix_weights: dict[str, float] = field(default_factory=dict)
+    mix_temperature: float = 0.0
+    mix_epoch_size: int | str | None = None
+    mix_min_prob: float | None = None
+    mix_max_prob: float | None = None
 
     def __post_init__(self) -> None:
         if self.template_choice == TemplateChoice.ALL and (
@@ -281,6 +293,37 @@ class FinetuneDatasetConfig:
             raise ValueError(
                 "dataset.template_choice is 'ALL' but no templates were provided. "
                 "Add at least one entry under dataset.templates."
+            )
+
+        if self.mix_epoch_size not in (None, "sum") and not isinstance(
+            self.mix_epoch_size, int
+        ):
+            raise ValueError(
+                "dataset.mix_epoch_size must be null, 'sum', or a positive integer"
+            )
+
+        if isinstance(self.mix_epoch_size, int) and self.mix_epoch_size <= 0:
+            raise ValueError("dataset.mix_epoch_size must be a positive integer")
+
+        if self.mix_min_prob is not None and not 0 <= self.mix_min_prob <= 1:
+            raise ValueError("dataset.mix_min_prob must lie in [0, 1]")
+
+        if self.mix_max_prob is not None and not 0 <= self.mix_max_prob <= 1:
+            raise ValueError("dataset.mix_max_prob must lie in [0, 1]")
+
+        if (
+            self.mix_min_prob is not None
+            and self.mix_max_prob is not None
+            and self.mix_min_prob > self.mix_max_prob
+        ):
+            raise ValueError("dataset.mix_min_prob cannot exceed mix_max_prob")
+
+        has_mix = bool(self.mix_name) or (
+            isinstance(self.hf_name, str) and self.hf_name.startswith("mix:")
+        )
+        if has_mix and not self.mix_weights:
+            raise ValueError(
+                "Mixture datasets require dataset.mix_weights to be specified"
             )
 
 
@@ -371,6 +414,14 @@ class GenerationEvalTaskConfig:
     max_samples_per_lang: int | None = None
     sample_seed: int | None = None
     decoding: DecodingConfig = field(default_factory=DecodingConfig)
+    fewshot: int = 0
+    fewshot_split: str = "train"
+    fewshot_seed: int | None = None
+    fewshot_lang_match: bool = True
+    fewshot_template_mode: FewshotTemplateMode = FewshotTemplateMode.SAME
+    fewshot_token_budget: int | None = None
+    prompt_headroom_tokens: int | None = None
+    system_prompt: str | None = None
 
 
 @dataclass
