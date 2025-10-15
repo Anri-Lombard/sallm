@@ -1,7 +1,7 @@
 mode: EVALUATE
 
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all/final_merged_model"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
@@ -14,7 +14,7 @@ evaluation:
       split: "test"
       max_new_tokens: 256
       max_samples_per_lang: null
-      fewshot: 3
+      fewshot: 0
       fewshot_split: "train"
       fewshot_seed: 42
       fewshot_lang_match: true
