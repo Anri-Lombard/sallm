@@ -5,6 +5,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from random import Random
 
+from datasets import Dataset as HFDataset
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import get_worker_info
 
@@ -175,3 +176,26 @@ class WeightedMultiTaskDataset(TorchDataset):
         ):
             parts.append(f"{name}: p={prob:.4f}, expected={expected:.1f}")
         return " | ".join(parts)
+
+    @property
+    def column_names(self) -> list[str]:
+        sample = None
+        for comp in self._components:
+            if comp.size > 0:
+                ex = comp.dataset[0]
+                if isinstance(ex, dict):
+                    sample = ex
+                    break
+        if sample is None:
+            return ["messages", "task_name"]
+        keys = set(sample.keys())
+        keys.add("task_name")
+        return sorted(list(keys))
+
+    def to_hf_dataset(self) -> HFDataset:
+        data = [self[i] for i in range(len(self))]
+        return HFDataset.from_list(data)
+
+    def map(self, *args, **kwargs):
+        ds = self.to_hf_dataset()
+        return ds.map(*args, **kwargs)
