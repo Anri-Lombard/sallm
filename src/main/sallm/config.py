@@ -213,6 +213,7 @@ class ModelConfig:
     architecture: str = MISSING
     config: dict[str, Any] | None = None
     init_checkpoint: str | None = None
+    attn_implementation: str | None = None
     param_validation: ParamRangeConfig | None = None
 
     def __post_init__(self) -> None:
