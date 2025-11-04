@@ -33,14 +33,17 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-mamba-125m"
 
-  learning_rate: 4.0e-4
+  learning_rate: 3.5e-4
   max_seq_length: 2048
   lr_scheduler_type: "cosine"
   warmup_steps: 2000
-  weight_decay: 0.01
+  weight_decay: 0.07
   adam_beta1: 0.9
   adam_beta2: 0.95
   max_grad_norm: 1.0
+  gradient_checkpointing: true
+  gradient_checkpointing_kwargs:
+    use_reentrant: false
 
   per_device_train_batch_size: 12
   per_device_eval_batch_size: 8
@@ -53,12 +56,14 @@ training:
   save_strategy: "epoch"
   save_total_limit: 1
 
+  label_smoothing_factor: 0.05
+
   bf16: true
   bf16_full_eval: true
   logging_steps: 100
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  torch_compile: true
+  torch_compile: false
   dataloader_num_workers: 4
   save_safetensors: false
