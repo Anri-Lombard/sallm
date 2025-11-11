@@ -2,7 +2,7 @@ mode: TRAIN
 
 wandb:
   project: "sallm-mamba"
-  name: "125m-final-mamba"
+  name: "125m-final"
 
 model:
   architecture: "mamba2"
@@ -16,12 +16,13 @@ model:
     n_groups: 4
     vocab_size: 65536
     tie_word_embeddings: true
+    max_length: 2048
   param_validation:
     min_params_m: 120.0
     max_params_m: 130.0
 
 data:
-  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_processed"
+  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
@@ -37,7 +38,7 @@ training:
   max_seq_length: 2048
   lr_scheduler_type: "cosine"
   warmup_steps: 2000
-  weight_decay: 0.01
+  weight_decay: 0.1
   adam_beta1: 0.9
   adam_beta2: 0.95
   max_grad_norm: 1.0
@@ -46,19 +47,21 @@ training:
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 4
 
-  num_train_epochs: 5
+  num_train_epochs: 3
   eval_strategy: "steps"
   eval_steps: 200
-
   save_strategy: "epoch"
   save_total_limit: 1
 
   bf16: true
   bf16_full_eval: true
-  logging_steps: 100
+  logging_steps: 10
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
+  # gradient_checkpointing:      true
   torch_compile: true
-  dataloader_num_workers: 4
+  dataloader_num_workers: 8
+  packing: false
+  assistant_only_loss: false
   save_safetensors: false

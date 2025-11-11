@@ -11,7 +11,7 @@ from transformers import (
     TrainerControl,
     TrainerState,
 )
-from trl import SFTConfig, SFTTrainer
+from trl import SFTConfig
 
 from sallm.config import ExperimentConfig, RunMode
 from sallm.training.callbacks import (
@@ -19,6 +19,7 @@ from sallm.training.callbacks import (
     GenerationMetricsCallback,
     ShowCompletionsCallback,
 )
+from sallm.training.trainer import CustomSFTTrainer
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def build_trainer(
     tokenizer: AutoTokenizer,
     train_dataset: Dataset | TorchDataset,
     eval_dataset: Dataset | TorchDataset,
-) -> SFTTrainer:
+) -> CustomSFTTrainer:
     training_raw = config.training or {}
     if isinstance(training_raw, DictConfig):
         training_args_dict = OmegaConf.to_container(training_raw, resolve=True)
@@ -144,7 +145,7 @@ def build_trainer(
     if hasattr(train_dataset, "set_epoch"):
         callbacks.append(_DatasetEpochCallback(train_dataset))
 
-    trainer = SFTTrainer(
+    trainer = CustomSFTTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
