@@ -2,7 +2,7 @@ name: hpo-mamba-injongo-intent-xho
 project: sallm-ft
 method: bayes
 metric:
-  name: eval_loss
+  name: eval/loss
   goal: minimize
 parameters:
   training.learning_rate:
