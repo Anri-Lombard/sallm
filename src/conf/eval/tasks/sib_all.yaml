@@ -1,0 +1,34 @@
+tasks:
+  - sib_afr_prompt_1
+  - sib_afr_prompt_2
+  - sib_afr_prompt_3
+  - sib_afr_prompt_4
+  - sib_afr_prompt_5
+  - sib_eng_prompt_1
+  - sib_eng_prompt_2
+  - sib_eng_prompt_3
+  - sib_eng_prompt_4
+  - sib_eng_prompt_5
+  - sib_nso_prompt_1
+  - sib_nso_prompt_2
+  - sib_nso_prompt_3
+  - sib_nso_prompt_4
+  - sib_nso_prompt_5
+  - sib_sot_prompt_1
+  - sib_sot_prompt_2
+  - sib_sot_prompt_3
+  - sib_sot_prompt_4
+  - sib_sot_prompt_5
+  - sib_xho_prompt_1
+  - sib_xho_prompt_2
+  - sib_xho_prompt_3
+  - sib_xho_prompt_4
+  - sib_xho_prompt_5
+  - sib_zul_prompt_1
+  - sib_zul_prompt_2
+  - sib_zul_prompt_3
+  - sib_zul_prompt_4
+  - sib_zul_prompt_5
+fewshot: 0
+batch_size: 8
+apply_chat_template: false
