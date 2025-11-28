@@ -1,10 +1,7 @@
 mode: EVALUATE
 
 eval_model:
-  # # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_injongointent_xho/final_merged_model"
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
-  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
-  # checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_sa_general_all/final_merged_model"
+  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_injongointent_xho/final_adapter"
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"

@@ -11,9 +11,9 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 256
+    r: 128
     lora_alpha: 512
-    lora_dropout: 0.1
+    lora_dropout: 0.05
 
 dataset:
   hf_name: "github:dadelani/AfriHG"
@@ -39,18 +39,18 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_zul"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_zul"
   run_name: "llama-125m-afrihg-zul"
-  learning_rate: 0.00013413657020600855
+  learning_rate: 4.338264569149352e-05
+  weight_decay: 0.031028218096256
   adam_beta2: 0.95
-  lr_scheduler_type: "linear"
-  warmup_ratio: 0.05
-  per_device_train_batch_size: 2
+  lr_scheduler_type: "constant_with_warmup"
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
   gradient_accumulation_steps: 16
   num_train_epochs: 3
-  bf16: true
-  weight_decay: 0.0970951241029608
   max_grad_norm: 1.0
-  gradient_checkpointing: false
+  bf16: true
+  gradient_checkpointing: true
   label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true

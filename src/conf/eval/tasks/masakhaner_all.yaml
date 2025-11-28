@@ -1,0 +1,19 @@
+tasks:
+  - masakhaner_tn_prompt_1
+  - masakhaner_tn_prompt_2
+  - masakhaner_tn_prompt_3
+  - masakhaner_tn_prompt_4
+  - masakhaner_tn_prompt_5
+  - masakhaner_xh_prompt_1
+  - masakhaner_xh_prompt_2
+  - masakhaner_xh_prompt_3
+  - masakhaner_xh_prompt_4
+  - masakhaner_xh_prompt_5
+  - masakhaner_zu_prompt_1
+  - masakhaner_zu_prompt_2
+  - masakhaner_zu_prompt_3
+  - masakhaner_zu_prompt_4
+  - masakhaner_zu_prompt_5
+fewshot: 0
+batch_size: 8
+apply_chat_template: true

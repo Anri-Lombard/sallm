@@ -2,7 +2,7 @@ name: hpo-mamba-sa-general-all
 project: sallm-ft
 method: bayes
 metric:
-  name: eval_loss
+  name: eval/loss
   goal: minimize
 parameters:
   training.learning_rate:
@@ -35,6 +35,10 @@ parameters:
     values: [128, 256, 512]
   peft.kwargs.lora_dropout:
     values: [0.0, 0.05, 0.1]
+  training.eval_strategy:
+    value: steps
+  training.eval_steps:
+    value: 500
 command:
   - ${env}
   - python

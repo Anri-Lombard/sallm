@@ -11,8 +11,8 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 128
-    lora_alpha: 256
+    r: 64
+    lora_alpha: 512
     lora_dropout: 0.05
 
 dataset:
@@ -39,18 +39,18 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_t2x_xho"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_t2x_xho"
   run_name: "llama-125m-t2x-xho"
-  learning_rate: 2.7180064756827244e-05
+  learning_rate: 0.00015373792550986017
+  weight_decay: 0.1529293154724379
   adam_beta2: 0.95
   lr_scheduler_type: "linear"
   warmup_ratio: 0
-  per_device_train_batch_size: 2
+  per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 8
+  gradient_accumulation_steps: 16
   num_train_epochs: 4
-  weight_decay: 0.09458873087309864
   max_grad_norm: 1.0
   bf16: true
-  gradient_checkpointing: false  # sweep: true
+  gradient_checkpointing: false
   label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true

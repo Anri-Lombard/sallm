@@ -9,9 +9,9 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 128
-    lora_alpha: 256
-    lora_dropout: 0.1
+    r: 32
+    lora_alpha: 128
+    lora_dropout: 0.2
     target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
 
 dataset:
@@ -36,22 +36,22 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_news_xho"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_news_xho"
   run_name: "mamba-125m-news-lora-finetune-xho"
-  learning_rate: 0.00040312231078391055
+  learning_rate: 0.00031903644717836413
+  weight_decay: 0.17402455472832035
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 8
-  lr_scheduler_type: "linear"
+  gradient_accumulation_steps: 16
+  lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
-  per_device_train_batch_size: 8
+  per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 15
+  num_train_epochs: 20
   bf16: true
-  gradient_checkpointing: false  # sweep: true
+  gradient_checkpointing: false
   logging_steps: 10
   eval_strategy: "epoch"
   save_strategy: "no"
   dataloader_num_workers: 8
   report_to: "wandb"
   ddp_find_unused_parameters: true
-  weight_decay: 0.010921752348914172

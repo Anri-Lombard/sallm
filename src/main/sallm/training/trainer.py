@@ -35,7 +35,9 @@ class CustomTrainer(Trainer):
 
         start_time = time.time()
 
-        unique_languages = sorted(list(set(eval_dataset["lang"])))
+        unique_languages = sorted(
+            [lang for lang in set(eval_dataset["lang"]) if lang is not None]
+        )
         per_language_metrics_for_wandb = {}
         # TODO remove samples?
         grand_total_loss = 0.0
@@ -138,7 +140,9 @@ class CustomSFTTrainer(SFTTrainer):
 
         start_time = time.time()
 
-        unique_languages = sorted(list(set(eval_dataset["lang"])))
+        unique_languages = sorted(
+            [lang for lang in set(eval_dataset["lang"]) if lang is not None]
+        )
         per_language_metrics_for_wandb = {}
         grand_total_loss = 0.0
         grand_total_samples = 0

@@ -41,7 +41,7 @@ training:
   weight_decay: 0.01
   adam_beta1: 0.9
   adam_beta2: 0.95
-  num_train_epochs: 5
+  num_train_epochs: 3
   per_device_train_batch_size: 12
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 4
