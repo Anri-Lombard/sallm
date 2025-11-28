@@ -4,7 +4,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
-#SBATCH --cpus-per-gpu=1
+#SBATCH --cpus-per-gpu=2
 #SBATCH --job-name="sallm-mamba"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
@@ -28,7 +28,6 @@ conda activate sallm-ner
 set -u
 
 export MAMBA_SCAN_IMPL="cuda"
-export TORCHDYNAMO_DISABLE="1"
 
 echo "Launching training with $CONFIG"
 accelerate launch --mixed_precision=bf16 -m sallm.main --config-name "$CONFIG"
