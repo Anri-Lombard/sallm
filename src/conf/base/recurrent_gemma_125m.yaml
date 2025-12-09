@@ -1,24 +1,28 @@
 mode: TRAIN
 
 wandb:
-  project: "sallm-mamba"
+  project: "sallm-recurrent-gemma"
   name: "125m-final"
 
 model:
-  architecture: "mamba2"
+  architecture: "recurrent_gemma"
   config:
-    hidden_size: 512
-    state_size: 64
-    num_hidden_layers: 27
-    expand: 4
-    num_heads: 32
-    head_dim: 64
-    n_groups: 4
     vocab_size: 65536
+    hidden_size: 384
+    num_hidden_layers: 20
+    intermediate_size: 1152
+    num_attention_heads: 6
+    num_key_value_heads: 6
+    attention_window_size: 2048
+    conv1d_width: 4
+    logits_soft_cap: 30.0
+    rms_norm_eps: 1.0e-6
+    rope_theta: 10000.0
+    lru_width: 384
     tie_word_embeddings: true
   param_validation:
     min_params_m: 120.0
-    max_params_m: 130.0
+    max_params_m: 135.0
 
 data:
   path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
@@ -30,8 +34,8 @@ tokenizer:
   path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-mamba-125m"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-recurrent-gemma-125m"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-recurrent-gemma-125m"
 
   learning_rate: 4.0e-4
   max_seq_length: 2048
@@ -58,7 +62,6 @@ training:
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  # gradient_checkpointing:      true
   torch_compile: true
   dataloader_num_workers: 8
   packing: false

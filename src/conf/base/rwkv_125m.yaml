@@ -1,24 +1,25 @@
 mode: TRAIN
 
 wandb:
-  project: "sallm-mamba"
+  project: "sallm-rwkv"
   name: "125m-final"
 
 model:
-  architecture: "mamba2"
+  architecture: "rwkv"
   config:
-    hidden_size: 512
-    state_size: 64
-    num_hidden_layers: 27
-    expand: 4
-    num_heads: 32
-    head_dim: 64
-    n_groups: 4
     vocab_size: 65536
+    context_length: 2048
+    hidden_size: 768
+    num_hidden_layers: 24
+    attention_hidden_size: 768
+    intermediate_size: 3072
+    layer_norm_epsilon: 1.0e-5
+    rescale_every: 6
     tie_word_embeddings: true
+    use_cache: true
   param_validation:
     min_params_m: 120.0
-    max_params_m: 130.0
+    max_params_m: 135.0
 
 data:
   path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
@@ -30,8 +31,8 @@ tokenizer:
   path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
 
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-mamba-125m"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-rwkv-125m"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-rwkv-125m"
 
   learning_rate: 4.0e-4
   max_seq_length: 2048
@@ -58,7 +59,6 @@ training:
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  # gradient_checkpointing:      true
   torch_compile: true
   dataloader_num_workers: 8
   packing: false

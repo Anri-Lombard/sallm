@@ -5,17 +5,26 @@ from transformers import (
     Mamba2ForCausalLM,
     PretrainedConfig,
     PreTrainedModel,
+    RecurrentGemmaConfig,
+    RecurrentGemmaForCausalLM,
+    RwkvConfig,
+    RwkvForCausalLM,
+    xLSTMConfig,
+    xLSTMForCausalLM,
 )
 
-# TODO add mamba
-# TODO consider mixtral?
 MODEL_CONFIG_REGISTRY: dict[str, type[PretrainedConfig]] = {
     "llama": LlamaConfig,
     "mamba2": Mamba2Config,
-    # "xlstm": xLSTMConfig,
+    "recurrent_gemma": RecurrentGemmaConfig,
+    "rwkv": RwkvConfig,
+    "xlstm": xLSTMConfig,
 }
 
 MODEL_CLASS_REGISTRY: dict[str, type[PreTrainedModel]] = {
     "llama": LlamaForCausalLM,
     "mamba2": Mamba2ForCausalLM,
+    "recurrent_gemma": RecurrentGemmaForCausalLM,
+    "rwkv": RwkvForCausalLM,
+    "xlstm": xLSTMForCausalLM,
 }
