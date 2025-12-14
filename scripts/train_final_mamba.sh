@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
-#SBATCH --partition=l40s
+#SBATCH --account=nlpgroup
+#SBATCH --partition=a100
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
@@ -28,6 +28,7 @@ conda activate sallm-ner
 set -u
 
 export MAMBA_SCAN_IMPL="cuda"
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 
 echo "Launching training with $CONFIG"
 accelerate launch --mixed_precision=bf16 -m sallm.main --config-name "$CONFIG"

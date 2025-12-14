@@ -37,7 +37,7 @@ training:
   max_seq_length: 2048
   lr_scheduler_type: "cosine"
   warmup_steps: 2000
-  weight_decay: 0.1
+  weight_decay: 0.01
   adam_beta1: 0.9
   adam_beta2: 0.95
   max_grad_norm: 1.0
@@ -58,9 +58,6 @@ training:
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  # gradient_checkpointing:      true
   torch_compile: true
   dataloader_num_workers: 8
-  packing: false
-  assistant_only_loss: false
   save_safetensors: false

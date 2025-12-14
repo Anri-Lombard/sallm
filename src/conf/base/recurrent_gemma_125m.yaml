@@ -8,17 +8,17 @@ model:
   architecture: "recurrent_gemma"
   config:
     vocab_size: 65536
-    hidden_size: 384
-    num_hidden_layers: 20
-    intermediate_size: 1152
-    num_attention_heads: 6
-    num_key_value_heads: 6
+    hidden_size: 768
+    num_hidden_layers: 16
+    intermediate_size: 2304
+    num_attention_heads: 8
+    num_key_value_heads: 8
     attention_window_size: 2048
     conv1d_width: 4
     logits_soft_cap: 30.0
     rms_norm_eps: 1.0e-6
     rope_theta: 10000.0
-    lru_width: 384
+    lru_width: 768
     tie_word_embeddings: true
   param_validation:
     min_params_m: 120.0
