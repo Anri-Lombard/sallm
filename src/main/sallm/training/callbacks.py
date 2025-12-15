@@ -14,6 +14,7 @@ from transformers import (
 )
 
 from sallm.config import DecodingConfig
+from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 
 logger = logging.getLogger(__name__)
@@ -197,6 +198,54 @@ class GenerationMetricsCallback(TrainerCallback):
 
         if result.metrics:
             wandb.log(result.metrics, step=state.global_step)
+
+
+class ClassificationMetricsCallback(TrainerCallback):
+    """Callback that computes accuracy metrics for classification tasks."""
+
+    def __init__(
+        self,
+        eval_dataset: Dataset,
+        tokenizer: AutoTokenizer,
+        max_new_tokens: int = 32,
+        max_samples_per_lang: int | None = 256,
+        decoding: DecodingConfig | None = None,
+    ):
+        self.eval_dataset = eval_dataset
+        self.tokenizer = tokenizer
+        self.decoding_config = DecodingConfig.from_any(decoding)
+        self.evaluator = ClassificationEvaluator(
+            tokenizer,
+            max_new_tokens=max_new_tokens,
+            max_samples_per_lang=max_samples_per_lang,
+            decoding=self.decoding_config,
+        )
+
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        if not state.is_world_process_zero:
+            return
+
+        model = kwargs.get("model")
+        if model is None:
+            logger.warning(
+                "ClassificationMetricsCallback: `model` not found in kwargs. Skipping."
+            )
+            return
+
+        metrics = self.evaluator.evaluate(
+            model,
+            self.eval_dataset,
+            metric_prefix="classification",
+        )
+
+        if metrics:
+            wandb.log(metrics, step=state.global_step)
 
 
 class EnsureStaticGraphCallback(TrainerCallback):
