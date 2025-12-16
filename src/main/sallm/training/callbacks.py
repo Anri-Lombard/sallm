@@ -197,7 +197,7 @@ class GenerationMetricsCallback(TrainerCallback):
         )
 
         if result.metrics:
-            wandb.log(result.metrics, step=state.global_step)
+            wandb.log(result.metrics)
 
 
 class ClassificationMetricsCallback(TrainerCallback):
@@ -245,7 +245,7 @@ class ClassificationMetricsCallback(TrainerCallback):
         )
 
         if metrics:
-            wandb.log(metrics, step=state.global_step)
+            wandb.log(metrics)
 
 
 class EnsureStaticGraphCallback(TrainerCallback):

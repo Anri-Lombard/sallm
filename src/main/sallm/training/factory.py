@@ -140,6 +140,7 @@ def build_trainer(
                     eval_dataset=eval_dataset,
                     tokenizer=tokenizer,
                     max_new_tokens=32,
+                    max_samples_per_lang=64,
                     decoding=config.generation_decoding,
                 )
             )

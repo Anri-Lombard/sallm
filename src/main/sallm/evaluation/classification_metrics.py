@@ -101,6 +101,8 @@ class ClassificationEvaluator:
         total = 0
         class_correct: dict[str, int] = defaultdict(int)
         class_total: dict[str, int] = defaultdict(int)
+        examples_logged = 0
+        max_examples_to_log = 3
 
         with torch.no_grad():
             for sample in dataset:
@@ -126,6 +128,13 @@ class ClassificationEvaluator:
                     class_correct[gold_label] += 1
                 total += 1
                 class_total[gold_label] += 1
+
+                if examples_logged < max_examples_to_log:
+                    logger.info(
+                        f"[Classification] pred='{pred_label}' | "
+                        f"gold='{gold_label}' | match={is_correct}"
+                    )
+                    examples_logged += 1
 
         if total == 0:
             return {"accuracy": 0.0}

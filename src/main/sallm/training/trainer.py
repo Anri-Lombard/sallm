@@ -108,6 +108,9 @@ class CustomTrainer(Trainer):
         )
 
         self.log(metrics_to_return)
+        self.control = self.callback_handler.on_evaluate(
+            self.args, self.state, self.control, metrics_to_return
+        )
 
         return metrics_to_return
 
@@ -212,6 +215,9 @@ class CustomSFTTrainer(SFTTrainer):
         )
 
         self.log(metrics_to_return)
+        self.control = self.callback_handler.on_evaluate(
+            self.args, self.state, self.control, metrics_to_return
+        )
 
         return metrics_to_return
 
