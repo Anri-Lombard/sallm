@@ -26,7 +26,7 @@ dataset:
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
-  max_seq_length: 2048
+  max_seq_length: 1024
 
 tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
@@ -40,15 +40,15 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_t2x_xho"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_t2x_xho"
   run_name: "mamba-125m-t2x-xho"
-  learning_rate: 0.00010573395231915924
-  weight_decay: 0.07580884713373737
+  learning_rate: 0.0004170326797422562
+  weight_decay: 0.16056922226850648
   adam_beta2: 0.95
   lr_scheduler_type: "linear"
-  warmup_ratio: 0
-  per_device_train_batch_size: 4
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 16
   per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 16
-  num_train_epochs: 3
+  gradient_accumulation_steps: 2
+  num_train_epochs: 4
   max_grad_norm: 1.0
   bf16: true
   gradient_checkpointing: false

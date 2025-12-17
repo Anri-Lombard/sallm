@@ -62,6 +62,7 @@ class ClassificationEvaluator:
             unique_languages = [None]
 
         metrics: dict[str, float] = {}
+        all_accuracies: list[float] = []
 
         for lang in unique_languages:
             if lang is None:
@@ -84,6 +85,15 @@ class ClassificationEvaluator:
 
             for name, value in lang_metrics.items():
                 metrics[f"{metric_prefix}/{lang_key}_{name}"] = value
+
+            if "accuracy" in lang_metrics:
+                all_accuracies.append(lang_metrics["accuracy"])
+
+        # Add aggregate accuracy across all languages
+        if all_accuracies:
+            metrics[f"{metric_prefix}/all_accuracy"] = sum(all_accuracies) / len(
+                all_accuracies
+            )
 
         return metrics
 

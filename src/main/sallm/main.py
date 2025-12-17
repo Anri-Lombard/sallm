@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import warnings
 
 import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
@@ -14,6 +15,18 @@ from sallm.evaluation.run import run as run_eval
 from sallm.fine_tune.run import run as run_fine_tune
 from sallm.training.run import run as run_train
 from sallm.utils import RunMode
+
+# Suppress noisy torch.compile warnings
+warnings.filterwarnings(
+    "ignore",
+    message="Skipping serialization of skipfiles_inline_module_allowlist",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="Graph break due to unsupported builtin causal_conv1d_cuda",
+    category=UserWarning,
+)
 
 logger = logging.getLogger(__name__)
 

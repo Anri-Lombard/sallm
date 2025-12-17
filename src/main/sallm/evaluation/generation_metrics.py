@@ -135,7 +135,7 @@ class GenerationEvaluator:
             gen_max = getattr(
                 getattr(model, "generation_config", object()), "max_length", None
             )
-            if isinstance(gen_max, int) and gen_max > 0:
+            if isinstance(gen_max, int) and gen_max > 256:
                 model_ctx_limit = gen_max
         if model_ctx_limit is None:
             model_ctx_limit = 2048
@@ -279,6 +279,27 @@ class GenerationEvaluator:
                 examples=examples,
             )
 
+        if len(per_language) > 0:
+            all_bleu: list[float] = []
+            all_chrf: list[float] = []
+            all_rougeL: list[float] = []
+            for lang_result in per_language.values():
+                for key, val in lang_result.metrics.items():
+                    if key.endswith("_bleu"):
+                        all_bleu.append(val)
+                    elif key.endswith("_chrf"):
+                        all_chrf.append(val)
+                    elif key.endswith("_rougeL"):
+                        all_rougeL.append(val)
+            if all_bleu:
+                metrics[f"{metric_prefix}/all_bleu"] = sum(all_bleu) / len(all_bleu)
+            if all_chrf:
+                metrics[f"{metric_prefix}/all_chrf"] = sum(all_chrf) / len(all_chrf)
+            if all_rougeL:
+                metrics[f"{metric_prefix}/all_rougeL"] = sum(all_rougeL) / len(
+                    all_rougeL
+                )
+
         return GenerationEvalResult(metrics=metrics, per_language=per_language)
 
     def _cap_dataset(
@@ -339,10 +360,16 @@ class GenerationEvaluator:
         count = len(predictions)
         rouge_metrics = {k: rouge_totals[k] / count for k in rouge_totals}
 
-        bleu_metrics = self._bleu.compute(
-            predictions=predictions, references=cleaned_refs
-        )
-        bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
+        bleu_score = None
+        non_empty_preds = [p for p in predictions if p.strip()]
+        if non_empty_preds:
+            try:
+                bleu_metrics = self._bleu.compute(
+                    predictions=predictions, references=cleaned_refs
+                )
+                bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
+            except ZeroDivisionError:
+                logger.warning("BLEU computation failed (empty predictions), skipping.")
 
         chrf_metrics = self._chrf.compute(
             predictions=predictions, references=normalised_refs

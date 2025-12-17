@@ -5,7 +5,6 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
 #SBATCH --cpus-per-gpu=2
-#SBATCH --job-name="sallm-hpo"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
@@ -14,6 +13,16 @@ set -euo pipefail
 SWEEP_ARG="${1:-}"
 COUNT="${2:-10}"
 SWEEP_DIR="src/conf/sweeps"
+
+SWEEP_NAME="${SWEEP_ARG%.yaml}"
+SWEEP_NAME="${SWEEP_NAME##*/}"
+JOB_NAME="hpo-${SWEEP_NAME#mamba_}"
+JOB_NAME="${JOB_NAME#llama_}"
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+  scontrol update JobId="$SLURM_JOB_ID" JobName="$JOB_NAME"
+  mkdir -p logs
+  exec > >(tee -a "logs/${JOB_NAME}-${SLURM_JOB_ID}.out") 2>&1
+fi
 
 if [[ -z "$SWEEP_ARG" ]]; then
   echo "Usage: sbatch $0 <sweep_yaml_or_name_without_yaml> [count]" >&2
