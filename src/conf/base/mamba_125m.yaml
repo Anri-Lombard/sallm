@@ -16,7 +16,6 @@ model:
     n_groups: 4
     vocab_size: 65536
     tie_word_embeddings: true
-    max_length: 2048
   param_validation:
     min_params_m: 120.0
     max_params_m: 130.0
@@ -47,10 +46,11 @@ training:
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 4
 
-  num_train_epochs: 3
+  num_train_epochs: 5
   eval_strategy: "steps"
   eval_steps: 200
-  save_strategy: "no"
+  save_strategy: "epoch"
+  save_total_limit: 1
 
   bf16: true
   bf16_full_eval: true
@@ -58,9 +58,6 @@ training:
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  # gradient_checkpointing:      true
-  torch_compile: false
-  dataloader_num_workers: 2
-  packing: false
-  assistant_only_loss: false
+  torch_compile: true
+  dataloader_num_workers: 8
   save_safetensors: false

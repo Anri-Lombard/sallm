@@ -13,8 +13,9 @@ from transformers import (
 )
 from trl import SFTConfig
 
-from sallm.config import ExperimentConfig, RunMode
+from sallm.config import ExperimentConfig, FinetuneTaskType, RunMode
 from sallm.training.callbacks import (
+    ClassificationMetricsCallback,
     EnsureStaticGraphCallback,
     GenerationMetricsCallback,
     ShowCompletionsCallback,
@@ -131,13 +132,31 @@ def build_trainer(
             decoding=config.generation_decoding,
         )
         callbacks.append(completions_callback)
-        gen_metrics_cb = GenerationMetricsCallback(
-            eval_dataset=eval_dataset,
-            tokenizer=tokenizer,
-            max_new_tokens=64,
-            decoding=config.generation_decoding,
-        )
-        callbacks.append(gen_metrics_cb)
+
+        task_type = getattr(config.dataset, "task", None)
+        if task_type == FinetuneTaskType.CLASSIFICATION:
+            callbacks.append(
+                ClassificationMetricsCallback(
+                    eval_dataset=eval_dataset,
+                    tokenizer=tokenizer,
+                    max_new_tokens=32,
+                    max_samples_per_lang=64,
+                    decoding=config.generation_decoding,
+                )
+            )
+        if task_type in (
+            FinetuneTaskType.INSTRUCTION,
+            FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
+            FinetuneTaskType.POS_TAGGING,
+        ):
+            callbacks.append(
+                GenerationMetricsCallback(
+                    eval_dataset=eval_dataset,
+                    tokenizer=tokenizer,
+                    max_new_tokens=64,
+                    decoding=config.generation_decoding,
+                )
+            )
 
     if training_args.gradient_checkpointing and training_args.world_size > 1:
         callbacks.append(EnsureStaticGraphCallback())

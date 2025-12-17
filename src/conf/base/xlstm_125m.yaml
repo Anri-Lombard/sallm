@@ -1,0 +1,71 @@
+mode: TRAIN
+
+wandb:
+  project: "sallm-xlstm"
+  name: "125m-final"
+
+model:
+  architecture: "xlstm"
+  config:
+    vocab_size: 65536
+    hidden_size: 512
+    embedding_dim: 512
+    num_hidden_layers: 24
+    num_blocks: 24
+    num_heads: 8
+    qk_dim_factor: 0.5
+    v_dim_factor: 1.0
+    ffn_proj_factor: 2.667
+    norm_eps: 1.0e-6
+    gate_soft_cap: 15.0
+    output_logit_soft_cap: 30.0
+    use_cache: true
+    tie_word_embeddings: true
+    chunk_size: 64
+  param_validation:
+    min_params_m: 120.0
+    max_params_m: 135.0
+
+data:
+  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
+  train_split: "train"
+  eval_split: "validation"
+  test_split: "test"
+
+tokenizer:
+  path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-xlstm-125m"
+
+  learning_rate: 4.0e-4
+  max_seq_length: 2048
+  lr_scheduler_type: "cosine"
+  warmup_steps: 2000
+  weight_decay: 0.1
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+
+  per_device_train_batch_size: 12
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
+
+  num_train_epochs: 5
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_strategy: "epoch"
+  save_total_limit: 1
+
+  bf16: true
+  bf16_full_eval: true
+  logging_steps: 10
+  report_to: "wandb"
+  prediction_loss_only: true
+  ddp_find_unused_parameters: false
+  torch_compile: true
+  dataloader_num_workers: 8
+  packing: false
+  assistant_only_loss: false
+  save_safetensors: false

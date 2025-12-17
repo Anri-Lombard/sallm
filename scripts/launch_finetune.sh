@@ -5,11 +5,19 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
 #SBATCH --cpus-per-gpu=4
-#SBATCH --job-name="sallm-ft"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1; }
+
+CFG_NAME="${CFG##*/}"
+JOB_NAME="ft-${CFG_NAME#mamba_}"
+JOB_NAME="${JOB_NAME#llama_}"
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+  scontrol update JobId="$SLURM_JOB_ID" JobName="$JOB_NAME"
+  mkdir -p logs
+  exec > >(tee -a "logs/${JOB_NAME}-${SLURM_JOB_ID}.out") 2>&1
+fi
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
@@ -46,10 +54,14 @@ if [[ -z "$NUM_PROCS" || "$NUM_PROCS" -le 0 ]]; then
 	fi
 fi
 
+# Use dynamic port based on job ID to avoid conflicts when multiple jobs run on same node
+MASTER_PORT=$((29500 + (${SLURM_JOB_ID:-0} % 1000)))
+
 # pass explicit accelerate options to avoid its default-warning messages
 accelerate launch \
 	--num_processes "$NUM_PROCS" \
 	--num_machines 1 \
 	--mixed_precision bf16 \
 	--dynamo_backend no \
+	--main_process_port "$MASTER_PORT" \
 	-m sallm.main --config-name "$CFG"
