@@ -26,6 +26,7 @@ dataset:
     - {id: "masakhane_news_classification/lm_eval_p5", weight: 1.0}
   template_choice: CYCLE
   task: CLASSIFICATION
+  label_column: "category"
   packing: false
   assistant_only_loss: true
   max_seq_length: 1024

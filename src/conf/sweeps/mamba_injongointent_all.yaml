@@ -38,7 +38,7 @@ parameters:
   training.eval_strategy:
     value: epoch
   training.save_strategy:
-    value: epoch
+    value: "no"
 command:
   - ${env}
   - python
