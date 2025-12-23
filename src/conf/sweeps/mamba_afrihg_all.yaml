@@ -2,8 +2,8 @@ name: hpo-mamba-afrihg-all
 project: sallm-ft
 method: bayes
 metric:
-  name: eval/loss
-  goal: minimize
+  name: eval/all_rougeL
+  goal: maximize
 parameters:
   training.learning_rate:
     distribution: log_uniform_values
