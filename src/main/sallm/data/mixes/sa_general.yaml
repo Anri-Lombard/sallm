@@ -55,7 +55,7 @@ components:
       - id: masakhane_news_classification/lm_eval_p5
         weight: 1.0
     template_choice: cycle
-    label_column: category
+    label_column: label
 
   - name: ner
     hf_name: masakhane/masakhaner2

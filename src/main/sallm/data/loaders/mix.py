@@ -175,21 +175,12 @@ class _CfgWrapper:
         self.dataset = ds_cfg
 
 
-def _process_component(
-    comp_cfg: FinetuneDatasetConfig,
-    task_name: str | None = None,
-    task_type: str | None = None,
-) -> tuple[Dataset, Dataset]:
+def _process_component(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset]:
+    """Load and process a mix component."""
     tr_raw, va_raw = _load_component_raw(comp_cfg)
     wrapper = _CfgWrapper(comp_cfg)
     tr = apply_templates(tr_raw, wrapper.dataset)
     va = apply_templates(va_raw, wrapper.dataset)
-
-    if task_name is not None and "_task" not in va.column_names:
-        va = va.add_column("_task", [task_name] * len(va))
-    if task_type is not None and "_task_type" not in va.column_names:
-        va = va.add_column("_task_type", [task_type] * len(va))
-
     return tr, va
 
 
@@ -223,16 +214,12 @@ def load_mix_dataset(
 
     for comp_yaml in components_yaml:
         comp_cfg = _component_to_config(comp_yaml, ds_cfg)
-        task_name = comp_yaml["name"]
-        task_type = comp_yaml.get("task", "instruction")
-        train_processed, val_processed = _process_component(
-            comp_cfg, task_name=task_name, task_type=task_type
-        )
+        train_processed, val_processed = _process_component(comp_cfg)
         train_components.append(
             TaskComponent(
-                name=task_name,
+                name=comp_yaml["name"],
                 dataset=train_processed,
-                weight=weight_map[task_name],
+                weight=weight_map[comp_yaml["name"]],
             )
         )
         val_parts.append(val_processed)

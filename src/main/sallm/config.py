@@ -58,7 +58,6 @@ class ModelEvalConfig:
     device: str = "cuda:0"
     peft_adapter: str | None = None
     merge_lora: bool | None = None
-    extra_model_args: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         adapter_path = None

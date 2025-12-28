@@ -6,8 +6,6 @@ eval_model:
   dtype: "bfloat16"
   device: "cuda:0"
   merge_lora: false
-  extra_model_args:
-    tie_word_embeddings: false
 
 evaluation:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_t2x_xho"
