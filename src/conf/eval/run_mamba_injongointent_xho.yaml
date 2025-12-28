@@ -6,6 +6,8 @@ eval_model:
   dtype: "bfloat16"
   device: "cuda:0"
   merge_lora: false
+  extra_model_args:
+    tie_word_embeddings: false
 
 evaluation:
   task_packs: ["injongointent_xho"]

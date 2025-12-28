@@ -3,19 +3,16 @@ from __future__ import annotations
 import json
 import logging
 import textwrap
-from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-import torch
 from lm_eval import evaluator
 from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
-from sallm.evaluation.harness import load_model_and_tokenizer
 from sallm.evaluation.registry import load_task_pack
 
 logger = logging.getLogger(__name__)
@@ -26,6 +23,7 @@ def _format_model_args(
     dtype: str | None,
     peft_adapter: str | None,
     tokenizer_override: str | None = None,
+    extra_args: dict[str, Any] | None = None,
 ) -> str:
     args: list[str] = [
         f"pretrained={pretrained_path}",
@@ -37,6 +35,9 @@ def _format_model_args(
         args.append(f"peft={peft_adapter}")
     if tokenizer_override:
         args.append(f"tokenizer={tokenizer_override}")
+    if extra_args:
+        for k, v in extra_args.items():
+            args.append(f"{k}={v}")
     return ",".join(args)
 
 
@@ -58,44 +59,18 @@ def _to_serializable(value: Any) -> Any:
     return value
 
 
-def _materialize_model_for_lm_eval(
+def _prepare_model_for_harness(
     model_cfg: ModelEvalConfig, cache_root: Path
 ) -> tuple[str, str | None]:
     if not model_cfg.peft_adapter:
         return model_cfg.checkpoint, None
 
-    cache_root.mkdir(parents=True, exist_ok=True)
-    merged_dir = cache_root / "merged_model"
-    if merged_dir.exists():
-        return str(merged_dir), None
-
     logger.info(
-        "Merging PEFT adapter into temporary checkpoint for lm-eval at %s",
-        merged_dir,
+        "Using PEFT adapter directly: base=%s, adapter=%s",
+        model_cfg.checkpoint,
+        model_cfg.peft_adapter,
     )
-
-    cfg_copy = deepcopy(model_cfg)
-    cfg_copy.merge_lora = True
-
-    model, tokenizer = load_model_and_tokenizer(cfg_copy)
-
-    try:
-        model = model.to("cpu")
-    except Exception:
-        pass
-
-    merged_dir.mkdir(parents=True, exist_ok=True)
-    tokenizer.save_pretrained(merged_dir)
-    model.save_pretrained(merged_dir)
-
-    del model
-    try:
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
-        pass
-
-    return str(merged_dir), None
+    return model_cfg.checkpoint, model_cfg.peft_adapter
 
 
 def _fallback_chat_template() -> str:
@@ -183,11 +158,16 @@ def _run_pack(
     pack_out = output_dir / pack_name
     pack_out.mkdir(parents=True, exist_ok=True)
 
+    tokenizer_source = peft_adapter if peft_adapter else pretrained_path
     tokenizer_override = _prepare_tokenizer_for_lm_eval(
-        pretrained_path, output_dir / "_tokenizer", pack.apply_chat_template
+        tokenizer_source, output_dir / "_tokenizer", pack.apply_chat_template
     )
     model_args = _format_model_args(
-        pretrained_path, model_cfg.dtype, peft_adapter, tokenizer_override
+        pretrained_path,
+        model_cfg.dtype,
+        peft_adapter,
+        tokenizer_override,
+        model_cfg.extra_model_args,
     )
 
     if model_cfg.peft_adapter and peft_adapter is None:
@@ -250,7 +230,7 @@ def run_task_pack_evaluations(
     if not pack_names:
         return []
 
-    pretrained_path, peft_adapter = _materialize_model_for_lm_eval(
+    pretrained_path, peft_adapter = _prepare_model_for_harness(
         model_cfg, output_dir / "_lm_eval"
     )
 

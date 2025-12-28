@@ -18,6 +18,7 @@ from sallm.training.callbacks import (
     ClassificationMetricsCallback,
     EnsureStaticGraphCallback,
     GenerationMetricsCallback,
+    MultiTaskMetricsCallback,
     ShowCompletionsCallback,
 )
 from sallm.training.trainer import CustomSFTTrainer
@@ -134,7 +135,20 @@ def build_trainer(
         callbacks.append(completions_callback)
 
         task_type = getattr(config.dataset, "task", None)
-        if task_type == FinetuneTaskType.CLASSIFICATION:
+        hf_name = getattr(config.dataset, "hf_name", "") or ""
+        is_mix_dataset = hf_name.startswith("mix:")
+
+        if is_mix_dataset:
+            callbacks.append(
+                MultiTaskMetricsCallback(
+                    eval_dataset=eval_dataset,
+                    tokenizer=tokenizer,
+                    max_new_tokens=64,
+                    max_samples_per_task=128,
+                    decoding=config.generation_decoding,
+                )
+            )
+        elif task_type == FinetuneTaskType.CLASSIFICATION:
             callbacks.append(
                 ClassificationMetricsCallback(
                     eval_dataset=eval_dataset,
@@ -144,7 +158,7 @@ def build_trainer(
                     decoding=config.generation_decoding,
                 )
             )
-        if task_type in (
+        elif task_type in (
             FinetuneTaskType.INSTRUCTION,
             FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
             FinetuneTaskType.POS_TAGGING,
