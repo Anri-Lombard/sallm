@@ -15,16 +15,9 @@ def load_afrihg_from_github(
     if cache_dir is None:
         cache_dir = os.path.join(os.getcwd(), "data", "afrihg_cache")
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    supported = {"xho", "zul"}
     if languages is None:
         wanted = ["xho", "zul"]
     else:
-        unknown = [lang for lang in languages if lang not in supported]
-        if unknown:
-            raise ValueError(
-                f"Unsupported AFriHG languages: {unknown}. "
-                f"Supported: {sorted(supported)}"
-            )
         wanted = list(languages)
     session = requests.Session()
     splits: dict[str, list[str]] = {"train": [], "validation": [], "test": []}
@@ -69,7 +62,6 @@ def load_afrihg_from_github(
                 dataset_dict[split_name] = ds.add_column("lang", [lang_code] * len(ds))
 
     if not dataset_dict:
-        requested = languages if languages is not None else sorted(list(supported))
-        raise RuntimeError(f"No AFriHG CSVs found on GitHub for languages={requested}.")
+        raise RuntimeError(f"No AFriHG CSVs found on GitHub for languages={wanted}.")
 
     return dataset_dict

@@ -5,6 +5,7 @@ metric:
   name: eval/loss
   goal: minimize
 parameters:
+  # Training hyperparameters
   training.learning_rate:
     distribution: log_uniform_values
     min: 1.0e-5
@@ -16,25 +17,62 @@ parameters:
   training.warmup_ratio:
     values: [0.0, 0.05, 0.1]
   training.lr_scheduler_type:
-    values: [cosine, linear, constant_with_warmup]
+    values: [cosine, linear]
   training.gradient_accumulation_steps:
-    values: [4, 8, 16]
+    values: [8, 16]
   training.per_device_train_batch_size:
-    values: [2, 4, 8]
+    values: [4, 8]
   training.num_train_epochs:
-    values: [2, 3, 5]
+    values: [3, 5, 8]
   training.gradient_checkpointing:
-    values: [true, false]
+    value: true
   dataset.max_seq_length:
-    values: [1024, 2048]
+    value: 2048
+
+  # LoRA hyperparameters
   peft.method:
     value: lora
   peft.kwargs.r:
-    values: [64, 128, 256]
+    values: [128, 256]
   peft.kwargs.lora_alpha:
     values: [128, 256, 512]
   peft.kwargs.lora_dropout:
-    values: [0.0, 0.05, 0.1]
+    values: [0.0, 0.05]
+
+  # Mix weighting parameters (t2x fixed at 1.0 as reference)
+  dataset.mix_temperature:
+    distribution: uniform
+    min: 0.0
+    max: 0.5
+  dataset.mix_min_prob:
+    values: [0.01, 0.02, 0.05]
+  dataset.mix_max_prob:
+    values: [0.5, 0.6, 0.7]
+
+  # Task weights (log scale for up/down weighting flexibility)
+  dataset.mix_weights.sib:
+    distribution: log_uniform_values
+    min: 0.5
+    max: 5.0
+  dataset.mix_weights.news:
+    distribution: log_uniform_values
+    min: 0.5
+    max: 5.0
+  dataset.mix_weights.ner:
+    distribution: log_uniform_values
+    min: 0.5
+    max: 5.0
+  dataset.mix_weights.pos:
+    distribution: log_uniform_values
+    min: 1.0
+    max: 8.0
+  dataset.mix_weights.afrihg:
+    distribution: log_uniform_values
+    min: 0.2
+    max: 2.0
+  dataset.mix_weights.t2x:
+    value: 1.0  # Fixed as reference
+
   training.eval_strategy:
     value: steps
   training.eval_steps:

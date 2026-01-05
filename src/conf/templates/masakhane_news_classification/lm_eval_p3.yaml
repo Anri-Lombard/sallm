@@ -5,7 +5,7 @@ prompt: |
   entertainment, or business; what is the topic of the statement below?
   Return only the category.
 
-  text: {headline_text}
+  text: {headline} {text}
   category:
 label_mapping:
   0: "business"

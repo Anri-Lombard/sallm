@@ -1,5 +1,5 @@
 prompt: |
-  Does this topic; '{headline_text}' belong to one of the following categories:
+  Does this topic; '{headline} {text}' belong to one of the following categories:
   technology, business, politics, sports, health, entertainment, or religion?
   category only
 label_mapping:

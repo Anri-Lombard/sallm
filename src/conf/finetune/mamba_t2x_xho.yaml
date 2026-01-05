@@ -13,7 +13,7 @@ peft:
   kwargs:
     r: 256
     lora_alpha: 512
-    lora_dropout: 0.05
+    lora_dropout: 0.1
     target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
 
 dataset:
