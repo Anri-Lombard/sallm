@@ -1,6 +1,6 @@
 prompt: |
   Given the categories technology, business, politics, sports, health,
-  entertainment, or religion; what category does the text: '{headline_text}' belong to:
+  entertainment, or religion; what category does the text: '{headline} {text}' belong to:
 label_mapping:
   0: "business"
   1: "entertainment"

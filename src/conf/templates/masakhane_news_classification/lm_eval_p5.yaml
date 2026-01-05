@@ -22,7 +22,7 @@ prompt: |
   topic. For ambiguous or unclear topics, select the category that best reflects
   the overall content. Please provide a single classification for each input.
 
-  text: {headline_text}
+  text: {headline} {text}
   category:
 label_mapping:
   0: "business"

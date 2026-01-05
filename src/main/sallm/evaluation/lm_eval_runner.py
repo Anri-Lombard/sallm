@@ -26,6 +26,7 @@ def _format_model_args(
     dtype: str | None,
     peft_adapter: str | None,
     tokenizer_override: str | None = None,
+    tie_word_embeddings: bool | None = None,
 ) -> str:
     args: list[str] = [
         f"pretrained={pretrained_path}",
@@ -37,6 +38,8 @@ def _format_model_args(
         args.append(f"peft={peft_adapter}")
     if tokenizer_override:
         args.append(f"tokenizer={tokenizer_override}")
+    if tie_word_embeddings is not None:
+        args.append(f"tie_word_embeddings={str(tie_word_embeddings).lower()}")
     return ",".join(args)
 
 
@@ -187,7 +190,11 @@ def _run_pack(
         pretrained_path, output_dir / "_tokenizer", pack.apply_chat_template
     )
     model_args = _format_model_args(
-        pretrained_path, model_cfg.dtype, peft_adapter, tokenizer_override
+        pretrained_path,
+        model_cfg.dtype,
+        peft_adapter,
+        tokenizer_override,
+        model_cfg.tie_word_embeddings,
     )
 
     if model_cfg.peft_adapter and peft_adapter is None:

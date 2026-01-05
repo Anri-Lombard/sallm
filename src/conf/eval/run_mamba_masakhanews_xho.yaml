@@ -5,6 +5,7 @@ eval_model:
   adapter: "hf"
   dtype: "bfloat16"
   device: "cuda:0"
+  tie_word_embeddings: false
 
 evaluation:
   task_packs:

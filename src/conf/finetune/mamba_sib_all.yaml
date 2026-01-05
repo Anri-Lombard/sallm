@@ -10,8 +10,8 @@ peft:
   method: "lora"
   kwargs:
     r: 256
-    lora_alpha: 512
-    lora_dropout: 0.1
+    lora_alpha: 128
+    lora_dropout: 0.05
     target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
 
 dataset:
@@ -38,17 +38,17 @@ training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_sib_all"
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_sib_all"
   run_name: "mamba-125m-sib-lora-all"
-  learning_rate: 9.23415716207728e-05
-  weight_decay: 0.1340385821569752
+  learning_rate: 0.00032514506109624524
+  weight_decay: 0.15855411834919275
   adam_beta2: 0.95
   max_grad_norm: 1.0
   gradient_accumulation_steps: 2
   lr_scheduler_type: "constant_with_warmup"
   warmup_ratio: 0
-  per_device_train_batch_size: 16
+  per_device_train_batch_size: 32
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 10
+  num_train_epochs: 15
   bf16: true
   gradient_checkpointing: true
   logging_steps: 10

@@ -2,7 +2,7 @@ prompt: |
   Label the following text as technology, religion, politics, sports,
   health, entertainment, or business. Provide only the category as your response.
 
-  text: {headline_text}
+  text: {headline} {text}
   category:
 label_mapping:
   0: "business"
