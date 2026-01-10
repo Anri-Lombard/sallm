@@ -22,7 +22,12 @@ echo "Setting up environment..."
 module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
-conda activate sallm-ner
+set +u
+conda activate sallm-uv
+set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 echo "Environment ready."
 
 export HYDRA_FULL_ERROR=1

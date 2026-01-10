@@ -22,11 +22,19 @@ fi
 
 #SBATCH --job-name="sallm-resume-${WANDB_RUN_ID}"
 
+export SCRATCH="/scratch/lmbanr001"
+export HOME="/home/lmbanr001"
+
 echo "Setting up environment for resumed run ${WANDB_RUN_ID}..."
 module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
-conda activate sallm-ner
+set +u
+conda activate sallm-uv
+set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 
 export HYDRA_FULL_ERROR=1
 

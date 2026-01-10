@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
-#SBATCH --partition=a100
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
@@ -47,9 +47,11 @@ echo "-------------------------------"
 module load python/miniconda3-py3.12
 set +u
 source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate base
-conda activate sallm-ner
+conda activate sallm-uv
 set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 

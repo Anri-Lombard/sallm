@@ -22,8 +22,11 @@ module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 set +u
-conda activate sallm-ner
+conda activate sallm-uv
 set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 
 export MAMBA_SCAN_IMPL="cuda"
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"

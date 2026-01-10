@@ -36,7 +36,12 @@ echo "-------------------------------"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate sallm-ner
+set +u
+conda activate sallm-uv
+set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 
 # Set PyTorch CUDA allocation config to reduce fragmentation (optional)
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True

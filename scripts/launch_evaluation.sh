@@ -34,6 +34,11 @@ export HOME="/home/lmbanr001"
 module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
-conda activate sallm-ner
+set +u
+conda activate sallm-uv
+set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 
 python -m sallm.main --config-name "$CONFIG_NAME"

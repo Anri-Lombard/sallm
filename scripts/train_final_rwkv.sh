@@ -3,7 +3,7 @@
 #SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=4
+#SBATCH --gpus-per-node=2
 #SBATCH --cpus-per-gpu=2
 #SBATCH --job-name="sallm-rwkv"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
@@ -22,8 +22,11 @@ module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 set +u
-conda activate sallm-ner
+conda activate sallm-uv
 set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --frozen
 
 echo "Launching training with $CONFIG"
 accelerate launch --mixed_precision=bf16 -m sallm.main --config-name "$CONFIG"
