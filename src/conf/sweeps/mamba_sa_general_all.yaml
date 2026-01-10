@@ -27,13 +27,13 @@ parameters:
   training.gradient_checkpointing:
     value: true
   dataset.max_seq_length:
-    value: 2048
+    value: 1024
 
   # LoRA hyperparameters
   peft.method:
     value: lora
   peft.kwargs.r:
-    values: [128, 256]
+    values: [32, 64, 128]
   peft.kwargs.lora_alpha:
     values: [128, 256, 512]
   peft.kwargs.lora_dropout:
