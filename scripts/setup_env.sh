@@ -15,6 +15,11 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 export SCRATCH="${SCRATCH:-/scratch/lmbanr001}"
 export HOME="${HOME:-/home/lmbanr001}"
 
+# Use scratch for caches to avoid home quota issues
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+mkdir -p "$UV_CACHE_DIR" "$PIP_CACHE_DIR"
+
 echo "=== Setting up sallm environment ==="
 echo "Project dir: $PROJECT_DIR"
 
@@ -59,17 +64,13 @@ echo "Python version: $(python --version)"
 
 cd "$PROJECT_DIR"
 
-# Generate lockfile
-echo "=== Generating uv.lock ==="
-uv lock
+# Install from lockfile (lockfile is pre-generated and committed to git)
+echo "=== Installing from lockfile ==="
+uv sync --frozen
 
-# Install base dependencies
-echo "=== Installing base dependencies ==="
-uv sync
-
-# Install GPU packages (these need CUDA at build time)
+# Install GPU packages (need torch in environment, use pip not uv pip)
 echo "=== Installing GPU packages (this may take a while) ==="
-uv pip install "mamba-ssm>=2.2.4" "causal-conv1d>=1.5.0" "kernels>=0.11.0" --no-build-isolation
+pip install --no-cache-dir "mamba-ssm>=2.2.4" "causal-conv1d>=1.5.0" "kernels>=0.11.0"
 
 # Install project as editable
 echo "=== Installing sallm as editable ==="
@@ -78,14 +79,12 @@ uv pip install -e .
 # Verify installation
 echo "=== Verifying installation ==="
 python -c "import sallm; print('sallm imported successfully')"
-python -c "from transformers.integrations import is_kernels_available; print(f'RWKV kernels available: {is_kernels_available()}')"
+python -c "import kernels; print('kernels package installed')"
 python -c "import mamba_ssm; print('mamba-ssm imported successfully')"
+python -c "import causal_conv1d; print('causal-conv1d imported successfully')"
 
 echo ""
 echo "=== Setup complete ==="
-echo "To use in SLURM jobs, add to your script:"
+echo "SLURM jobs will automatically sync dependencies using:"
 echo "  conda activate sallm-uv"
 echo "  uv sync --frozen"
-echo ""
-echo "The uv.lock file has been generated. Commit it to git:"
-echo "  git add uv.lock && git commit -m 'Add uv.lock for reproducible installs'"
