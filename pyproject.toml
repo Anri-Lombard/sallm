@@ -34,6 +34,7 @@ dependencies = [
     "seqeval>=1.2.2",
     "evaluate>=0.4.3",
     "sentencepiece>=0.2.0",
+    "rouge-score>=0.1.2",
 ]
 
 [project.optional-dependencies]
