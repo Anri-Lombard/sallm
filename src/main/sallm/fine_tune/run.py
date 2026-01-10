@@ -196,7 +196,7 @@ def run(config: ExperimentConfig) -> None:
         model.resize_token_embeddings(len(tokenizer))
 
         # TEMP FIX: Mamba2 resize bug - lm_head not resized
-        # See: https://github.com/huggingface/transformers/issues/XXXXX
+        # See: https://github.com/huggingface/transformers/issues/43206
         # TODO: Remove once transformers fix is released
         if hasattr(model, "lm_head") and hasattr(model, "backbone"):
             expected_vocab = len(tokenizer)
