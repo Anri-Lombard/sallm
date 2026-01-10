@@ -41,7 +41,9 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
 uv sync --frozen
+source .venv/bin/activate
 
 # Set PyTorch CUDA allocation config to reduce fragmentation (optional)
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True

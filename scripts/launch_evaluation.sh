@@ -39,6 +39,8 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
 uv sync --frozen
+source .venv/bin/activate
 
 python -m sallm.main --config-name "$CONFIG_NAME"

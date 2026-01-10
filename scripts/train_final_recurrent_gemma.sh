@@ -26,7 +26,9 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
 uv sync --frozen
+source .venv/bin/activate
 
 echo "Launching training with $CONFIG"
 accelerate launch --mixed_precision=bf16 -m sallm.main --config-name "$CONFIG"

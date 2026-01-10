@@ -28,7 +28,9 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
 uv sync --frozen
+source .venv/bin/activate
 
 export MAMBA_SCAN_IMPL="cuda"
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
