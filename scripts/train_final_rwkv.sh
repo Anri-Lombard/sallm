@@ -3,7 +3,7 @@
 #SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=2
+#SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-gpu=2
 #SBATCH --job-name="sallm-rwkv"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
@@ -17,6 +17,8 @@ CONFIG="base/rwkv_125m.yaml"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export HF_HOME="$SCRATCH/hf"
+export HF_TOKEN="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"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
