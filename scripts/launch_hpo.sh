@@ -37,6 +37,7 @@ export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
+export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
 
