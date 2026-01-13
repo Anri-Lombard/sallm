@@ -59,7 +59,7 @@ training:
   logging_steps: 10
   eval_strategy: "epoch"
   save_strategy: "no"
-  dataloader_num_workers: 2
+  dataloader_num_workers: 4
   eval_accumulation_steps: 1
   report_to: "wandb"
   ddp_find_unused_parameters: true
