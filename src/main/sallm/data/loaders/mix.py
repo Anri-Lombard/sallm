@@ -127,9 +127,12 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
             va = ds_from_github
         return tr, va
 
-    available_configs = get_dataset_config_names(
-        comp_cfg.hf_name, trust_remote_code=True
-    )
+    try:
+        available_configs = get_dataset_config_names(
+            comp_cfg.hf_name, trust_remote_code=True
+        )
+    except TypeError:
+        available_configs = get_dataset_config_names(comp_cfg.hf_name)
     load_name = comp_cfg.subset
     lang_list_cfg = list(comp_cfg.languages or [])
 
