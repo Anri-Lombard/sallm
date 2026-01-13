@@ -127,11 +127,15 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
             va = ds_from_github
         return tr, va
 
+    # Get available configs - don't catch errors, let them propagate
+    # For datasets with configs (like sib200), this will succeed
+    # For datasets without, we'll handle it in the loading logic below
     try:
         available_configs = get_dataset_config_names(comp_cfg.hf_name)
-    except (TypeError, RuntimeError):
-        # Datasets 4.0+ rejects scripts; assume parquet files exist
+    except Exception:
+        # If we can't get configs list, assume we'll need to load and filter
         available_configs = []
+
     load_name = comp_cfg.subset
     lang_list_cfg = list(comp_cfg.languages or [])
 
@@ -142,13 +146,12 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
         if can_multi_load:
             train_parts: list[Dataset] = []
             val_parts: list[Dataset] = []
-            # Try loading first language to check if configs exist
+            # Try without parquet first, fall back if needed
             try:
                 first_tr = load_dataset(
                     comp_cfg.hf_name,
                     name=lang_list_cfg[0],
                     split=comp_cfg.splits["train"],
-                    revision="refs/convert/parquet",
                 )
                 # Configs exist, load each language separately
                 train_parts.append(first_tr)
@@ -156,7 +159,6 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                     comp_cfg.hf_name,
                     lang_list_cfg[0],
                     comp_cfg.splits["val"],
-                    "refs/convert/parquet",
                 )
                 val_parts.append(first_va)
                 # Add lang column if missing
@@ -175,13 +177,11 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                         comp_cfg.hf_name,
                         name=lang_code,
                         split=comp_cfg.splits["train"],
-                        revision="refs/convert/parquet",
                     )
                     va = load_split_with_fallback(
                         comp_cfg.hf_name,
                         lang_code,
                         comp_cfg.splits["val"],
-                        "refs/convert/parquet",
                     )
                     if "lang" not in tr.column_names:
                         tr = tr.add_column("lang", [lang_code] * len(tr))
@@ -189,19 +189,32 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                         va = va.add_column("lang", [lang_code] * len(va))
                     train_parts.append(tr)
                     val_parts.append(va)
-            except ValueError:
-                # Parquet uses 'default' config; load once and filter
-                tr_all = load_dataset(
-                    comp_cfg.hf_name,
-                    split=comp_cfg.splits["train"],
-                    revision="refs/convert/parquet",
-                )
-                va_all = load_split_with_fallback(
-                    comp_cfg.hf_name,
-                    None,
-                    comp_cfg.splits["val"],
-                    "refs/convert/parquet",
-                )
+            except (ValueError, RuntimeError):
+                # If configs don't exist or scripts not supported, try
+                # parquet with 'default' config
+                try:
+                    tr_all = load_dataset(
+                        comp_cfg.hf_name,
+                        split=comp_cfg.splits["train"],
+                        revision="refs/convert/parquet",
+                    )
+                    va_all = load_split_with_fallback(
+                        comp_cfg.hf_name,
+                        None,
+                        comp_cfg.splits["val"],
+                        "refs/convert/parquet",
+                    )
+                except Exception:
+                    # If parquet also fails, try without revision
+                    tr_all = load_dataset(
+                        comp_cfg.hf_name,
+                        split=comp_cfg.splits["train"],
+                    )
+                    va_all = load_split_with_fallback(
+                        comp_cfg.hf_name,
+                        None,
+                        comp_cfg.splits["val"],
+                    )
                 # Split by language
                 for lang_code in lang_list_cfg:
                     tr = tr_all.filter(
@@ -222,7 +235,18 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                     val_parts.append(va)
             return concatenate_datasets(train_parts), concatenate_datasets(val_parts)
 
+    # Try loading without parquet first, fall back to parquet if needed
     try:
+        tr = load_dataset(
+            comp_cfg.hf_name,
+            name=load_name,
+            split=comp_cfg.splits["train"],
+        )
+        va = load_split_with_fallback(
+            comp_cfg.hf_name, load_name, comp_cfg.splits["val"]
+        )
+    except (ValueError, RuntimeError):
+        # If that fails, try with parquet branch
         tr = load_dataset(
             comp_cfg.hf_name,
             name=load_name,
@@ -231,16 +255,6 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
         )
         va = load_split_with_fallback(
             comp_cfg.hf_name, load_name, comp_cfg.splits["val"], "refs/convert/parquet"
-        )
-    except Exception:
-        # Fallback for datasets without parquet branch
-        tr = load_dataset(
-            comp_cfg.hf_name,
-            name=load_name,
-            split=comp_cfg.splits["train"],
-        )
-        va = load_split_with_fallback(
-            comp_cfg.hf_name, load_name, comp_cfg.splits["val"]
         )
     return tr, va
 
