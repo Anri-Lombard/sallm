@@ -24,7 +24,10 @@ def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bo
     Returns:
         Tuple of (train_ds, val_ds, needs_lang_filter)
     """
-    available_configs = get_dataset_config_names(ds_cfg.hf_name, trust_remote_code=True)
+    try:
+        available_configs = get_dataset_config_names(ds_cfg.hf_name)
+    except TypeError:
+        available_configs = get_dataset_config_names(ds_cfg.hf_name)
     load_name = ds_cfg.subset
     filter_after_load = False
     lang_list_cfg = list(ds_cfg.languages or [])
@@ -42,7 +45,6 @@ def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bo
                     ds_cfg.hf_name,
                     name=lang_code,
                     split=splits["train"],
-                    trust_remote_code=True,
                 )
                 va = load_split_with_fallback(ds_cfg.hf_name, lang_code, splits["val"])
                 if "lang" not in tr.column_names:
@@ -68,7 +70,6 @@ def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bo
         ds_cfg.hf_name,
         name=load_name,
         split=splits["train"],
-        trust_remote_code=True,
     )
     val_raw = load_split_with_fallback(ds_cfg.hf_name, load_name, splits["val"])
 

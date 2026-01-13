@@ -128,9 +128,7 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
         return tr, va
 
     try:
-        available_configs = get_dataset_config_names(
-            comp_cfg.hf_name, trust_remote_code=True
-        )
+        available_configs = get_dataset_config_names(comp_cfg.hf_name)
     except TypeError:
         available_configs = get_dataset_config_names(comp_cfg.hf_name)
     load_name = comp_cfg.subset
@@ -148,7 +146,6 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                     comp_cfg.hf_name,
                     name=lang_code,
                     split=comp_cfg.splits["train"],
-                    trust_remote_code=True,
                 )
                 va = load_split_with_fallback(
                     comp_cfg.hf_name, lang_code, comp_cfg.splits["val"]
@@ -165,7 +162,6 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
         comp_cfg.hf_name,
         name=load_name,
         split=comp_cfg.splits["train"],
-        trust_remote_code=True,
     )
     va = load_split_with_fallback(comp_cfg.hf_name, load_name, comp_cfg.splits["val"])
     return tr, va
