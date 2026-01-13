@@ -129,8 +129,9 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
 
     try:
         available_configs = get_dataset_config_names(comp_cfg.hf_name)
-    except TypeError:
-        available_configs = get_dataset_config_names(comp_cfg.hf_name)
+    except (TypeError, RuntimeError):
+        # Datasets 4.0+ rejects scripts; assume parquet files exist
+        available_configs = []
     load_name = comp_cfg.subset
     lang_list_cfg = list(comp_cfg.languages or [])
 
@@ -146,9 +147,13 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                     comp_cfg.hf_name,
                     name=lang_code,
                     split=comp_cfg.splits["train"],
+                    revision="refs/convert/parquet",
                 )
                 va = load_split_with_fallback(
-                    comp_cfg.hf_name, lang_code, comp_cfg.splits["val"]
+                    comp_cfg.hf_name,
+                    lang_code,
+                    comp_cfg.splits["val"],
+                    "refs/convert/parquet",
                 )
                 if "lang" not in tr.column_names:
                     tr = tr.add_column("lang", [lang_code] * len(tr))
@@ -158,12 +163,26 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
                 val_parts.append(va)
             return concatenate_datasets(train_parts), concatenate_datasets(val_parts)
 
-    tr = load_dataset(
-        comp_cfg.hf_name,
-        name=load_name,
-        split=comp_cfg.splits["train"],
-    )
-    va = load_split_with_fallback(comp_cfg.hf_name, load_name, comp_cfg.splits["val"])
+    try:
+        tr = load_dataset(
+            comp_cfg.hf_name,
+            name=load_name,
+            split=comp_cfg.splits["train"],
+            revision="refs/convert/parquet",
+        )
+        va = load_split_with_fallback(
+            comp_cfg.hf_name, load_name, comp_cfg.splits["val"], "refs/convert/parquet"
+        )
+    except Exception:
+        # Fallback for datasets without parquet branch
+        tr = load_dataset(
+            comp_cfg.hf_name,
+            name=load_name,
+            split=comp_cfg.splits["train"],
+        )
+        va = load_split_with_fallback(
+            comp_cfg.hf_name, load_name, comp_cfg.splits["val"]
+        )
     return tr, va
 
 
