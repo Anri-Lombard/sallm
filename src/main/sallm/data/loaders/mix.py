@@ -142,25 +142,84 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
         if can_multi_load:
             train_parts: list[Dataset] = []
             val_parts: list[Dataset] = []
-            for lang_code in lang_list_cfg:
-                tr = load_dataset(
+            # Try loading first language to check if configs exist
+            try:
+                first_tr = load_dataset(
                     comp_cfg.hf_name,
-                    name=lang_code,
+                    name=lang_list_cfg[0],
                     split=comp_cfg.splits["train"],
                     revision="refs/convert/parquet",
                 )
-                va = load_split_with_fallback(
+                # Configs exist, load each language separately
+                train_parts.append(first_tr)
+                first_va = load_split_with_fallback(
                     comp_cfg.hf_name,
-                    lang_code,
+                    lang_list_cfg[0],
                     comp_cfg.splits["val"],
                     "refs/convert/parquet",
                 )
-                if "lang" not in tr.column_names:
-                    tr = tr.add_column("lang", [lang_code] * len(tr))
-                if "lang" not in va.column_names:
-                    va = va.add_column("lang", [lang_code] * len(va))
-                train_parts.append(tr)
-                val_parts.append(va)
+                val_parts.append(first_va)
+                # Add lang column if missing
+                if "lang" not in first_tr.column_names:
+                    train_parts[0] = train_parts[0].add_column(
+                        "lang", [lang_list_cfg[0]] * len(first_tr)
+                    )
+                if "lang" not in first_va.column_names:
+                    val_parts[0] = val_parts[0].add_column(
+                        "lang", [lang_list_cfg[0]] * len(first_va)
+                    )
+
+                # Load remaining languages
+                for lang_code in lang_list_cfg[1:]:
+                    tr = load_dataset(
+                        comp_cfg.hf_name,
+                        name=lang_code,
+                        split=comp_cfg.splits["train"],
+                        revision="refs/convert/parquet",
+                    )
+                    va = load_split_with_fallback(
+                        comp_cfg.hf_name,
+                        lang_code,
+                        comp_cfg.splits["val"],
+                        "refs/convert/parquet",
+                    )
+                    if "lang" not in tr.column_names:
+                        tr = tr.add_column("lang", [lang_code] * len(tr))
+                    if "lang" not in va.column_names:
+                        va = va.add_column("lang", [lang_code] * len(va))
+                    train_parts.append(tr)
+                    val_parts.append(va)
+            except ValueError:
+                # Parquet uses 'default' config; load once and filter
+                tr_all = load_dataset(
+                    comp_cfg.hf_name,
+                    split=comp_cfg.splits["train"],
+                    revision="refs/convert/parquet",
+                )
+                va_all = load_split_with_fallback(
+                    comp_cfg.hf_name,
+                    None,
+                    comp_cfg.splits["val"],
+                    "refs/convert/parquet",
+                )
+                # Split by language
+                for lang_code in lang_list_cfg:
+                    tr = tr_all.filter(
+                        lambda x, lc=lang_code: x.get("lang") == lc
+                        or x.get("language_code") == lc
+                        or x.get("language") == lc
+                    )
+                    va = va_all.filter(
+                        lambda x, lc=lang_code: x.get("lang") == lc
+                        or x.get("language_code") == lc
+                        or x.get("language") == lc
+                    )
+                    if "lang" not in tr.column_names:
+                        tr = tr.add_column("lang", [lang_code] * len(tr))
+                    if "lang" not in va.column_names:
+                        va = va.add_column("lang", [lang_code] * len(va))
+                    train_parts.append(tr)
+                    val_parts.append(va)
             return concatenate_datasets(train_parts), concatenate_datasets(val_parts)
 
     try:
