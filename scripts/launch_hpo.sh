@@ -56,6 +56,20 @@ cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
 
+echo "--- Checking Mamba CUDA kernels ---"
+python -c "
+try:
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    from causal_conv1d import causal_conv1d_fn
+    print('✓ Mamba fast path available')
+except ImportError as e:
+    print(f'✗ Missing: {e}')
+    print('Installing mamba-ssm and causal-conv1d...')
+    import subprocess, sys
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', 'mamba-ssm', 'causal-conv1d'])
+"
+echo "-------------------------------"
+
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 
 echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"

@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
-#SBATCH --partition=a100
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
@@ -19,6 +19,8 @@ CONFIG="base/mamba_125m.yaml"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export HF_HOME="$SCRATCH/hf"
+export HF_TOKEN="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"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -31,6 +33,20 @@ export PATH="$HOME/.local/bin:$PATH"
 cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
+
+echo "--- Checking Mamba CUDA kernels ---"
+python -c "
+try:
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    from causal_conv1d import causal_conv1d_fn
+    print('✓ Mamba fast path available')
+except ImportError as e:
+    print(f'✗ Missing: {e}')
+    print('Installing mamba-ssm and causal-conv1d...')
+    import subprocess, sys
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', 'mamba-ssm', 'causal-conv1d'])
+"
+echo "-------------------------------"
 
 export MAMBA_SCAN_IMPL="cuda"
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
