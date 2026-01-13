@@ -9,10 +9,10 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 256
-    lora_alpha: 256
+    r: 128
+    lora_alpha: 128
     lora_dropout: 0
-    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+    target_modules: ["in_proj", "x_proj"]
 
 dataset:
   hf_name: "mix:sa_general"
@@ -26,18 +26,19 @@ dataset:
   assistant_only_loss: true
   max_seq_length: 2048
   mix_weights:
-    sib: 3.0
-    news: 3.0
-    ner: 2.0
-    pos: 4.0
-    afrihg: 0.6
-    t2x: 0.8
-  mix_temperature: 0.3
+    sib: 3.3
+    news: 2.4
+    ner: 1.7
+    pos: 3.0
+    afrihg: 0.4
+    t2x: 1.0
+  mix_temperature: 0.15
   mix_epoch_size: "sum"
   mix_min_prob: 0.02
   mix_max_prob: 0.6
 
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+tokenizer:
+  {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
 
 training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_sa_general_all"
