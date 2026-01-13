@@ -33,7 +33,7 @@ dataset:
     afrihg: 0.4
     t2x: 1.0
   mix_temperature: 0.15
-  mix_epoch_size: "sum"
+  mix_epoch_size: 25000
   mix_min_prob: 0.02
   mix_max_prob: 0.6
 
@@ -59,7 +59,7 @@ training:
   logging_steps: 10
   eval_strategy: "epoch"
   save_strategy: "no"
-  dataloader_num_workers: 8
+  dataloader_num_workers: 2
   eval_accumulation_steps: 1
   report_to: "wandb"
   ddp_find_unused_parameters: true
