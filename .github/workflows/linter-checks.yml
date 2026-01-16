@@ -50,4 +50,4 @@ jobs:
 
       - name: Run grype filesystem scan and fail on high or above
         run: |
-          grype dir:.venv --config .grype.yaml --fail-on high
+          grype dir:. --config .grype.yaml --fail-on high --exclude '**/tests/**' --exclude '**/.git/**'
