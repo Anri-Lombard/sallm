@@ -1,6 +1,7 @@
 name: hpo-mamba-sa-general-all
 project: sallm-ft
 method: bayes
+run_cap: 50
 metric:
   name: eval/loss
   goal: minimize
@@ -76,7 +77,7 @@ parameters:
   training.eval_strategy:
     value: steps
   training.eval_steps:
-    value: 500
+    value: 50
 command:
   - ${env}
   - python
