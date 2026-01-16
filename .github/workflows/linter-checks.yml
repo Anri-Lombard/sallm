@@ -18,18 +18,18 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          version: 1.8.3
-          virtualenvs-create: false
+          enable-cache: true
 
-      - run: poetry install --no-root
+      - name: Install dependencies
+        run: uv sync --frozen
 
       - name: Run pre-commit (all files)
         run: |
-          poetry run pre-commit install --install-hooks
-          poetry run pre-commit run --all-files --show-diff-on-failure
+          uv run pre-commit install --install-hooks
+          uv run pre-commit run --all-files --show-diff-on-failure
 
   security-scan:
     name: Grype vulnerability scan
