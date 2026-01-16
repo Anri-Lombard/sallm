@@ -17,6 +17,9 @@ echo "Using configuration: ${CONFIG_PATH}"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 echo "Setting up environment..."
 module load python/miniconda3-py3.12

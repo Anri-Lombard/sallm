@@ -12,7 +12,7 @@ peft:
     r: 128
     lora_alpha: 256
     lora_dropout: 0.1
-    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+    target_modules: ["in_proj", "x_proj", "embeddings"]
 
 dataset:
   hf_name: "masakhane/masakhapos"
@@ -56,3 +56,10 @@ training:
   dataloader_num_workers: 8
   report_to: "wandb"
   ddp_find_unused_parameters: true
+
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false

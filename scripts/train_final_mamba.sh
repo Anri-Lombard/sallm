@@ -19,8 +19,15 @@ CONFIG="base/mamba_125m.yaml"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export HF_HOME="$SCRATCH/hf"
 export HF_TOKEN="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"
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+
+echo "--- Storage Usage ---"
+df -h /home /scratch 2>/dev/null || true
+echo "-------------------------------"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -40,11 +47,9 @@ try:
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
     from causal_conv1d import causal_conv1d_fn
     print('✓ Mamba fast path available')
-except ImportError as e:
-    print(f'✗ Missing: {e}')
-    print('Installing mamba-ssm and causal-conv1d...')
-    import subprocess, sys
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', 'mamba-ssm', 'causal-conv1d'])
+except ImportError:
+    print('ℹ Using HF Transformers native Mamba implementation (no CUDA kernels)')
+    print('  This is expected and will work correctly, just slightly slower.')
 "
 echo "-------------------------------"
 

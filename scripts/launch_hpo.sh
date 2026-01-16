@@ -33,6 +33,7 @@ fi
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
@@ -40,6 +41,12 @@ export HF_METRICS_CACHE="$HF_HOME/metrics"
 export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+
+echo "--- Storage Usage ---"
+df -h /home /scratch 2>/dev/null || true
+echo "-------------------------------"
 
 echo "--- Checking GPU availability ---"
 nvidia-smi || true
@@ -56,17 +63,15 @@ cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
 
-echo "--- Checking Mamba CUDA kernels ---"
+echo "--- Mamba CUDA kernel status ---"
 python -c "
 try:
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
     from causal_conv1d import causal_conv1d_fn
-    print('✓ Mamba fast path available')
-except ImportError as e:
-    print(f'✗ Missing: {e}')
-    print('Installing mamba-ssm and causal-conv1d...')
-    import subprocess, sys
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', 'mamba-ssm', 'causal-conv1d'])
+    print('✓ Mamba fast path (CUDA kernels) available')
+except ImportError:
+    print('ℹ Using HF Transformers native Mamba implementation (no CUDA kernels)')
+    print('  This is expected and will work correctly, just slightly slower.')
 "
 echo "-------------------------------"
 

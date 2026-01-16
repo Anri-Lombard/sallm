@@ -25,7 +25,7 @@ model:
     max_params_m: 135.0
 
 data:
-  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
+  hf_name: "anrilombard/mzansi-text-tokenized"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"

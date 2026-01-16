@@ -351,6 +351,59 @@ def run(config: ExperimentConfig) -> None:
             tokenizer_source_path,
         )
         logger.info(f"Saved PEFT adapter to → {output_dir}")
+
+        if config.hub and config.hub.enabled and config.hub.push_adapter and i_am_main:
+            arch = config.model.architecture
+            hf_name = config.dataset.hf_name if config.dataset else "unknown"
+            task = hf_name.replace("mix:", "").replace(":", "-")
+            langs = (
+                "-".join(config.dataset.languages)
+                if config.dataset and config.dataset.languages
+                else "all"
+            )
+            repo_id = f"{config.hub.organization}/sallm-{arch}-{task}-{langs}"
+
+            # Update base model reference to HF model ID before pushing
+            if config.hub.base_model_id:
+                active_adapter = getattr(model, "active_adapter", "default")
+                peft_cfg = model.peft_config.get(active_adapter)
+                if peft_cfg:
+                    peft_cfg.base_model_name_or_path = config.hub.base_model_id
+                    logger.info(
+                        f"Set base_model reference to: {config.hub.base_model_id}"
+                    )
+
+            logger.info(f"Pushing adapter to HuggingFace Hub: {repo_id}")
+            model.push_to_hub(repo_id, private=config.hub.private)
+            tokenizer.push_to_hub(repo_id, private=config.hub.private)
+            logger.info(f"Successfully pushed to {repo_id}")
+
+            # Add to collection if specified
+            if config.hub.collection_slug:
+                try:
+                    from huggingface_hub import add_collection_item
+
+                    add_collection_item(
+                        collection_slug=config.hub.collection_slug,
+                        item_id=repo_id,
+                        item_type="model",
+                        exists_ok=True,
+                    )
+                    logger.info(f"Added to collection: {config.hub.collection_slug}")
+                except Exception as e:
+                    logger.warning(f"Could not add to collection: {e}")
+
+            # Auto-delete local checkpoint after successful push to save space
+            checkpoint_dir = trainer.args.output_dir
+            if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+                try:
+                    shutil.rmtree(checkpoint_dir)
+                    logger.info(
+                        f"Deleted local checkpoint to free space: {checkpoint_dir}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to delete checkpoint {checkpoint_dir}: {e}")
+
         return
 
     if hasattr(model, "merge_and_unload"):
@@ -389,3 +442,17 @@ def run(config: ExperimentConfig) -> None:
         tokenizer_source_path,
     )
     logger.info(f"Saved final MERGED model to → {output_dir}")
+
+    if config.hub and config.hub.enabled and config.hub.push_merged and i_am_main:
+        arch = config.model.architecture if config.model else "unknown"
+        hf_name = config.dataset.hf_name if config.dataset else "unknown"
+        task = hf_name.replace("mix:", "").replace(":", "-")
+        langs = (
+            "-".join(config.dataset.languages)
+            if config.dataset and config.dataset.languages
+            else "all"
+        )
+        repo_id = f"{config.hub.organization}/sallm-{arch}-{task}-{langs}-merged"
+        logger.info(f"Pushing merged model to HuggingFace Hub: {repo_id}")
+        merged_model.push_to_hub(repo_id, private=config.hub.private)
+        tokenizer.push_to_hub(repo_id, private=config.hub.private)

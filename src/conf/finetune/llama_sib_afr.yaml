@@ -50,3 +50,10 @@ training:
   dataloader_num_workers: 8
   report_to: "wandb"
   ddp_find_unused_parameters: false
+
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false

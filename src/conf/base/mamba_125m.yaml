@@ -16,12 +16,13 @@ model:
     n_groups: 4
     vocab_size: 65536
     tie_word_embeddings: true
+    use_cache: false
   param_validation:
     min_params_m: 120.0
     max_params_m: 130.0
 
 data:
-  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
+  hf_name: "anrilombard/mzansi-text-tokenized"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
