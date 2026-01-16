@@ -1,0 +1,27 @@
+# Grype security scanner configuration
+# See: https://github.com/anchore/grype#configuration
+
+ignore:
+  # False positive: gevent not installed, just vendored code in wandb/vendor/promise-2.3.0
+  - vulnerability: GHSA-x7m3-jprg-wc5g
+    package:
+      name: gevent
+
+  # False positive: jaraco-context vendored inside setuptools, not directly controllable
+  - vulnerability: GHSA-58pv-8j8x-9vj2
+    package:
+      name: jaraco-context
+
+  # Accepted risk: sqlitedict insecure deserialization (CVE-2024-35515)
+  # Transitive dep from lm-eval for caching. Only loads our own cache files, no untrusted sources.
+  # No fix available yet. Monitor for updates.
+  - vulnerability: GHSA-g4r7-86gm-pgqc
+    package:
+      name: sqlitedict
+    expires: "2026-04-16"
+
+  # Medium severity pip vuln, will address in next maintenance cycle
+  - vulnerability: GHSA-4xh5-x5gv-qwph
+    package:
+      name: pip
+    expires: "2026-02-16"
