@@ -72,24 +72,26 @@ def build_trainer(
     if config.mode == RunMode.FINETUNE:
         if config.dataset is None:
             raise ValueError("`dataset` config block must be provided for fine-tuning.")
-        max_seq_length = config.dataset.max_seq_length
+        max_length = config.dataset.max_seq_length
         packing = bool(getattr(config.dataset, "packing", False))
         assistant_only_loss = bool(getattr(config.dataset, "assistant_only_loss", True))
     else:
         if "max_seq_length" in training_args_dict:
-            max_seq_length = training_args_dict.pop("max_seq_length")
+            max_length = training_args_dict.pop("max_seq_length")
+        elif "max_length" in training_args_dict:
+            max_length = training_args_dict.pop("max_length")
         else:
-            max_seq_length = 2048
+            max_length = 2048
             logger.warning(
-                "SFTConfig `max_seq_length` not found. Falling back to %s. "
-                "Please add `max_seq_length` to your training config.",
-                max_seq_length,
+                "SFTConfig `max_length` not found. Falling back to %s. "
+                "Please add `max_length` to your training config.",
+                max_length,
             )
         packing = False
         assistant_only_loss = False
 
     # Ensure we don't accidentally pass duplicates for values we set explicitly
-    for _k in ("max_seq_length", "packing", "assistant_only_loss"):
+    for _k in ("max_seq_length", "max_length", "packing", "assistant_only_loss"):
         training_args_dict.pop(_k, None)
 
     sft_sig = inspect.signature(SFTConfig)
@@ -108,7 +110,7 @@ def build_trainer(
 
     training_args = SFTConfig(
         **training_args_dict,
-        max_seq_length=max_seq_length,
+        max_length=max_length,
         packing=packing,
         assistant_only_loss=assistant_only_loss,
     )

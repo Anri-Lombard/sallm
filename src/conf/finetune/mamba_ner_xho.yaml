@@ -9,10 +9,10 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 256
-    lora_alpha: 512
-    lora_dropout: 0.1
-    target_modules: ["in_proj", "x_proj", "embeddings", "out_proj"]
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+    target_modules: ["in_proj", "x_proj"]
 
 dataset:
   hf_name: "masakhane/masakhaner2"
@@ -41,10 +41,10 @@ training:
   weight_decay: 0.13449041980438445
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 8
+  gradient_accumulation_steps: 16
   lr_scheduler_type: "constant_with_warmup"
   warmup_ratio: 0
-  per_device_train_batch_size: 32
+  per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
   num_train_epochs: 20
@@ -56,3 +56,10 @@ training:
   dataloader_num_workers: 8
   report_to: "wandb"
   ddp_find_unused_parameters: true
+
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false

@@ -1,5 +1,6 @@
 import logging
 
+import torch
 from tokenizers.decoders import ByteLevel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -8,6 +9,26 @@ from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY
 from sallm.utils import count_trainable_parameters
 
 logger = logging.getLogger(__name__)
+
+
+def _get_torch_dtype(config: ExperimentConfig) -> torch.dtype:
+    """Determine torch dtype from training config."""
+    training = config.training
+    if training is None:
+        return torch.float32
+
+    if isinstance(training, dict):
+        if training.get("bf16"):
+            return torch.bfloat16
+        if training.get("fp16"):
+            return torch.float16
+    else:
+        if getattr(training, "bf16", False):
+            return torch.bfloat16
+        if getattr(training, "fp16", False):
+            return torch.float16
+
+    return torch.float32
 
 
 def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
@@ -45,9 +66,12 @@ def build_model(
             model_conf.init_checkpoint,
         )
         attn_impl = getattr(config.model, "attn_implementation", None)
+        torch_dtype = _get_torch_dtype(config)
+        logger.info(f"Loading model with torch_dtype={torch_dtype}")
         model = model_class.from_pretrained(
             model_conf.init_checkpoint,
             attn_implementation=attn_impl,
+            torch_dtype=torch_dtype,
         )
         return model
 
@@ -60,7 +84,9 @@ def build_model(
     model_config_obj = config_class(**model_conf.config)
     model_config_obj.vocab_size = tokenizer.vocab_size
 
-    model = model_class(model_config_obj)
+    torch_dtype = _get_torch_dtype(config)
+    logger.info(f"Creating model with torch_dtype={torch_dtype}")
+    model = model_class(model_config_obj).to(torch_dtype)
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

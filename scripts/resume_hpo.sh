@@ -19,17 +19,25 @@ exec > >(tee -a "logs/hpo-ner_all-resume-${SLURM_JOB_ID}.out") 2>&1
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 module load python/miniconda3-py3.12
 set +u
 source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate sallm-ner
+conda activate sallm-uv
 set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
+uv sync --frozen
+source .venv/bin/activate
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 

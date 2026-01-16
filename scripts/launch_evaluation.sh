@@ -30,10 +30,24 @@ export HYDRA_FULL_ERROR=1
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+
+echo "--- Storage Usage ---"
+df -h /home /scratch 2>/dev/null || true
+echo "-------------------------------"
 
 module load python/miniconda3-py3.12
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
-conda activate sallm-ner
+set +u
+conda activate sallm-uv
+set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
+uv sync --frozen
+source .venv/bin/activate
 
 python -m sallm.main --config-name "$CONFIG_NAME"

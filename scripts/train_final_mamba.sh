@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
-#SBATCH --partition=a100
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
@@ -19,13 +19,39 @@ CONFIG="base/mamba_125m.yaml"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+export HF_HOME="$SCRATCH/hf"
+export HF_TOKEN="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"
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+
+echo "--- Storage Usage ---"
+df -h /home /scratch 2>/dev/null || true
+echo "-------------------------------"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 set +u
-conda activate sallm-ner
+conda activate sallm-uv
 set -u
+
+export PATH="$HOME/.local/bin:$PATH"
+cd "$HOME/masters/sallm"
+uv sync --frozen
+source .venv/bin/activate
+
+echo "--- Checking Mamba CUDA kernels ---"
+python -c "
+try:
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    from causal_conv1d import causal_conv1d_fn
+    print('✓ Mamba fast path available')
+except ImportError:
+    print('ℹ Using HF Transformers native Mamba implementation (no CUDA kernels)')
+    print('  This is expected and will work correctly, just slightly slower.')
+"
+echo "-------------------------------"
 
 export MAMBA_SCAN_IMPL="cuda"
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"

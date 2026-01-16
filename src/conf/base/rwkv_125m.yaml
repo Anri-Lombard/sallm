@@ -16,13 +16,13 @@ model:
     layer_norm_epsilon: 1.0e-5
     rescale_every: 6
     tie_word_embeddings: true
-    use_cache: true
+    use_cache: false
   param_validation:
     min_params_m: 120.0
     max_params_m: 135.0
 
 data:
-  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
+  hf_name: "anrilombard/mzansi-text-tokenized"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
@@ -38,7 +38,7 @@ training:
   max_seq_length: 2048
   lr_scheduler_type: "cosine"
   warmup_steps: 2000
-  weight_decay: 0.1
+  weight_decay: 0.01
   adam_beta1: 0.9
   adam_beta2: 0.95
   max_grad_norm: 1.0
@@ -63,4 +63,3 @@ training:
   dataloader_num_workers: 8
   packing: false
   assistant_only_loss: false
-  save_safetensors: false

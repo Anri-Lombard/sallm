@@ -127,9 +127,15 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
             va = ds_from_github
         return tr, va
 
-    available_configs = get_dataset_config_names(
-        comp_cfg.hf_name, trust_remote_code=True
-    )
+    # Get available configs - don't catch errors, let them propagate
+    # For datasets with configs (like sib200), this will succeed
+    # For datasets without, we'll handle it in the loading logic below
+    try:
+        available_configs = get_dataset_config_names(comp_cfg.hf_name)
+    except Exception:
+        # If we can't get configs list, assume we'll need to load and filter
+        available_configs = []
+
     load_name = comp_cfg.subset
     lang_list_cfg = list(comp_cfg.languages or [])
 
@@ -140,31 +146,116 @@ def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datas
         if can_multi_load:
             train_parts: list[Dataset] = []
             val_parts: list[Dataset] = []
-            for lang_code in lang_list_cfg:
-                tr = load_dataset(
+            # Try without parquet first, fall back if needed
+            try:
+                first_tr = load_dataset(
                     comp_cfg.hf_name,
-                    name=lang_code,
+                    name=lang_list_cfg[0],
                     split=comp_cfg.splits["train"],
-                    trust_remote_code=True,
                 )
-                va = load_split_with_fallback(
-                    comp_cfg.hf_name, lang_code, comp_cfg.splits["val"]
+                # Configs exist, load each language separately
+                train_parts.append(first_tr)
+                first_va = load_split_with_fallback(
+                    comp_cfg.hf_name,
+                    lang_list_cfg[0],
+                    comp_cfg.splits["val"],
                 )
-                if "lang" not in tr.column_names:
-                    tr = tr.add_column("lang", [lang_code] * len(tr))
-                if "lang" not in va.column_names:
-                    va = va.add_column("lang", [lang_code] * len(va))
-                train_parts.append(tr)
-                val_parts.append(va)
+                val_parts.append(first_va)
+                # Add lang column if missing
+                if "lang" not in first_tr.column_names:
+                    train_parts[0] = train_parts[0].add_column(
+                        "lang", [lang_list_cfg[0]] * len(first_tr)
+                    )
+                if "lang" not in first_va.column_names:
+                    val_parts[0] = val_parts[0].add_column(
+                        "lang", [lang_list_cfg[0]] * len(first_va)
+                    )
+
+                # Load remaining languages
+                for lang_code in lang_list_cfg[1:]:
+                    tr = load_dataset(
+                        comp_cfg.hf_name,
+                        name=lang_code,
+                        split=comp_cfg.splits["train"],
+                    )
+                    va = load_split_with_fallback(
+                        comp_cfg.hf_name,
+                        lang_code,
+                        comp_cfg.splits["val"],
+                    )
+                    if "lang" not in tr.column_names:
+                        tr = tr.add_column("lang", [lang_code] * len(tr))
+                    if "lang" not in va.column_names:
+                        va = va.add_column("lang", [lang_code] * len(va))
+                    train_parts.append(tr)
+                    val_parts.append(va)
+            except (ValueError, RuntimeError):
+                # If configs don't exist or scripts not supported, try
+                # parquet with 'default' config
+                try:
+                    tr_all = load_dataset(
+                        comp_cfg.hf_name,
+                        split=comp_cfg.splits["train"],
+                        revision="refs/convert/parquet",
+                    )
+                    va_all = load_split_with_fallback(
+                        comp_cfg.hf_name,
+                        None,
+                        comp_cfg.splits["val"],
+                        "refs/convert/parquet",
+                    )
+                except Exception:
+                    # If parquet also fails, try without revision
+                    tr_all = load_dataset(
+                        comp_cfg.hf_name,
+                        split=comp_cfg.splits["train"],
+                    )
+                    va_all = load_split_with_fallback(
+                        comp_cfg.hf_name,
+                        None,
+                        comp_cfg.splits["val"],
+                    )
+                # Split by language
+                for lang_code in lang_list_cfg:
+                    tr = tr_all.filter(
+                        lambda x, lc=lang_code: x.get("lang") == lc
+                        or x.get("language_code") == lc
+                        or x.get("language") == lc
+                    )
+                    va = va_all.filter(
+                        lambda x, lc=lang_code: x.get("lang") == lc
+                        or x.get("language_code") == lc
+                        or x.get("language") == lc
+                    )
+                    if "lang" not in tr.column_names:
+                        tr = tr.add_column("lang", [lang_code] * len(tr))
+                    if "lang" not in va.column_names:
+                        va = va.add_column("lang", [lang_code] * len(va))
+                    train_parts.append(tr)
+                    val_parts.append(va)
             return concatenate_datasets(train_parts), concatenate_datasets(val_parts)
 
-    tr = load_dataset(
-        comp_cfg.hf_name,
-        name=load_name,
-        split=comp_cfg.splits["train"],
-        trust_remote_code=True,
-    )
-    va = load_split_with_fallback(comp_cfg.hf_name, load_name, comp_cfg.splits["val"])
+    # Try loading without parquet first, fall back to parquet if needed
+    try:
+        tr = load_dataset(
+            comp_cfg.hf_name,
+            name=load_name,
+            split=comp_cfg.splits["train"],
+        )
+        va = load_split_with_fallback(
+            comp_cfg.hf_name, load_name, comp_cfg.splits["val"]
+        )
+    except (ValueError, RuntimeError):
+        # If that fails, try with parquet branch
+        tr = load_dataset(
+            comp_cfg.hf_name,
+            name=load_name,
+            split=comp_cfg.splits["train"],
+            revision="refs/convert/parquet",
+        )
+        va = load_split_with_fallback(
+            comp_cfg.hf_name, load_name, comp_cfg.splits["val"], "refs/convert/parquet"
+        )
     return tr, va
 
 

@@ -55,6 +55,12 @@ def run(config: ExperimentConfig) -> None:
         trainer.save_model(out)
         logger.info(f"Saved model → {out}")
 
+        if config.hub and config.hub.enabled and i_am_main:
+            repo_id = f"{config.hub.organization}/sallm-{config.model.architecture}"
+            logger.info(f"Pushing base model to HuggingFace Hub: {repo_id}")
+            model.push_to_hub(repo_id, private=config.hub.private)
+            tokenizer.push_to_hub(repo_id, private=config.hub.private)
+
     # TODO: do per language
     if test_ds:
         res = trainer.predict(test_ds)

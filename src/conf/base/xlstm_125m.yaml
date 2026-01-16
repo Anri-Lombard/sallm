@@ -8,26 +8,18 @@ model:
   architecture: "xlstm"
   config:
     vocab_size: 65536
-    hidden_size: 512
-    embedding_dim: 512
-    num_hidden_layers: 24
-    num_blocks: 24
-    num_heads: 8
-    qk_dim_factor: 0.5
-    v_dim_factor: 1.0
-    ffn_proj_factor: 2.667
-    norm_eps: 1.0e-6
-    gate_soft_cap: 15.0
-    output_logit_soft_cap: 30.0
-    use_cache: true
+    hidden_size: 768
+    num_hidden_layers: 12
+    num_heads: 4
     tie_word_embeddings: true
-    chunk_size: 64
+    mode: "train"
+    chunk_size: 64  # Fixed HF bug allows proper chunking
   param_validation:
     min_params_m: 120.0
-    max_params_m: 135.0
+    max_params_m: 140.0
 
 data:
-  path: "${oc.env:SCRATCH}/masters/sallm/data/sallm_dataset_tokenized"
+  hf_name: "anrilombard/mzansi-text-tokenized"
   train_split: "train"
   eval_split: "validation"
   test_split: "test"
@@ -40,10 +32,11 @@ training:
   logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-xlstm-125m"
 
   learning_rate: 4.0e-4
-  max_seq_length: 2048
+  max_seq_length: 512
+  pad_to_multiple_of: 64  # Must match chunk_size for xLSTM
   lr_scheduler_type: "cosine"
   warmup_steps: 2000
-  weight_decay: 0.1
+  weight_decay: 0.01
   adam_beta1: 0.9
   adam_beta2: 0.95
   max_grad_norm: 1.0
@@ -64,8 +57,5 @@ training:
   report_to: "wandb"
   prediction_loss_only: true
   ddp_find_unused_parameters: false
-  torch_compile: true
+  torch_compile: false
   dataloader_num_workers: 8
-  packing: false
-  assistant_only_loss: false
-  save_safetensors: false

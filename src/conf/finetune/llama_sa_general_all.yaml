@@ -58,3 +58,10 @@ training:
   eval_accumulation_steps: 1
   report_to: "wandb"
   ddp_find_unused_parameters: false
+
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false

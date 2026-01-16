@@ -226,10 +226,19 @@ class ModelConfig:
 
 @dataclass
 class DataConfig:
-    path: str = MISSING
+    path: str | None = None
+    hf_name: str | None = None
     train_split: str = "train"
     eval_split: str = "validation"
     test_split: str | None = "test"
+
+    def __post_init__(self) -> None:
+        if not self.path and not self.hf_name:
+            raise ValueError(
+                "Either `path` or `hf_name` must be provided in data config"
+            )
+        if self.path and self.hf_name:
+            raise ValueError("Provide either `path` or `hf_name`, not both")
 
 
 @dataclass
@@ -460,6 +469,19 @@ class PeftConfig:
 
 
 @dataclass
+class HubConfig:
+    enabled: bool = False
+    organization: str = "anrilombard"
+    private: bool = True
+    push_adapter: bool = True
+    push_merged: bool = False
+    base_model_id: str = (
+        "anrilombard/sallm-mamba-125m"  # HF model ID for base model reference
+    )
+    collection_slug: str | None = "anrilombard/mzansilm"  # Collection to add models to
+
+
+@dataclass
 class ExperimentConfig:
     mode: RunMode
     wandb: WandbConfig
@@ -473,3 +495,4 @@ class ExperimentConfig:
     peft: PeftConfig | None = None
     template: TemplateConfig | None = None
     generation_decoding: DecodingConfig | None = None
+    hub: HubConfig | None = None
