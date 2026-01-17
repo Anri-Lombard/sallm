@@ -58,4 +58,5 @@ training:
   prediction_loss_only: true
   ddp_find_unused_parameters: false
   torch_compile: false
+  gradient_checkpointing: false  # Disabled due to transformers xLSTM bug: mlstm_backend returns >2 values
   dataloader_num_workers: 8

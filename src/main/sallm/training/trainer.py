@@ -43,7 +43,8 @@ class CustomTrainer(Trainer):
         grand_total_loss = 0.0
         grand_total_samples = 0
 
-        model = self._wrap_model(self.model, training=False, dataloader=None)
+        # Use the prepared model directly (same as super().evaluate())
+        model = self.model
         model.eval()
 
         if self._signature_columns is None:
@@ -59,16 +60,52 @@ class CustomTrainer(Trainer):
 
             dataloader: DataLoader = self.get_eval_dataloader(lang_dataset)
             total_loss, num_samples = 0.0, 0
+            nan_count = 0
 
             with torch.no_grad():
-                for batch in dataloader:
+                for batch_idx, batch in enumerate(dataloader):
                     batch = self._prepare_inputs(batch)
+
+                    # Skip batches where all labels are masked (ignore_index = -100)
+                    if "labels" in batch:
+                        labels = batch["labels"]
+                        valid_labels = (labels != -100).any()
+                        if not valid_labels:
+                            # All labels are masked, skip this batch
+                            if self.is_world_process_zero():
+                                print(
+                                    f"DEBUG: lang={lang}, batch {batch_idx}: "
+                                    "all labels masked, skipping",
+                                    flush=True,
+                                )
+                            continue
+
                     model_inputs = {k: v for k, v in batch.items() if k in model_args}
+                    model_inputs["use_cache"] = False  # Prevent Mamba2Cache in outputs
                     outputs = model(**model_inputs)
                     loss = outputs.loss
+                    loss_val = loss.item()
                     batch_size = batch["input_ids"].size(0)
-                    total_loss += loss.item() * batch_size
+
+                    if math.isnan(loss_val):
+                        # This shouldn't happen now, but log if it does
+                        nan_count += 1
+                        if self.is_world_process_zero():
+                            print(
+                                f"WARNING: lang={lang}, batch {batch_idx}: "
+                                "NAN loss despite valid labels! Skipping.",
+                                flush=True,
+                            )
+                        continue
+
+                    total_loss += loss_val * batch_size
                     num_samples += batch_size
+
+            if self.is_world_process_zero() and nan_count > 0:
+                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx+1} "
+                msg += f"batches had nan loss, total_loss={total_loss}, "
+                msg += f"num_samples={num_samples}"
+                print(msg, flush=True)
 
             all_losses = self.accelerator.gather(
                 torch.tensor(total_loss, device=self.args.device)
@@ -92,14 +129,35 @@ class CustomTrainer(Trainer):
 
                 per_language_metrics_for_wandb[f"eval/{lang}_loss"] = avg_loss
                 per_language_metrics_for_wandb[f"eval/{lang}_perplexity"] = perplexity
+                # Debug logging
+                if self.is_world_process_zero():
+                    msg = f"DEBUG: lang={lang}, avg_loss={avg_loss:.4f}, "
+                    msg += f"samples={total_samples_agg}, "
+                    msg += f"grand_total_loss_so_far={grand_total_loss:.4f}, "
+                    msg += f"grand_total_samples_so_far={grand_total_samples}"
+                    print(msg, flush=True)
 
         if self.is_world_process_zero() and per_language_metrics_for_wandb:
             wandb.log(per_language_metrics_for_wandb, step=self.state.global_step)
+            msg = f"DEBUG: Logged {len(per_language_metrics_for_wandb)} "
+            msg += "per-language metrics to wandb"
+            print(msg, flush=True)
 
         metrics_to_return = {}
         if grand_total_samples > 0:
             overall_loss = grand_total_loss / grand_total_samples
+            if self.is_world_process_zero():
+                msg = "DEBUG: Computing overall eval_loss: "
+                msg += f"{grand_total_loss:.4f} / {grand_total_samples} = "
+                msg += f"{overall_loss}"
+                print(msg, flush=True)
             metrics_to_return[f"{metric_key_prefix}_loss"] = overall_loss
+        else:
+            if self.is_world_process_zero():
+                print(
+                    "DEBUG: grand_total_samples is 0! Cannot compute eval_loss",
+                    flush=True,
+                )
 
         runtime = time.time() - start_time
         metrics_to_return[f"{metric_key_prefix}_runtime"] = runtime
@@ -150,7 +208,8 @@ class CustomSFTTrainer(SFTTrainer):
         grand_total_loss = 0.0
         grand_total_samples = 0
 
-        model = self._wrap_model(self.model, training=False, dataloader=None)
+        # Use the prepared model directly (same as super().evaluate())
+        model = self.model
         model.eval()
 
         if self._signature_columns is None:
@@ -166,16 +225,52 @@ class CustomSFTTrainer(SFTTrainer):
 
             dataloader: DataLoader = self.get_eval_dataloader(lang_dataset)
             total_loss, num_samples = 0.0, 0
+            nan_count = 0
 
             with torch.no_grad():
-                for batch in dataloader:
+                for batch_idx, batch in enumerate(dataloader):
                     batch = self._prepare_inputs(batch)
+
+                    # Skip batches where all labels are masked (ignore_index = -100)
+                    if "labels" in batch:
+                        labels = batch["labels"]
+                        valid_labels = (labels != -100).any()
+                        if not valid_labels:
+                            # All labels are masked, skip this batch
+                            if self.is_world_process_zero():
+                                print(
+                                    f"DEBUG: lang={lang}, batch {batch_idx}: "
+                                    "all labels masked, skipping",
+                                    flush=True,
+                                )
+                            continue
+
                     model_inputs = {k: v for k, v in batch.items() if k in model_args}
+                    model_inputs["use_cache"] = False  # Prevent Mamba2Cache in outputs
                     outputs = model(**model_inputs)
                     loss = outputs.loss
+                    loss_val = loss.item()
                     batch_size = batch["input_ids"].size(0)
-                    total_loss += loss.item() * batch_size
+
+                    if math.isnan(loss_val):
+                        # This shouldn't happen now, but log if it does
+                        nan_count += 1
+                        if self.is_world_process_zero():
+                            print(
+                                f"WARNING: lang={lang}, batch {batch_idx}: "
+                                "NAN loss despite valid labels! Skipping.",
+                                flush=True,
+                            )
+                        continue
+
+                    total_loss += loss_val * batch_size
                     num_samples += batch_size
+
+            if self.is_world_process_zero() and nan_count > 0:
+                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx+1} "
+                msg += f"batches had nan loss, total_loss={total_loss}, "
+                msg += f"num_samples={num_samples}"
+                print(msg, flush=True)
 
             all_losses = self.accelerator.gather(
                 torch.tensor(total_loss, device=self.args.device)
@@ -199,14 +294,35 @@ class CustomSFTTrainer(SFTTrainer):
 
                 per_language_metrics_for_wandb[f"eval/{lang}_loss"] = avg_loss
                 per_language_metrics_for_wandb[f"eval/{lang}_perplexity"] = perplexity
+                # Debug logging
+                if self.is_world_process_zero():
+                    msg = f"DEBUG: lang={lang}, avg_loss={avg_loss:.4f}, "
+                    msg += f"samples={total_samples_agg}, "
+                    msg += f"grand_total_loss_so_far={grand_total_loss:.4f}, "
+                    msg += f"grand_total_samples_so_far={grand_total_samples}"
+                    print(msg, flush=True)
 
         if self.is_world_process_zero() and per_language_metrics_for_wandb:
             wandb.log(per_language_metrics_for_wandb, step=self.state.global_step)
+            msg = f"DEBUG: Logged {len(per_language_metrics_for_wandb)} "
+            msg += "per-language metrics to wandb"
+            print(msg, flush=True)
 
         metrics_to_return = {}
         if grand_total_samples > 0:
             overall_loss = grand_total_loss / grand_total_samples
+            if self.is_world_process_zero():
+                msg = "DEBUG: Computing overall eval_loss: "
+                msg += f"{grand_total_loss:.4f} / {grand_total_samples} = "
+                msg += f"{overall_loss}"
+                print(msg, flush=True)
             metrics_to_return[f"{metric_key_prefix}_loss"] = overall_loss
+        else:
+            if self.is_world_process_zero():
+                print(
+                    "DEBUG: grand_total_samples is 0! Cannot compute eval_loss",
+                    flush=True,
+                )
 
         runtime = time.time() - start_time
         metrics_to_return[f"{metric_key_prefix}_runtime"] = runtime
