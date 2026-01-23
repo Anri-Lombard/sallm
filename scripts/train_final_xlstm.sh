@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --account=l40sfree
 #SBATCH --partition=l40s
+#SBATCH --gres=gpu:l40s:4
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=4
-#SBATCH --cpus-per-gpu=2
+#SBATCH --cpus-per-task=8
 #SBATCH --job-name="sallm-xlstm"
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
