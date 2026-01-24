@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
-#SBATCH --partition=a100
-#SBATCH --gres=gpu:ampere:2
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
+#SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
