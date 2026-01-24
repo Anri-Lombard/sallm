@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
-#SBATCH --partition=a100
-#SBATCH --gres=gpu:ampere:2
+#SBATCH --account=l40sfree
+#SBATCH --partition=l40s
+#SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
@@ -20,9 +20,12 @@ exec > >(tee -a "logs/hpo-ner_all-resume-${SLURM_JOB_ID}.out") 2>&1
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
+mkdir -p "$TRITON_CACHE_DIR"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
+export HF_TOKEN=$(cat ~/.huggingface/token)
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
@@ -38,6 +41,23 @@ export PATH="$HOME/.local/bin:$PATH"
 cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
+
+# Install Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
+# Wheels are cached so this is fast
+echo "--- Mamba CUDA kernel status ---"
+if ! python -c "from mamba_ssm import Mamba2" 2>/dev/null; then
+    echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
+    python -m pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5
+fi
+python -c "
+try:
+    from mamba_ssm import Mamba2
+    from causal_conv1d import causal_conv1d_fn
+    print('✓ Mamba fast path (CUDA kernels) available')
+except ImportError as e:
+    print(f'ℹ Using HF Transformers native Mamba implementation: {e}')
+"
+echo "-------------------------------"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 

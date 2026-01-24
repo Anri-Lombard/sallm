@@ -22,7 +22,7 @@ parameters:
   training.gradient_accumulation_steps:
     values: [2, 4]
   training.per_device_train_batch_size:
-    values: [4, 8]
+    values: [4]  # Removed 8 due to OOM on L40S GPUs
   training.num_train_epochs:
     values: [1, 2, 3]
   training.gradient_checkpointing:
@@ -51,6 +51,7 @@ parameters:
     values: [0.5, 0.6, 0.7]
 
   # Task weights (log scale for up/down weighting flexibility)
+  # t2x fixed at 1.0 as reference, others tuned relative to it
   dataset.mix_weights.sib:
     distribution: log_uniform_values
     min: 0.5
@@ -63,21 +64,17 @@ parameters:
     distribution: log_uniform_values
     min: 0.5
     max: 5.0
-  dataset.mix_weights.pos:
-    distribution: log_uniform_values
-    min: 1.0
-    max: 8.0
   dataset.mix_weights.afrihg:
     distribution: log_uniform_values
     min: 0.2
     max: 2.0
   dataset.mix_weights.t2x:
-    value: 1.0  # Fixed as reference
+    value: 1.0
 
   training.eval_strategy:
     value: steps
   training.eval_steps:
-    value: 50
+    value: 500
 command:
   - ${env}
   - python

@@ -34,6 +34,8 @@ fi
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
+mkdir -p "$TRITON_CACHE_DIR"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
@@ -63,15 +65,19 @@ cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
 
+# Install Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
 echo "--- Mamba CUDA kernel status ---"
+if ! python -c "from mamba_ssm import Mamba2" 2>/dev/null; then
+    echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
+    python -m pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5
+fi
 python -c "
 try:
-    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    from mamba_ssm import Mamba2
     from causal_conv1d import causal_conv1d_fn
     print('✓ Mamba fast path (CUDA kernels) available')
-except ImportError:
-    print('ℹ Using HF Transformers native Mamba implementation (no CUDA kernels)')
-    print('  This is expected and will work correctly, just slightly slower.')
+except ImportError as e:
+    print(f'ℹ Using HF Transformers native Mamba implementation: {e}')
 "
 echo "-------------------------------"
 
