@@ -52,33 +52,39 @@ cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
 
-# Install Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
+# Install CUDA kernels based on model type
 echo "--- CUDA kernel status ---"
-# Test if mamba-ssm imports correctly (CUDA symbol compatibility)
-if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
-    echo "✓ Mamba fast path (CUDA kernels) available"
-else
-    echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-    pip uninstall -y mamba-ssm causal-conv1d 2>/dev/null || true
-    pip install --no-cache-dir --no-build-isolation mamba-ssm causal-conv1d 2>&1
-    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
-        echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl causes OOM)."
-        exit 1
+IS_MAMBA=false
+IS_XLSTM=false
+[[ "$CONFIG_NAME" == *mamba* ]] && IS_MAMBA=true
+[[ "$CONFIG_NAME" == *xlstm* ]] && IS_XLSTM=true
+
+if $IS_MAMBA; then
+    if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
+        echo "✓ Mamba fast path (CUDA kernels) available"
+    else
+        echo "Mamba kernels missing or ABI mismatch, rebuilding..."
+        pip uninstall -y mamba-ssm causal-conv1d 2>/dev/null || true
+        pip install --no-cache-dir --no-build-isolation mamba-ssm causal-conv1d 2>&1
+        if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
+            echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl causes OOM)."
+            exit 1
+        fi
+        echo "✓ Mamba fast path (CUDA kernels) available"
     fi
-    echo "✓ Mamba fast path (CUDA kernels) available"
 fi
-# xLSTM kernels
-if ! python -c "from mlstm_kernels import mlstm" 2>/dev/null; then
-    echo "Installing mlstm-kernels..."
-    pip install mlstm-kernels 2>&1 | tail -5
+
+if $IS_XLSTM; then
+    if ! python -c "from mlstm_kernels import mlstm" 2>/dev/null; then
+        echo "Installing mlstm-kernels..."
+        pip install mlstm-kernels 2>&1 | tail -5
+    fi
+    if python -c "from mlstm_kernels import mlstm" 2>/dev/null; then
+        echo "✓ xLSTM fast path (Triton kernels) available"
+    else
+        echo "ℹ Using xLSTM native implementation"
+    fi
 fi
-python -c "
-try:
-    from mlstm_kernels import mlstm
-    print('✓ xLSTM fast path (Triton kernels) available')
-except ImportError as e:
-    print(f'ℹ Using xLSTM native implementation')
-"
 echo "-------------------------------"
 
 # Set PyTorch CUDA allocation config
