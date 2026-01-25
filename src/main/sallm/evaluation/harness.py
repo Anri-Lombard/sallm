@@ -45,6 +45,12 @@ def _load_tokenizer_and_pretrained(
         except Exception:
             pretrained_id = str(checkpoint_path)
 
+    def _is_hf_hub_path(path_str: str) -> bool:
+        if path_str.startswith(("/", ".", "~")):
+            return False
+        parts = path_str.split("/")
+        return len(parts) == 2 and all(p and not p.startswith(".") for p in parts)
+
     adapter_tokenizer = None
     if adapter_path:
         candidate = Path(adapter_path)
@@ -57,6 +63,16 @@ def _load_tokenizer_and_pretrained(
             )
             if any((candidate / name).exists() for name in tokenizer_files):
                 adapter_tokenizer = candidate
+        elif _is_hf_hub_path(adapter_path):
+            # Try loading tokenizer from HF hub adapter
+            try:
+                logger.info("Loading tokenizer from HF hub adapter: %s", adapter_path)
+                tok = AutoTokenizer.from_pretrained(
+                    adapter_path, trust_remote_code=trust_remote_code
+                )
+                return tok, pretrained_id
+            except Exception:
+                logger.info("Adapter has no tokenizer, falling back to base checkpoint")
 
     tokenizer_root = adapter_tokenizer
     if tokenizer_root is None and checkpoint_path.exists():
@@ -96,6 +112,7 @@ def load_model_and_tokenizer(
     tokenizer.backend_tokenizer.decoder = ByteLevel()
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"  # Required for decoder-only model generation
 
     torch_dtype = _resolve_dtype(model_cfg.dtype)
     logger.info("Loading model weights from %s", pretrained_id)

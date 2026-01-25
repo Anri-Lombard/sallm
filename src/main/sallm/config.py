@@ -78,7 +78,19 @@ class ModelEvalConfig:
         used_adapter_fallback = False
         last_checked: Path | None = None
 
+        def _is_hf_hub_path(path_str: str) -> bool:
+            """Check if path looks like a HuggingFace Hub identifier (org/model)."""
+            if path_str.startswith(("/", ".", "~")):
+                return False
+            parts = path_str.split("/")
+            return len(parts) == 2 and all(p and not p.startswith(".") for p in parts)
+
         for cp in candidates:
+            # Allow HuggingFace Hub paths without local check
+            if _is_hf_hub_path(cp):
+                self.checkpoint = cp
+                return
+
             checkpoint_path = Path(cp)
             last_checked = checkpoint_path
             if checkpoint_path.exists():
@@ -161,7 +173,7 @@ class ModelEvalConfig:
 
         if self.peft_adapter:
             adapter_path = Path(self.peft_adapter)
-            if not adapter_path.exists():
+            if not adapter_path.exists() and not _is_hf_hub_path(self.peft_adapter):
                 raise ValueError(
                     f"PEFT adapter path '{self.peft_adapter}' does not exist."
                 )

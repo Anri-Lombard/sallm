@@ -79,6 +79,18 @@ try:
 except ImportError as e:
     print(f'ℹ Using HF Transformers native Mamba implementation: {e}')
 "
+# xLSTM kernels
+if ! python -c "from mlstm_kernels import mlstm" 2>/dev/null; then
+    echo "Installing mlstm-kernels..."
+    pip install mlstm-kernels 2>&1 | tail -5
+fi
+python -c "
+try:
+    from mlstm_kernels import mlstm
+    print('✓ xLSTM fast path (Triton kernels) available')
+except ImportError as e:
+    print(f'ℹ Using xLSTM native implementation')
+"
 echo "-------------------------------"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True

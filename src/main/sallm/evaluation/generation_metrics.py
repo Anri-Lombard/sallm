@@ -245,8 +245,8 @@ class GenerationEvaluator:
                     )
 
                     for b_idx in range(outputs.shape[0]):
-                        prompt_len = int(input_lengths[b_idx].item())
-                        gen_seq = outputs[b_idx][prompt_len:]
+                        # Left-padding: generated tokens start after input
+                        gen_seq = outputs[b_idx][input_ids.shape[1] :]
                         generated_text = self.tokenizer.decode(
                             gen_seq,
                             skip_special_tokens=self.skip_special_tokens,

@@ -1,18 +1,16 @@
 mode: EVALUATE
 
 eval_model:
-  checkpoint: "anrilombard/sallm-mamba-125m"
-  peft_adapter: "anrilombard/sallm-mamba-afrihg_xho"
+  checkpoint: "anrilombard/sallm-xlstm-125m"
   dtype: "bfloat16"
   device: "cuda:0"
-  merge_lora: true
 
 evaluation:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_afrihg_xho_beam_rp"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_t2x_xho_beam_rp"
   generation_tasks:
-    - id: "afrihg_xho"
+    - id: "t2x_xho"
       split: "test"
-      max_new_tokens: 128
+      max_new_tokens: 256
       max_samples_per_lang: null
       decoding:
         strategy: "beam"
@@ -20,16 +18,16 @@ evaluation:
         repetition_penalty: 1.2
         no_repeat_ngram_size: 3
       dataset:
-        hf_name: "github:dadelani/AfriHG"
+        hf_name: "github:francois-meyer/t2x"
         subset: "xho"
         splits: {train: "train", val: "validation", test: "test"}
         task: INSTRUCTION
         templates:
-          - {id: "afrihg_headline/v1", weight: 1}
+          - {id: "t2x_verbalisation/v1", weight: 1}
         template_choice: ALL
         packing: false
         assistant_only_loss: true
-        max_seq_length: 2048
+        max_seq_length: 1024
 
 tokenizer: null
 model: null
@@ -41,4 +39,4 @@ template: null
 
 wandb:
   project: "sallm-eval"
-  name: "eval-mamba-125m-afrihg-xho"
+  name: "eval-xlstm-125m-t2x-xho"
