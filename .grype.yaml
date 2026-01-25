@@ -25,3 +25,11 @@ ignore:
     package:
       name: pip
     expires: "2026-02-16"
+
+  # Accepted risk: protobuf JSON recursion bypass DoS (CVE-2026-0994)
+  # No patched version available yet (affects all versions through 6.33.4).
+  # Monitor for upstream fix: https://github.com/advisories/GHSA-7gcm-g887-7qv7
+  - vulnerability: GHSA-7gcm-g887-7qv7
+    package:
+      name: protobuf
+    expires: "2026-03-01"
