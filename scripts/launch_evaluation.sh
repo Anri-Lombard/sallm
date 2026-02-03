@@ -49,7 +49,7 @@ set -u
 
 export PATH="$HOME/.local/bin:$PATH"
 cd "$HOME/masters/sallm"
-uv sync --frozen
+uv sync --frozen --inexact
 source .venv/bin/activate
 
 # Install CUDA kernels based on model type
@@ -64,8 +64,8 @@ if $IS_MAMBA; then
         echo "✓ Mamba fast path (CUDA kernels) available"
     else
         echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-        pip uninstall -y mamba-ssm causal-conv1d 2>/dev/null || true
-        pip install --no-cache-dir --no-build-isolation mamba-ssm causal-conv1d 2>&1
+        uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
+        uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
         if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
             echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl causes OOM)."
             exit 1
@@ -75,14 +75,16 @@ if $IS_MAMBA; then
 fi
 
 if $IS_XLSTM; then
-    if ! python -c "from mlstm_kernels import mlstm" 2>/dev/null; then
-        echo "Installing mlstm-kernels..."
-        pip install mlstm-kernels 2>&1 | tail -5
-    fi
-    if python -c "from mlstm_kernels import mlstm" 2>/dev/null; then
-        echo "✓ xLSTM fast path (Triton kernels) available"
+    if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
+        echo "✓ xLSTM fast path (NX-AI kernels) available"
     else
-        echo "ℹ Using xLSTM native implementation"
+        echo "Installing xlstm package..."
+        uv pip install xlstm 2>&1 | tail -5 || true
+        if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
+            echo "✓ xLSTM fast path (NX-AI kernels) available"
+        else
+            echo "ℹ Using xLSTM native implementation"
+        fi
     fi
 fi
 echo "-------------------------------"

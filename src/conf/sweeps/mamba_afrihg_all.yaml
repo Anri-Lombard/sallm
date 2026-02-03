@@ -1,6 +1,7 @@
 name: hpo-mamba-afrihg-all
 project: sallm-ft
 method: bayes
+run_cap: 50
 metric:
   name: eval/all_rougeL
   goal: maximize

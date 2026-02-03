@@ -6,7 +6,7 @@ wandb:
 
 model:
   architecture: "xlstm"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m/final_model"
+  init_checkpoint: "anrilombard/sallm-xlstm-125m"
 
 peft:
   method: "lora"
@@ -49,9 +49,8 @@ training:
   gradient_accumulation_steps: 4
   num_train_epochs: 5
   max_grad_norm: 1.0
-  bf16: true
+  bf16: false
   gradient_checkpointing: true
-  label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true
   eval_strategy: "epoch"

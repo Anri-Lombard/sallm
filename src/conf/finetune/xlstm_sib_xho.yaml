@@ -31,7 +31,7 @@ hub:
 mode: FINETUNE
 model:
   architecture: xlstm
-  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m/final_model
+  init_checkpoint: "anrilombard/sallm-xlstm-125m"
 peft:
   kwargs:
     lora_alpha: 512
@@ -48,7 +48,7 @@ tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
   adam_beta2: 0.95
-  bf16: true
+  bf16: false
   dataloader_num_workers: 8
   ddp_find_unused_parameters: true
   eval_accumulation_steps: 1

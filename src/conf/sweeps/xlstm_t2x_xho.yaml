@@ -1,6 +1,7 @@
 name: hpo-xlstm-t2x-xho
 project: sallm-ft
 method: bayes
+run_cap: 50
 metric:
   name: eval/all_rougeL
   goal: maximize
@@ -20,13 +21,13 @@ parameters:
   training.gradient_accumulation_steps:
     values: [2, 4]
   training.per_device_train_batch_size:
-    values: [16, 32]
+    values: [8, 16]
   training.num_train_epochs:
     values: [2, 3, 5]
   training.gradient_checkpointing:
-    values: [true, false]
+    value: true
   dataset.max_seq_length:
-    values: [1024, 2048]
+    values: [512, 1024]
   peft.method:
     value: lora
   peft.kwargs.r:

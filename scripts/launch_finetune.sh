@@ -52,14 +52,14 @@ set -u
 
 export PATH="$HOME/.local/bin:$PATH"
 cd "$HOME/masters/sallm"
-uv sync --frozen
+uv sync --frozen --inexact
 source .venv/bin/activate
 
 # Install Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
 echo "--- Mamba CUDA kernel status ---"
 if ! python -c "from mamba_ssm import Mamba2" 2>/dev/null; then
     echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
-    python -m pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5
+    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5
 fi
 python -c "
 try:
