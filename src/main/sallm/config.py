@@ -10,17 +10,6 @@ from sallm.utils import RunMode
 
 
 @dataclass
-class ScriptArguments:
-    config_path: str = field(
-        metadata={"help": "Path to the main YAML experiment config file."}
-    )
-    wandb_run_id: str | None = field(
-        default=None,
-        metadata={"help": "Wandb run ID to resume a specific crashed trial."},
-    )
-
-
-@dataclass
 class ParamRangeConfig:
     min_params_m: float = MISSING
     max_params_m: float = MISSING

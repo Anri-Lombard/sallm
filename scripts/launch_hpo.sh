@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SWEEP_ARG="${1:-}"
-COUNT="${2:-10}"
+COUNT="${2:-50}"
 SWEEP_DIR="src/conf/sweeps"
 
 SWEEP_NAME="${SWEEP_ARG%.yaml}"

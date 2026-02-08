@@ -16,12 +16,14 @@ set -euo pipefail
 export MKL_INTERFACE_LAYER=LP64,INTEL64
 
 CONFIG="base/mamba_125m.yaml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/auth.sh"
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export HF_HOME="$SCRATCH/hf"
-export HF_TOKEN="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"
+load_hf_token || true
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
