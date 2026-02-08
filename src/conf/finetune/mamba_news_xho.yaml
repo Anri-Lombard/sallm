@@ -4,7 +4,7 @@ wandb: {project: "sallm-ft", name: "mamba-125m-news-xho"}
 
 model:
   architecture: "mamba2"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+  init_checkpoint: "anrilombard/sallm-mamba-125m"
 
 peft:
   method: "lora"

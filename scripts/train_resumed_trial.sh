@@ -9,24 +9,32 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-# set -e
+set -euo pipefail
 
-CONFIG_PATH="$1"
+CONFIG_NAME="$1"
 WANDB_RUN_ID="$2"
+RESUME_CHECKPOINT="${3:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/auth.sh"
 
-if [ -z "$CONFIG_PATH" ] || [ -z "$WANDB_RUN_ID" ]; then
+if [[ -z "$CONFIG_NAME" || -z "$WANDB_RUN_ID" ]]; then
     echo "Error: Missing arguments."
-    echo "Usage: $0 <config_path> <wandb_run_id>"
+    echo "Usage: $0 <config_name> <wandb_run_id> [resume_checkpoint_path]"
     exit 1
 fi
 
-#SBATCH --job-name="sallm-resume-${WANDB_RUN_ID}"
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+  scontrol update JobId="$SLURM_JOB_ID" JobName="resume-${WANDB_RUN_ID}"
+  mkdir -p logs
+  exec > >(tee -a "logs/resume-${WANDB_RUN_ID}-${SLURM_JOB_ID}.out") 2>&1
+fi
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+load_hf_token || true
 
 echo "Setting up environment for resumed run ${WANDB_RUN_ID}..."
 module load python/miniconda3-py3.12
@@ -44,8 +52,21 @@ source .venv/bin/activate
 export HYDRA_FULL_ERROR=1
 
 echo "Launching resumed training run..."
-accelerate launch --num_processes 4 --num_machines 1 --mixed_precision bf16 --dynamo_backend no src/main/sallm/main.py \
-    --config_path "$CONFIG_PATH" \
-    --wandb_run_id "$WANDB_RUN_ID"
+cmd=(
+  accelerate launch
+  --num_processes 4
+  --num_machines 1
+  --mixed_precision bf16
+  --dynamo_backend no
+  -m sallm.main
+  --config-name "$CONFIG_NAME"
+  "wandb.id=$WANDB_RUN_ID"
+)
+
+if [[ -n "$RESUME_CHECKPOINT" ]]; then
+  cmd+=("training.resume_from_checkpoint=$RESUME_CHECKPOINT")
+fi
+
+"${cmd[@]}"
 
 echo "Resumed training run finished."

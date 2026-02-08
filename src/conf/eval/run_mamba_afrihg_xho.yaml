@@ -1,21 +1,24 @@
 mode: EVALUATE
 
 eval_model:
-  checkpoint: "anrilombard/sallm-mamba-afrihg_xho"
-  adapter: "hf"
+  checkpoint: "anrilombard/sallm-mamba-125m"
+  peft_adapter: "anrilombard/sallm-mamba-afrihg_xho"
   dtype: "bfloat16"
   device: "cuda:0"
-  merge_lora: false
+  merge_lora: true
 
 evaluation:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_afrihg_xho"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_afrihg_xho_beam_rp"
   generation_tasks:
     - id: "afrihg_xho"
       split: "test"
-      max_new_tokens: 2048
+      max_new_tokens: 128
       max_samples_per_lang: null
       decoding:
-        strategy: "greedy"
+        strategy: "beam"
+        num_beams: 5
+        repetition_penalty: 1.2
+        no_repeat_ngram_size: 3
       dataset:
         hf_name: "github:dadelani/AfriHG"
         subset: "xho"

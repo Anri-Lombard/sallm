@@ -30,7 +30,7 @@ set -u
 
 export PATH="$HOME/.local/bin:$PATH"
 cd "$HOME/masters/sallm"
-uv sync --frozen
+uv sync --frozen --inexact
 source .venv/bin/activate
 
 export MAMBA_SCAN_IMPL="cuda"

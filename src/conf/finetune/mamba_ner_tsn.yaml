@@ -4,7 +4,7 @@ wandb: {project: "sallm-ft", name: "mamba-125m-ner-tsn"}
 
 model:
   architecture: "mamba2"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-mamba-125m/final_model"
+  init_checkpoint: "anrilombard/sallm-mamba-125m"
 
 peft:
   method: "lora"
@@ -16,7 +16,8 @@ peft:
 
 dataset:
   hf_name: "masakhane/masakhaner2"
-  subset: "tsn"
+  subset: null
+  languages: ["tsn"]
   task: NAMED_ENTITY_RECOGNITION
   splits: {train: "train", val: "validation"}
   templates:

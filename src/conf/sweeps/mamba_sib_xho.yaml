@@ -1,6 +1,7 @@
 name: hpo-mamba-sib-xho
 project: sallm-ft
 method: bayes
+run_cap: 50
 metric:
   name: classification/all_accuracy
   goal: maximize

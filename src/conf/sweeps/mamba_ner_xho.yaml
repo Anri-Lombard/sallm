@@ -1,6 +1,7 @@
 name: hpo-mamba-ner-xho
 project: sallm-ft
 method: bayes
+run_cap: 50
 metric:
   name: eval/all_chrf
   goal: maximize

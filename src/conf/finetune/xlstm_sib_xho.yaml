@@ -1,0 +1,74 @@
+dataset:
+  assistant_only_loss: true
+  hf_name: Davlan/sib200
+  label_column: category
+  max_seq_length: 1024
+  packing: false
+  splits:
+    train: train
+    val: validation
+  subset: xho_Latn
+  task: CLASSIFICATION
+  template_choice: CYCLE
+  templates:
+    - id: sib_topic_classification/lm_eval_p1
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p2
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p3
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p4
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p5
+      weight: 1.0
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false
+  base_model_id: anrilombard/sallm-xlstm-125m
+mode: FINETUNE
+model:
+  architecture: xlstm
+  init_checkpoint: "anrilombard/sallm-xlstm-125m"
+peft:
+  kwargs:
+    lora_alpha: 512
+    lora_dropout: 0.1
+    r: 256
+    target_modules:
+      - q
+      - k
+      - v
+      - out_proj
+      - embeddings
+  method: lora
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
+training:
+  adam_beta2: 0.95
+  bf16: false
+  dataloader_num_workers: 8
+  ddp_find_unused_parameters: true
+  eval_accumulation_steps: 1
+  eval_strategy: epoch
+  gradient_accumulation_steps: 2
+  gradient_checkpointing: true
+  learning_rate: 9.23415716207728e-05
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sib_xho
+  logging_steps: 10
+  lr_scheduler_type: constant_with_warmup
+  max_grad_norm: 1.0
+  num_train_epochs: 10
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sib_xho
+  per_device_eval_batch_size: 4
+  per_device_train_batch_size: 16
+  report_to: wandb
+  run_name: xlstm-125m-sib-lora-xho
+  save_strategy: 'no'
+  warmup_ratio: 0
+  weight_decay: 0.1340385821569752
+wandb:
+  name: xlstm-125m-sib-xho
+  project: sallm-ft
