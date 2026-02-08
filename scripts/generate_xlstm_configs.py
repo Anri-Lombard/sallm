@@ -6,9 +6,9 @@ This script reads Mamba monolingual finetune configs and transforms them
 into corresponding xLSTM configs with appropriate architectural changes.
 """
 
-import yaml
 from pathlib import Path
 
+import yaml
 
 # Task to language mapping
 TASKS = {
