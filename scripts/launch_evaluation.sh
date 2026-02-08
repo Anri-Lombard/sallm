@@ -8,11 +8,16 @@
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
-CONFIG_NAME="$1"
-if [ -z "$CONFIG_NAME" ]; then
-    echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
+RAW_CONFIG_NAME="${1:-}"
+if [[ -z "$RAW_CONFIG_NAME" ]]; then
+    echo "Usage: sbatch $0 <config_name_without_yaml>"
+    echo "Examples:"
+    echo "  sbatch $0 run_mamba_belebele_zul"
+    echo "  sbatch $0 eval/run_mamba_belebele_zul"
+    exit 1
 fi
 
+CONFIG_NAME="${RAW_CONFIG_NAME%.yaml}"
 if [[ "$CONFIG_NAME" != */* ]]; then
     CONFIG_NAME="eval/$CONFIG_NAME"
 fi
@@ -48,9 +53,25 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+REPO_ROOT="$HOME/masters/sallm"
+cd "$REPO_ROOT"
 uv sync --frozen --inexact
 source .venv/bin/activate
+
+CONFIG_PATH="$REPO_ROOT/src/conf/${CONFIG_NAME}.yaml"
+if [[ ! -f "$CONFIG_PATH" ]]; then
+    echo "Error: config file not found: $CONFIG_PATH"
+    echo "Available eval configs:"
+    if [[ -d "$REPO_ROOT/src/conf/eval" ]]; then
+        for file in "$REPO_ROOT"/src/conf/eval/*.yaml; do
+            [[ -e "$file" ]] || continue
+            echo "  - eval/$(basename "$file" .yaml)"
+        done
+    else
+        echo "  (missing directory: $REPO_ROOT/src/conf/eval)"
+    fi
+    exit 2
+fi
 
 # Install CUDA kernels based on model type
 echo "--- CUDA kernel status ---"
