@@ -1,62 +1,68 @@
 mode: FINETUNE
-
-wandb: {project: "sallm-ft", name: "mamba-125m-ner-tsn"}
-
+wandb:
+  project: sallm-ft
+  name: mamba-125m-ner-tsn
 model:
-  architecture: "mamba2"
-  init_checkpoint: "anrilombard/sallm-mamba-125m"
-
+  architecture: mamba2
+  init_checkpoint: anrilombard/sallm-mamba-125m
 peft:
-  method: "lora"
+  method: lora
   kwargs:
-    r: 16
-    lora_alpha: 32
+    r: 128
+    lora_alpha: 256
     lora_dropout: 0.05
-    target_modules: ["in_proj", "x_proj"]
-
+    target_modules:
+      - in_proj
+      - x_proj
 dataset:
-  hf_name: "masakhane/masakhaner2"
+  hf_name: masakhane/masakhaner2
   subset: null
-  languages: ["tsn"]
+  languages:
+    - tsn
   task: NAMED_ENTITY_RECOGNITION
-  splits: {train: "train", val: "validation"}
+  splits:
+    train: train
+    val: validation
   templates:
-    - {id: "masakhane_named_entity_recognition/lm_eval_p1", weight: 1.0}
-    - {id: "masakhane_named_entity_recognition/lm_eval_p2", weight: 1.0}
-    - {id: "masakhane_named_entity_recognition/lm_eval_p3", weight: 1.0}
-    - {id: "masakhane_named_entity_recognition/lm_eval_p4", weight: 1.0}
-    - {id: "masakhane_named_entity_recognition/lm_eval_p5", weight: 1.0}
+    - id: masakhane_named_entity_recognition/lm_eval_p1
+      weight: 1.0
+    - id: masakhane_named_entity_recognition/lm_eval_p2
+      weight: 1.0
+    - id: masakhane_named_entity_recognition/lm_eval_p3
+      weight: 1.0
+    - id: masakhane_named_entity_recognition/lm_eval_p4
+      weight: 1.0
+    - id: masakhane_named_entity_recognition/lm_eval_p5
+      weight: 1.0
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_ner_tsn"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_ner_tsn"
-  run_name: "mamba-125m-ner-lora-finetune-tsn"
-  learning_rate: 0.0004496585905434496
-  weight_decay: 0.13449041980438445
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_ner_tsn
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_ner_tsn
+  run_name: mamba-125m-ner-lora-finetune-tsn
+  learning_rate: 0.00027589238152596443
+  weight_decay: 0.1393769096640122
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 16
-  lr_scheduler_type: "constant_with_warmup"
+  gradient_accumulation_steps: 8
+  lr_scheduler_type: linear
   warmup_ratio: 0
-  per_device_train_batch_size: 4
+  per_device_train_batch_size: 32
   per_device_eval_batch_size: 4
   eval_accumulation_steps: 1
-  num_train_epochs: 20
+  num_train_epochs: 15
   bf16: true
   gradient_checkpointing: true
   logging_steps: 10
-  eval_strategy: "epoch"
-  save_strategy: "no"
+  eval_strategy: epoch
+  save_strategy: 'no'
   dataloader_num_workers: 8
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: true
-
 hub:
   enabled: true
   organization: anrilombard

@@ -1,67 +1,66 @@
 mode: FINETUNE
-
 wandb:
-  project: "sallm-ft"
-  name: "mamba-125m-afrihg-zul"
-
+  project: sallm-ft
+  name: mamba-125m-afrihg-zul
 model:
-  architecture: "mamba2"
-  init_checkpoint: "anrilombard/sallm-mamba-125m"
-
+  architecture: mamba2
+  init_checkpoint: anrilombard/sallm-mamba-125m
 peft:
-  method: "lora"
+  method: lora
   kwargs:
-    r: 128
-    lora_alpha: 256
-    lora_dropout: 0.1
-    target_modules: ["in_proj", "x_proj", "embeddings"]
-
+    r: 256
+    lora_alpha: 128
+    lora_dropout: 0.05
+    target_modules:
+      - in_proj
+      - x_proj
+      - embeddings
 dataset:
-  hf_name: "github:dadelani/AfriHG"
-  subset: "zul"
-  splits: {train: "train", val: "validation"}
+  hf_name: github:dadelani/AfriHG
+  subset: zul
+  splits:
+    train: train
+    val: validation
   task: INSTRUCTION
   templates:
-    - {id: "afrihg_headline/v1", weight: 1}
+    - id: afrihg_headline/v1
+      weight: 1
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 1024
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 generation_decoding:
-  strategy: "beam"
+  strategy: beam
   num_beams: 5
   length_penalty: 0.7
   early_stopping: true
-
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_afrihg_zul"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_afrihg_zul"
-  run_name: "mamba-125m-afrihg-zul"
-  learning_rate: 0.0003101566007688548
-  weight_decay: 0.1216017246646127
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_afrihg_zul
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_afrihg_zul
+  run_name: mamba-125m-afrihg-zul
+  learning_rate: 0.0004942799455630854
+  weight_decay: 0.1054106556613136
   adam_beta2: 0.95
-  lr_scheduler_type: "cosine"
-  warmup_ratio: 0.1
-  per_device_train_batch_size: 8
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 16
   per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 4
-  num_train_epochs: 5
+  gradient_accumulation_steps: 8
+  num_train_epochs: 2
   max_grad_norm: 1.0
   bf16: true
   gradient_checkpointing: true
   label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true
-  eval_strategy: "epoch"
-  save_strategy: "no"
+  eval_strategy: epoch
+  save_strategy: 'no'
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: true
-
 hub:
   enabled: true
   organization: anrilombard
