@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --job-name=hpo-ner_all-resume
 #SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
@@ -49,33 +49,22 @@ cd "$HOME/masters/sallm"
 uv sync --frozen --inexact
 source .venv/bin/activate
 
-# Install Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
-# Wheels are cached so this is fast
+# Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
+# Wheels are cached on cluster scratch so this should stay quick.
 echo "--- Mamba CUDA kernel status ---"
-if ! python -c "from mamba_ssm import Mamba2" 2>/dev/null; then
+if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
     echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
-    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5
+    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5 || true
 fi
 python -c "
 try:
-    from mamba_ssm import Mamba2
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
     from causal_conv1d import causal_conv1d_fn
-    print('✓ Mamba fast path (CUDA kernels) available')
+    print('✓ Mamba fast path (CUDA kernels) available: selective_scan + causal_conv1d')
 except ImportError as e:
-    print(f'ℹ Using HF Transformers native Mamba implementation: {e}')
+    print(f'ℹ Mamba CUDA kernels unavailable: {e}')
+    raise SystemExit(1)
 "
-# xLSTM kernels (NX-AI package)
-if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
-    echo "✓ xLSTM fast path (NX-AI kernels) available"
-else
-    echo "Installing xlstm package..."
-    uv pip install xlstm 2>&1 | tail -5 || true
-    if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
-        echo "✓ xLSTM fast path (NX-AI kernels) available"
-    else
-        echo "ℹ Using xLSTM native implementation"
-    fi
-fi
 echo "-------------------------------"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
