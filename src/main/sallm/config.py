@@ -51,6 +51,7 @@ class ModelEvalConfig:
 
     def __post_init__(self) -> None:
         adapter_path = None
+        hub_checkpoint: str | None = None
         if self.checkpoint is None:
             raise ValueError("eval_model.checkpoint must be provided and non-empty")
 
@@ -75,10 +76,10 @@ class ModelEvalConfig:
             return len(parts) == 2 and all(p and not p.startswith(".") for p in parts)
 
         for cp in candidates:
-            # Allow HuggingFace Hub paths without local check
             if _is_hf_hub_path(cp):
                 self.checkpoint = cp
-                return
+                hub_checkpoint = cp
+                break
 
             checkpoint_path = Path(cp)
             last_checked = checkpoint_path
@@ -95,7 +96,7 @@ class ModelEvalConfig:
                 used_adapter_fallback = True
                 break
 
-        if chosen_path is None:
+        if chosen_path is None and hub_checkpoint is None:
             alt_hint = None
             if last_checked is not None:
                 parent = last_checked.parent
@@ -119,14 +120,19 @@ class ModelEvalConfig:
                 )
             raise ValueError(base_msg + suggestion)
 
-        self.checkpoint = str(chosen_path)
-        checkpoint_path = chosen_path
+        checkpoint_path: Path | None = None
+        if chosen_path is not None:
+            self.checkpoint = str(chosen_path)
+            checkpoint_path = chosen_path
+        elif hub_checkpoint is not None:
+            self.checkpoint = hub_checkpoint
 
         if used_adapter_fallback and self.merge_lora is False:
             self.merge_lora = True
 
         if (
             not self.peft_adapter
+            and checkpoint_path is not None
             and checkpoint_path.exists()
             and checkpoint_path.is_dir()
         ):
@@ -159,6 +165,16 @@ class ModelEvalConfig:
                 self.peft_adapter = str(checkpoint_path)
                 self.checkpoint = base_model_str
                 adapter_path = checkpoint_path
+        elif not self.peft_adapter and hub_checkpoint is not None:
+            try:
+                peft_config = HFPEFTConfig.from_pretrained(hub_checkpoint)
+                base_model = peft_config.base_model_name_or_path
+            except Exception:
+                base_model = None
+            if base_model:
+                self.peft_adapter = hub_checkpoint
+                self.checkpoint = str(base_model)
+                adapter_path = Path(hub_checkpoint)
 
         if self.peft_adapter:
             adapter_path = Path(self.peft_adapter)

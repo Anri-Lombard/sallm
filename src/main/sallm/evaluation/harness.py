@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
@@ -25,6 +26,61 @@ from sallm.data.t2x import load_t2x_from_github
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 
 logger = logging.getLogger(__name__)
+
+
+def _prepare_tokenizer(tokenizer: AutoTokenizer) -> AutoTokenizer:
+    tokenizer.backend_tokenizer.decoder = ByteLevel()
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"  # Required for decoder-only model generation
+    return tokenizer
+
+
+def _infer_vocab_size_from_peft_error(exc: RuntimeError) -> int | None:
+    message = str(exc)
+    if "size mismatch" not in message:
+        return None
+
+    checkpoint_max = 0
+    current_max = 0
+    for line in message.splitlines():
+        if "size mismatch for" not in line:
+            continue
+        if not any(
+            key in line for key in ("embeddings", "lm_head", "lora_embedding_A")
+        ):
+            continue
+
+        checkpoint_match = re.search(
+            r"copying a param with shape torch\.Size\(\[([0-9,\s]+)\]\)",
+            line,
+        )
+        current_match = re.search(
+            r"the shape in current model is torch\.Size\(\[([0-9,\s]+)\]\)",
+            line,
+        )
+
+        if checkpoint_match:
+            dims = [
+                int(part.strip())
+                for part in checkpoint_match.group(1).split(",")
+                if part.strip().isdigit()
+            ]
+            if dims:
+                checkpoint_max = max(checkpoint_max, max(dims))
+
+        if current_match:
+            dims = [
+                int(part.strip())
+                for part in current_match.group(1).split(",")
+                if part.strip().isdigit()
+            ]
+            if dims:
+                current_max = max(current_max, max(dims))
+
+    if checkpoint_max > current_max and checkpoint_max >= 50000:
+        return checkpoint_max
+    return None
 
 
 def _resolve_dtype(dtype_str: str) -> torch.dtype:
@@ -71,8 +127,15 @@ def _load_tokenizer_and_pretrained(
                     adapter_path, trust_remote_code=trust_remote_code
                 )
                 return tok, pretrained_id
-            except Exception:
-                logger.info("Adapter has no tokenizer, falling back to base checkpoint")
+            except Exception as exc:
+                logger.warning(
+                    (
+                        "Adapter tokenizer load failed for '%s' (%s). "
+                        "Falling back to base checkpoint."
+                    ),
+                    adapter_path,
+                    exc,
+                )
 
     tokenizer_root = adapter_tokenizer
     if tokenizer_root is None and checkpoint_path.exists():
@@ -109,10 +172,7 @@ def load_model_and_tokenizer(
         trust_remote_code=True,
         adapter_path=model_cfg.peft_adapter,
     )
-    tokenizer.backend_tokenizer.decoder = ByteLevel()
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"  # Required for decoder-only model generation
+    tokenizer = _prepare_tokenizer(tokenizer)
 
     torch_dtype = _resolve_dtype(model_cfg.dtype)
     logger.info("Loading model weights from %s", pretrained_id)
@@ -135,7 +195,53 @@ def load_model_and_tokenizer(
 
     if model_cfg.peft_adapter:
         logger.info("Loading PEFT adapter from %s", model_cfg.peft_adapter)
-        model = PeftModel.from_pretrained(model, model_cfg.peft_adapter)
+        try:
+            model = PeftModel.from_pretrained(model, model_cfg.peft_adapter)
+        except RuntimeError as exc:
+            target_vocab = _infer_vocab_size_from_peft_error(exc)
+            adapter_tokenizer = None
+            try:
+                adapter_tokenizer = AutoTokenizer.from_pretrained(
+                    model_cfg.peft_adapter, trust_remote_code=True
+                )
+                target_vocab = max(target_vocab or 0, len(adapter_tokenizer))
+            except Exception as tok_exc:
+                logger.warning(
+                    (
+                        "Unable to reload adapter tokenizer from '%s' during "
+                        "PEFT retry: %s"
+                    ),
+                    model_cfg.peft_adapter,
+                    tok_exc,
+                )
+
+            if target_vocab is None:
+                raise
+
+            current_vocab = model.get_input_embeddings().weight.shape[0]
+            if target_vocab != current_vocab:
+                logger.warning(
+                    (
+                        "Retrying PEFT adapter load after resizing embeddings "
+                        "from %d to %d."
+                    ),
+                    current_vocab,
+                    target_vocab,
+                )
+                # A failed initial PEFT load can partially wrap embeddings with LoRA
+                # modules, which breaks resize_token_embeddings. Reload a clean base.
+                model = AutoModelForCausalLM.from_pretrained(
+                    pretrained_id,
+                    torch_dtype=torch_dtype,
+                    trust_remote_code=True,
+                    low_cpu_mem_usage=True,
+                )
+                model.resize_token_embeddings(target_vocab)
+
+            if adapter_tokenizer is not None:
+                tokenizer = _prepare_tokenizer(adapter_tokenizer)
+
+            model = PeftModel.from_pretrained(model, model_cfg.peft_adapter)
         if model_cfg.merge_lora:
             logger.info("Merging LoRA weights into the base model for evaluation.")
             model = model.merge_and_unload()

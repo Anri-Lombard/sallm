@@ -1,6 +1,7 @@
 import logging
 import math
 import time
+from collections.abc import Iterable
 from pathlib import Path
 
 import torch
@@ -16,9 +17,44 @@ if is_datasets_available():
 logger = logging.getLogger(__name__)
 
 
+_MAMBA_NO_DECAY_SUFFIXES = ("A_log", "D")
+
+
+def _filter_decay_parameter_names(
+    model,
+    decay_parameter_names: Iterable[str],
+) -> list[str]:
+    """Exclude parameters that should not receive weight decay in Mamba blocks."""
+    decay_set = set(decay_parameter_names)
+    mamba_no_decay = set()
+    for name, parameter in model.named_parameters():
+        if name not in decay_set:
+            continue
+        if getattr(parameter, "_no_weight_decay", False):
+            mamba_no_decay.add(name)
+            continue
+        if any(
+            name == suffix or name.endswith(f".{suffix}")
+            for suffix in _MAMBA_NO_DECAY_SUFFIXES
+        ):
+            mamba_no_decay.add(name)
+
+    filtered = sorted(decay_set - mamba_no_decay)
+    if mamba_no_decay:
+        logger.info(
+            "Excluded %d Mamba parameters from weight decay.",
+            len(mamba_no_decay),
+        )
+    return filtered
+
+
 # TODO rename to something more appropriate since different models will use
 # different trainers
 class CustomTrainer(Trainer):
+    def get_decay_parameter_names(self, model) -> list[str]:
+        decay_parameter_names = super().get_decay_parameter_names(model)
+        return _filter_decay_parameter_names(model, decay_parameter_names)
+
     def evaluate(
         self,
         eval_dataset: datasets.Dataset | None = None,
@@ -184,6 +220,10 @@ class CustomTrainer(Trainer):
 
 class CustomSFTTrainer(SFTTrainer):
     """SFTTrainer with per-language evaluation metrics for foundation model training."""
+
+    def get_decay_parameter_names(self, model) -> list[str]:
+        decay_parameter_names = super().get_decay_parameter_names(model)
+        return _filter_decay_parameter_names(model, decay_parameter_names)
 
     def evaluate(
         self,

@@ -14,46 +14,29 @@ declare -A TASK_MAP=(
     ["afrihg"]="afrihg"
 )
 
-# Configs to submit (those we updated with HPO parameters)
-CONFIGS=(
-    # news
-    "mamba_news_all"
-    "mamba_news_eng"
-    "mamba_news_xho"
-    # sib
-    "mamba_sib_all"
-    "mamba_sib_afr"
-    "mamba_sib_eng"
-    "mamba_sib_nso"
-    "mamba_sib_sot"
-    "mamba_sib_xho"
-    "mamba_sib_zul"
-    # injongointent
-    "mamba_injongointent_all"
-    "mamba_injongointent_eng"
-    "mamba_injongointent_sot"
-    "mamba_injongointent_xho"
-    "mamba_injongointent_zul"
-    # ner
-    "mamba_ner_all"
-    "mamba_ner_tsn"
-    "mamba_ner_xho"
-    "mamba_ner_zul"
-    # t2x
-    "mamba_t2x_xho"
-    # afrihg
-    "mamba_afrihg_all"
-    "mamba_afrihg_xho"
-    "mamba_afrihg_zul"
+# Discover all Mamba finetune configs automatically.
+mapfile -t CONFIGS < <(
+    find src/conf/finetune -maxdepth 1 -name 'mamba_*.yaml' -type f \
+        -exec basename {} .yaml \; | sort
 )
 
 echo "Submitting finetune and eval jobs..."
 echo "======================================="
+echo "Found ${#CONFIGS[@]} Mamba finetune configs."
 
 for cfg in "${CONFIGS[@]}"; do
-    # Extract task and lang from config name (mamba_<task>_<lang>)
-    task=$(echo "$cfg" | sed 's/mamba_\([^_]*\)_.*/\1/')
-    lang=$(echo "$cfg" | sed 's/mamba_[^_]*_//')
+    task=""
+    lang=""
+    if [[ "$cfg" =~ ^mamba_sa_general_(.+)$ ]]; then
+        task="sa_general"
+        lang="${BASH_REMATCH[1]}"
+    elif [[ "$cfg" =~ ^mamba_([^_]+)_(.+)$ ]]; then
+        task="${BASH_REMATCH[1]}"
+        lang="${BASH_REMATCH[2]}"
+    else
+        echo "WARNING: Could not parse config name '$cfg', skipping"
+        continue
+    fi
 
     # Get eval task name
     eval_task="${TASK_MAP[$task]}"

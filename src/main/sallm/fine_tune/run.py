@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import textwrap
 from pathlib import Path
@@ -45,7 +46,7 @@ def _apply_peft_if_needed(model, peft_cfg):
             target_modules=peft_kwargs.get("target_modules", ["q_proj", "v_proj"]),
             bias="none",
             task_type=peft.TaskType.CAUSAL_LM,
-            modules_to_save=["embed_tokens", "lm_head"],
+            modules_to_save=peft_kwargs.get("modules_to_save"),
         )
 
         return peft.get_peft_model(model, lora_conf)
@@ -118,7 +119,7 @@ def _save_tokenizer_with_fallback(
     if remaining:
         remaining_display = ", ".join(remaining)
         raise FileNotFoundError(
-            f"Tokenizer save missing files after fallback copy: " f"{remaining_display}"
+            f"Tokenizer save missing files after fallback copy: {remaining_display}"
         )
     logger.info(
         "Copied tokenizer files %s from %s to %s",
@@ -134,6 +135,48 @@ def _is_main_process() -> bool:
     except Exception:
         return True
     return local_rank in (-1, 0)
+
+
+def _sanitize_hf_repo_component(value: str) -> str:
+    """Normalize dynamic strings so they are safe for HF Hub repo names."""
+    component = str(value).strip()
+    component = component.replace("mix:", "")
+    component = component.replace("github:", "github-")
+    component = component.replace("/", "-")
+    component = re.sub(r"[^A-Za-z0-9._-]+", "-", component)
+    component = re.sub(r"-{2,}", "-", component)
+    component = component.strip("-.")
+    if not component:
+        return "unknown"
+    return component.lower()
+
+
+def _build_hub_repo_id(config: ExperimentConfig, *, merged: bool = False) -> str:
+    org = str(config.hub.organization).strip() if config.hub else "anrilombard"
+    arch = _sanitize_hf_repo_component(
+        config.model.architecture if config.model else "unknown"
+    )
+    hf_name = config.dataset.hf_name if config.dataset else "unknown"
+    task = _sanitize_hf_repo_component(hf_name)
+
+    if config.dataset and config.dataset.languages:
+        raw_langs = "-".join(str(lang) for lang in config.dataset.languages)
+    elif config.dataset and getattr(config.dataset, "subset", None) not in (
+        None,
+        "null",
+    ):
+        raw_langs = str(config.dataset.subset)
+    else:
+        raw_langs = "all"
+    langs = _sanitize_hf_repo_component(raw_langs)
+
+    suffix = "-merged" if merged else ""
+    repo_name = f"sallm-{arch}-{task}-{langs}{suffix}"
+    repo_name = re.sub(r"-{2,}", "-", repo_name).strip("-.")
+    if len(repo_name) > 96:
+        repo_name = repo_name[:96].rstrip("-.")
+
+    return f"{org}/{repo_name}"
 
 
 def run(config: ExperimentConfig) -> None:
@@ -353,15 +396,7 @@ def run(config: ExperimentConfig) -> None:
         logger.info(f"Saved PEFT adapter to → {output_dir}")
 
         if config.hub and config.hub.enabled and config.hub.push_adapter and i_am_main:
-            arch = config.model.architecture
-            hf_name = config.dataset.hf_name if config.dataset else "unknown"
-            task = hf_name.replace("mix:", "").replace(":", "-")
-            langs = (
-                "-".join(config.dataset.languages)
-                if config.dataset and config.dataset.languages
-                else "all"
-            )
-            repo_id = f"{config.hub.organization}/sallm-{arch}-{task}-{langs}"
+            repo_id = _build_hub_repo_id(config, merged=False)
 
             # Update base model reference to HF model ID before pushing
             if config.hub.base_model_id:
@@ -444,15 +479,7 @@ def run(config: ExperimentConfig) -> None:
     logger.info(f"Saved final MERGED model to → {output_dir}")
 
     if config.hub and config.hub.enabled and config.hub.push_merged and i_am_main:
-        arch = config.model.architecture if config.model else "unknown"
-        hf_name = config.dataset.hf_name if config.dataset else "unknown"
-        task = hf_name.replace("mix:", "").replace(":", "-")
-        langs = (
-            "-".join(config.dataset.languages)
-            if config.dataset and config.dataset.languages
-            else "all"
-        )
-        repo_id = f"{config.hub.organization}/sallm-{arch}-{task}-{langs}-merged"
+        repo_id = _build_hub_repo_id(config, merged=True)
         logger.info(f"Pushing merged model to HuggingFace Hub: {repo_id}")
         merged_model.push_to_hub(repo_id, private=config.hub.private)
         tokenizer.push_to_hub(repo_id, private=config.hub.private)

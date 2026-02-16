@@ -7,6 +7,7 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    EarlyStoppingCallback,
     TrainerCallback,
     TrainerControl,
     TrainerState,
@@ -68,10 +69,22 @@ def build_trainer(
     else:
         raise TypeError(f"Unsupported type for training config: {type(training_raw)!r}")
 
+    early_stopping_patience = training_args_dict.pop("early_stopping_patience", None)
+    early_stopping_threshold = training_args_dict.pop("early_stopping_threshold", None)
+    use_early_stopping = bool(
+        isinstance(early_stopping_patience, int)
+        and not isinstance(early_stopping_patience, bool)
+        and early_stopping_patience > 0
+    )
+    if use_early_stopping:
+        training_args_dict.setdefault("load_best_model_at_end", True)
+
+    task_type = None
     # TODO implement cleaner logic for this
     if config.mode == RunMode.FINETUNE:
         if config.dataset is None:
             raise ValueError("`dataset` config block must be provided for fine-tuning.")
+        task_type = getattr(config.dataset, "task", None)
         max_length = config.dataset.max_seq_length
         packing = bool(getattr(config.dataset, "packing", False))
         assistant_only_loss = bool(getattr(config.dataset, "assistant_only_loss", True))
@@ -89,6 +102,27 @@ def build_trainer(
             )
         packing = False
         assistant_only_loss = False
+
+    if use_early_stopping:
+        metric_name = training_args_dict.get("metric_for_best_model")
+        if not isinstance(metric_name, str) or not metric_name.strip():
+            if task_type == FinetuneTaskType.CLASSIFICATION:
+                training_args_dict["metric_for_best_model"] = (
+                    "eval_classification/all_accuracy"
+                )
+                training_args_dict.setdefault("greater_is_better", True)
+            elif task_type in (
+                FinetuneTaskType.INSTRUCTION,
+                FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
+                FinetuneTaskType.POS_TAGGING,
+            ):
+                training_args_dict["metric_for_best_model"] = "eval_all_rougeL"
+                training_args_dict.setdefault("greater_is_better", True)
+            else:
+                training_args_dict["metric_for_best_model"] = "eval_loss"
+                training_args_dict.setdefault("greater_is_better", False)
+        elif "greater_is_better" not in training_args_dict:
+            training_args_dict["greater_is_better"] = not metric_name.endswith("loss")
 
     # Ensure we don't accidentally pass duplicates for values we set explicitly
     for _k in ("max_seq_length", "max_length", "packing", "assistant_only_loss"):
@@ -135,14 +169,13 @@ def build_trainer(
         )
         callbacks.append(completions_callback)
 
-        task_type = getattr(config.dataset, "task", None)
         if task_type == FinetuneTaskType.CLASSIFICATION:
             callbacks.append(
                 ClassificationMetricsCallback(
                     eval_dataset=eval_dataset,
                     tokenizer=tokenizer,
                     max_new_tokens=32,
-                    max_samples_per_lang=64,
+                    max_samples_per_lang=None,
                     decoding=config.generation_decoding,
                 )
             )
@@ -156,6 +189,7 @@ def build_trainer(
                     eval_dataset=eval_dataset,
                     tokenizer=tokenizer,
                     max_new_tokens=64,
+                    max_samples_per_lang=None,
                     decoding=config.generation_decoding,
                 )
             )
@@ -165,6 +199,19 @@ def build_trainer(
 
     if hasattr(train_dataset, "set_epoch"):
         callbacks.append(_DatasetEpochCallback(train_dataset))
+
+    if use_early_stopping:
+        threshold = (
+            float(early_stopping_threshold)
+            if early_stopping_threshold is not None
+            else 1e-3
+        )
+        callbacks.append(
+            EarlyStoppingCallback(
+                early_stopping_patience=int(early_stopping_patience),
+                early_stopping_threshold=threshold,
+            )
+        )
 
     trainer = CustomSFTTrainer(
         model=model,

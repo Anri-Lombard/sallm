@@ -11,8 +11,8 @@ model:
 peft:
   method: "lora"
   kwargs:
-    r: 32
-    lora_alpha: 128
+    r: 16
+    lora_alpha: 32
     lora_dropout: 0.2
 
 dataset:

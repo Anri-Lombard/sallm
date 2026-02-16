@@ -8,13 +8,12 @@ model:
 peft:
   method: lora
   kwargs:
-    r: 256
-    lora_alpha: 512
+    r: 16
+    lora_alpha: 32
     lora_dropout: 0.1
     target_modules:
       - in_proj
       - x_proj
-      - embeddings
 dataset:
   hf_name: github:francois-meyer/t2x
   subset: xho
@@ -40,11 +39,11 @@ training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_t2x_xho
   logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_t2x_xho
   run_name: mamba-125m-t2x-xho
-  learning_rate: 0.0004391879915118366
-  weight_decay: 0.004094368653325598
+  learning_rate: 8.0e-05
+  weight_decay: 0.01
   adam_beta2: 0.95
   lr_scheduler_type: cosine
-  warmup_ratio: 0.1
+  warmup_ratio: 0.03
   per_device_train_batch_size: 16
   per_device_eval_batch_size: 4
   gradient_accumulation_steps: 2
@@ -56,11 +55,18 @@ training:
   logging_steps: 10
   logging_first_step: true
   eval_strategy: epoch
-  save_strategy: 'no'
+  save_strategy: epoch
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
   report_to: wandb
-  ddp_find_unused_parameters: true
+  ddp_find_unused_parameters: false
+  adam_beta1: 0.9
+  save_total_limit: 1
+  load_best_model_at_end: true
+  metric_for_best_model: eval_all_rougeL
+  greater_is_better: true
+  early_stopping_patience: 3
+  early_stopping_threshold: 0.001
 hub:
   enabled: true
   organization: anrilombard
