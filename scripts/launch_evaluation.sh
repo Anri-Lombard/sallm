@@ -12,6 +12,8 @@ CONFIG_NAME="$1"
 if [ -z "$CONFIG_NAME" ]; then
     echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
 fi
+shift || true
+EXTRA_ARGS=("$@")
 
 if [[ "$CONFIG_NAME" != */* ]]; then
     CONFIG_NAME="eval/$CONFIG_NAME"
@@ -20,21 +22,33 @@ fi
 CFG_NAME="${CONFIG_NAME##*/}"
 JOB_NAME="eval-${CFG_NAME#mamba_}"
 JOB_NAME="${JOB_NAME#llama_}"
-if [[ -n "${SLURM_JOB_ID:-}" ]]; then
-  scontrol update JobId="$SLURM_JOB_ID" JobName="$JOB_NAME"
-  mkdir -p logs
-  exec > >(tee -a "logs/${JOB_NAME}-${SLURM_JOB_ID}.out") 2>&1
-fi
 
 export HYDRA_FULL_ERROR=1
 
 export SCRATCH="/scratch/lmbanr001"
 export HOME="/home/lmbanr001"
+export JOB_LOG_DIR="$SCRATCH/masters/sallm/logs/jobs"
 # Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+export XDG_CACHE_HOME="$SCRATCH/.cache"
+export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
+export HF_HOME="$SCRATCH/hf"
+export HF_DATASETS_CACHE="$HF_HOME/datasets"
+export HF_METRICS_CACHE="$HF_HOME/metrics"
+export TRANSFORMERS_CACHE="$HF_HOME/hub"
+export HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
-mkdir -p "$TRITON_CACHE_DIR"
+export WANDB_DIR="$SCRATCH/masters/sallm/wandb"
+export WANDB_CACHE_DIR="$SCRATCH/.cache/wandb"
+export WANDB_CONFIG_DIR="$SCRATCH/.config/wandb"
+mkdir -p "$TRITON_CACHE_DIR" "$JOB_LOG_DIR"
+mkdir -p "$WANDB_DIR" "$WANDB_CACHE_DIR" "$WANDB_CONFIG_DIR"
+
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+  scontrol update JobId="$SLURM_JOB_ID" JobName="$JOB_NAME"
+  exec > >(tee -a "$JOB_LOG_DIR/${JOB_NAME}-${SLURM_JOB_ID}.out") 2>&1
+fi
 
 echo "--- Storage Usage ---"
 df -h /home /scratch 2>/dev/null || true
@@ -72,6 +86,7 @@ if $IS_MAMBA; then
         fi
         echo "✓ Mamba fast path (CUDA kernels) available"
     fi
+    export MAMBA_SCAN_IMPL="cuda"
 fi
 
 if $IS_XLSTM; then
@@ -92,4 +107,4 @@ echo "-------------------------------"
 # Set PyTorch CUDA allocation config
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 
-python -m sallm.main --config-name "$CONFIG_NAME"
+python -m sallm.main --config-name "$CONFIG_NAME" "${EXTRA_ARGS[@]}"

@@ -12,13 +12,22 @@ evaluation:
   generation_tasks:
     - id: "afrihg_xho"
       split: "test"
-      max_new_tokens: 128
+      max_new_tokens: 256
       max_samples_per_lang: null
+      fewshot: 0
+      fewshot_split: "train"
+      fewshot_seed: 42
+      fewshot_lang_match: true
+      fewshot_template_mode: "SAME"
+      fewshot_token_budget: 1792
+      prompt_headroom_tokens: 256
+      system_prompt: "You are a concise isiXhosa news editor who drafts punchy headlines from article excerpts."
       decoding:
         strategy: "beam"
         num_beams: 5
-        repetition_penalty: 1.2
-        no_repeat_ngram_size: 3
+        batch_size: 6
+        length_penalty: 0.7
+        early_stopping: true
       dataset:
         hf_name: "github:dadelani/AfriHG"
         subset: "xho"

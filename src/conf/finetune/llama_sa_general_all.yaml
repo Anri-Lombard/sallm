@@ -8,7 +8,7 @@ model:
 
 peft:
   method: "lora"
-  kwargs: {r: 256, lora_alpha: 256, lora_dropout: 0}
+  kwargs: {r: 16, lora_alpha: 32, lora_dropout: 0}
 
 dataset:
   hf_name: "mix:sa_general"

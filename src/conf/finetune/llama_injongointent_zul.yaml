@@ -7,7 +7,7 @@ model: {
   init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
 }
 
-peft: {method: "lora", kwargs: {r: 128, lora_alpha: 256, lora_dropout: 0.1}}
+peft: {method: "lora", kwargs: {r: 16, lora_alpha: 32, lora_dropout: 0.1}}
 
 dataset:
   hf_name: "masakhane/InjongoIntent"

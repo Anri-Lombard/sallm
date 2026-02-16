@@ -46,7 +46,7 @@ def _apply_peft_if_needed(model, peft_cfg):
             target_modules=peft_kwargs.get("target_modules", ["q_proj", "v_proj"]),
             bias="none",
             task_type=peft.TaskType.CAUSAL_LM,
-            modules_to_save=["embed_tokens", "lm_head"],
+            modules_to_save=peft_kwargs.get("modules_to_save"),
         )
 
         return peft.get_peft_model(model, lora_conf)
@@ -119,7 +119,7 @@ def _save_tokenizer_with_fallback(
     if remaining:
         remaining_display = ", ".join(remaining)
         raise FileNotFoundError(
-            f"Tokenizer save missing files after fallback copy: " f"{remaining_display}"
+            f"Tokenizer save missing files after fallback copy: {remaining_display}"
         )
     logger.info(
         "Copied tokenizer files %s from %s to %s",

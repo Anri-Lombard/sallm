@@ -21,6 +21,23 @@ logger = logging.getLogger(__name__)
 
 
 # TODO: add models to model.py
+def _broadcast_metrics_from_rank0(
+    *,
+    local_metrics: dict[str, float],
+    is_world_process_zero: bool,
+) -> dict[str, float]:
+    """Share metrics computed on rank 0 with all distributed workers."""
+    if not torch.distributed.is_available() or not torch.distributed.is_initialized():
+        return local_metrics
+
+    payload = local_metrics if is_world_process_zero else {}
+    container = [payload]
+    torch.distributed.broadcast_object_list(container, src=0)
+
+    broadcasted = container[0]
+    if isinstance(broadcasted, dict):
+        return broadcasted
+    return {}
 
 
 class ShowCompletionsCallback(TrainerCallback):
@@ -177,27 +194,40 @@ class GenerationMetricsCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs,
     ):
-        if not state.is_world_process_zero:
-            return
-
+        trainer_metrics: dict[str, float] = {}
+        wandb_metrics: dict[str, float] = {}
         model = kwargs.get("model")
         if model is None:
             logger.warning(
                 "GenerationMetricsCallback: `model` not found in kwargs. Skipping."
             )
-            return
+        elif state.is_world_process_zero:
+            world_size = getattr(args, "world_size", 1)
+            result = self.evaluator.evaluate(
+                model,
+                self.eval_dataset,
+                world_size=world_size,
+                metric_prefix="eval",
+                collect_examples=False,
+            )
 
-        world_size = getattr(args, "world_size", 1)
-        result = self.evaluator.evaluate(
-            model,
-            self.eval_dataset,
-            world_size=world_size,
-            metric_prefix="eval",
-            collect_examples=False,
+            if result.metrics:
+                trainer_metrics = dict(result.metrics)
+                for key, value in list(result.metrics.items()):
+                    # Expose underscore aliases for Trainer metric selection.
+                    if "/" in key:
+                        trainer_metrics[key.replace("/", "_")] = value
+                wandb_metrics = dict(result.metrics)
+
+        trainer_metrics = _broadcast_metrics_from_rank0(
+            local_metrics=trainer_metrics,
+            is_world_process_zero=state.is_world_process_zero,
         )
-
-        if result.metrics:
-            wandb.log(result.metrics)
+        callback_metrics = kwargs.get("metrics")
+        if trainer_metrics and isinstance(callback_metrics, dict):
+            callback_metrics.update(trainer_metrics)
+        if state.is_world_process_zero and wandb_metrics:
+            wandb.log(wandb_metrics)
 
 
 class ClassificationMetricsCallback(TrainerCallback):
@@ -228,24 +258,38 @@ class ClassificationMetricsCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs,
     ):
-        if not state.is_world_process_zero:
-            return
-
+        trainer_metrics: dict[str, float] = {}
+        wandb_metrics: dict[str, float] = {}
         model = kwargs.get("model")
         if model is None:
             logger.warning(
                 "ClassificationMetricsCallback: `model` not found in kwargs. Skipping."
             )
-            return
+        elif state.is_world_process_zero:
+            metrics = self.evaluator.evaluate(
+                model,
+                self.eval_dataset,
+                metric_prefix="classification",
+            )
 
-        metrics = self.evaluator.evaluate(
-            model,
-            self.eval_dataset,
-            metric_prefix="classification",
+            if metrics:
+                trainer_metrics = dict(metrics)
+                for key, value in list(metrics.items()):
+                    # Trainer expects eval_* when selecting best model metrics.
+                    trainer_metrics[f"eval_{key}"] = value
+                    if "/" in key:
+                        trainer_metrics[f"eval_{key.replace('/', '_')}"] = value
+                wandb_metrics = dict(metrics)
+
+        trainer_metrics = _broadcast_metrics_from_rank0(
+            local_metrics=trainer_metrics,
+            is_world_process_zero=state.is_world_process_zero,
         )
-
-        if metrics:
-            wandb.log(metrics)
+        callback_metrics = kwargs.get("metrics")
+        if trainer_metrics and isinstance(callback_metrics, dict):
+            callback_metrics.update(trainer_metrics)
+        if state.is_world_process_zero and wandb_metrics:
+            wandb.log(wandb_metrics)
 
 
 class EnsureStaticGraphCallback(TrainerCallback):
