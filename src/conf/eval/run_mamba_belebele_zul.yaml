@@ -1,0 +1,24 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "anrilombard/sallm-mamba-125m"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+
+evaluation:
+  task_packs:
+    - "belebele_zul"
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_belebele_zul"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-mamba-125m-belebele-zul"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

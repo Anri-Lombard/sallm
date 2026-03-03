@@ -1,0 +1,72 @@
+mode: FINETUNE
+
+wandb: {project: "sallm-ft", name: "xlstm-125m-sa-general-all"}
+
+model:
+  architecture: "xlstm"
+  init_checkpoint: "anrilombard/sallm-xlstm-125m"
+
+peft:
+  method: "lora"
+  kwargs:
+    r: 128
+    lora_alpha: 256
+    lora_dropout: 0.05
+    target_modules: ["q", "k", "v", "out_proj", "embeddings"]
+
+dataset:
+  hf_name: "mix:sa_general"
+  subset: null
+  languages: null
+  task: INSTRUCTION
+  splits: {train: "train", val: "validation"}
+  templates: []
+  template_choice: CYCLE
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 2048
+  mix_weights:
+    sib: 3.3
+    news: 2.4
+    ner: 1.7
+    afrihg: 0.4
+    t2x: 1.0
+  mix_temperature: 0.15
+  mix_epoch_size: "sum"
+  mix_min_prob: 0.02
+  mix_max_prob: 0.6
+
+tokenizer:
+  {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sa_general_all"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sa_general_all"
+  run_name: "xlstm-125m-sa-general-all"
+  learning_rate: 1.0e-4
+  weight_decay: 0.1
+  adam_beta2: 0.95
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 16
+  num_train_epochs: 3
+  max_grad_norm: 1.0
+  bf16: false
+  gradient_checkpointing: true
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "no"
+  dataloader_num_workers: 4
+  eval_accumulation_steps: 1
+  report_to: "wandb"
+  ddp_find_unused_parameters: true
+
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false
+  base_model_id: anrilombard/sallm-xlstm-125m
