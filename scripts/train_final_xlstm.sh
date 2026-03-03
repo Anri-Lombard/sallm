@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
+##SBATCH --account=your-slurm-account
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:4
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name="sallm-xlstm"
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
+##SBATCH --mail-user=you@example.com
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
@@ -15,15 +15,13 @@ export MKL_INTERFACE_LAYER=LP64,INTEL64
 
 CONFIG="base/xlstm_125m.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/cluster_env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
+setup_sallm_cluster_env
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export HF_HOME="$SCRATCH/hf"
 load_hf_token || true
-export UV_CACHE_DIR="$SCRATCH/.cache/uv"
-export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 module load python/miniconda3-py3.12
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -33,7 +31,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+cd "$PROJECT_ROOT"
 uv sync --frozen
 source .venv/bin/activate
 

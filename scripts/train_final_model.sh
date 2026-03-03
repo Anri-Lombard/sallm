@@ -1,27 +1,25 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
+##SBATCH --account=your-slurm-account
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:4
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name="sallm-llama-mobilellama"
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
+##SBATCH --mail-user=you@example.com
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
 
 CONFIG_NAME="${1:-base/llama_125m}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/cluster_env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
+setup_sallm_cluster_env
 
 echo "Using Hydra config: ${CONFIG_NAME}"
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
-export UV_CACHE_DIR="$SCRATCH/.cache/uv"
-export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 load_hf_token || true
 
 echo "Setting up environment..."
@@ -33,7 +31,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+cd "$PROJECT_ROOT"
 uv sync --frozen
 source .venv/bin/activate
 echo "Environment ready."

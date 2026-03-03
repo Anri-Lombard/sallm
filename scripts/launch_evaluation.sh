@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
+##SBATCH --account=your-slurm-account
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
+##SBATCH --mail-user=you@example.com
 #SBATCH --mail-type=FAIL,END
 
 CONFIG_NAME="$1"
@@ -14,6 +14,11 @@ if [ -z "$CONFIG_NAME" ]; then
 fi
 shift || true
 EXTRA_ARGS=("$@")
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/cluster_env.sh"
+source "$SCRIPT_DIR/lib/auth.sh"
+setup_sallm_cluster_env
 
 if [[ "$CONFIG_NAME" != */* ]]; then
     CONFIG_NAME="eval/$CONFIG_NAME"
@@ -25,21 +30,17 @@ JOB_NAME="${JOB_NAME#llama_}"
 
 export HYDRA_FULL_ERROR=1
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
-export JOB_LOG_DIR="$SCRATCH/masters/sallm/logs/jobs"
+export JOB_LOG_DIR="${JOB_LOG_DIR:-$SCRATCH/sallm/logs/jobs}"
 # Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
-export UV_CACHE_DIR="$SCRATCH/.cache/uv"
-export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 export XDG_CACHE_HOME="$SCRATCH/.cache"
-export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
+load_hf_token || true
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
 export TRANSFORMERS_CACHE="$HF_HOME/hub"
 export HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
-export WANDB_DIR="$SCRATCH/masters/sallm/wandb"
+export WANDB_DIR="${WANDB_DIR:-$SCRATCH/sallm/wandb}"
 export WANDB_CACHE_DIR="$SCRATCH/.cache/wandb"
 export WANDB_CONFIG_DIR="$SCRATCH/.config/wandb"
 mkdir -p "$TRITON_CACHE_DIR" "$JOB_LOG_DIR"
@@ -51,7 +52,7 @@ if [[ -n "${SLURM_JOB_ID:-}" ]]; then
 fi
 
 echo "--- Storage Usage ---"
-df -h /home /scratch 2>/dev/null || true
+df -h "$HOME" "$SCRATCH" 2>/dev/null || true
 echo "-------------------------------"
 
 module load python/miniconda3-py3.12
@@ -62,7 +63,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+cd "$PROJECT_ROOT"
 uv sync --frozen --inexact
 source .venv/bin/activate
 
