@@ -492,10 +492,8 @@ class HubConfig:
     private: bool = True
     push_adapter: bool = True
     push_merged: bool = False
-    base_model_id: str = (
-        "anrilombard/sallm-mamba-125m"  # HF model ID for base model reference
-    )
-    collection_slug: str | None = "anrilombard/mzansilm"  # Collection to add models to
+    base_model_id: str = "anrilombard/mzansilm-125m"
+    collection_slug: str | None = "anrilombard/mzansilm-69635ca7b60efedb9dfcb09e"
 
 
 @dataclass

@@ -10,4 +10,4 @@ defaults:
 mode: ???
 wandb:
   project: sallm
-  entity: anrilombard
+  entity: null

@@ -1,4 +1,8 @@
 data/**/
+!data/cleaning/
+!data/cleaning/README.md
+!data/cleaning/clean_mzansi_text.py
+!data/cleaning/config.toml.example
 trash/
 .mypy_cache
 .ruff_cache
@@ -15,6 +19,10 @@ dist/
 .env
 
 data/**/
+!data/cleaning/
+!data/cleaning/README.md
+!data/cleaning/clean_mzansi_text.py
+!data/cleaning/config.toml.example
 trash/
 .mypy_cache/
 .ruff_cache/

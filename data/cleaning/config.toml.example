@@ -1,0 +1,8 @@
+# Example config for the MzansiText cleaning pipeline.
+# Point input_folder at raw JSONL source files and choose an output folder
+# for the filtered corpus.
+
+input_folder = "path/to/raw_sources"
+output_folder = "data/filtered_data"
+tasks = 32
+workers = 16

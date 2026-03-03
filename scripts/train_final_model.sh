@@ -6,19 +6,17 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name="sallm-llama-mobilellama"
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
-#SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
 
 CONFIG_NAME="${1:-base/llama_125m}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/auth.sh"
 
 echo "Using Hydra config: ${CONFIG_NAME}"
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
+export SCRATCH="${SCRATCH:-/scratch/lmbanr001}"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
@@ -33,7 +31,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+cd "$REPO_ROOT"
 uv sync --frozen
 source .venv/bin/activate
 echo "Environment ready."

@@ -238,26 +238,6 @@ def run(config: ExperimentConfig) -> None:
     if num_added_tokens > 0:
         model.resize_token_embeddings(len(tokenizer))
 
-        # TEMP FIX: Mamba2 resize bug - lm_head not resized
-        # See: https://github.com/huggingface/transformers/issues/43206
-        # TODO: Remove once transformers fix is released
-        if hasattr(model, "lm_head") and hasattr(model, "backbone"):
-            expected_vocab = len(tokenizer)
-            actual_vocab = model.lm_head.weight.shape[0]
-            if actual_vocab != expected_vocab:
-                import torch.nn as nn
-
-                logger.warning(
-                    "Mamba2 resize bug: lm_head has %d, expected %d. Fixing...",
-                    actual_vocab,
-                    expected_vocab,
-                )
-                model.lm_head = nn.Linear(
-                    model.config.hidden_size, expected_vocab, bias=False
-                )
-                if hasattr(model.backbone, "embeddings"):
-                    model.lm_head.weight = model.backbone.embeddings.weight
-
     if tokenizer.chat_template is None:
         # TODO: move this template to its own file
         tokenizer.chat_template = textwrap.dedent(
