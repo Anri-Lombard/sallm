@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
+##SBATCH --account=your-slurm-account
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name=hpo-ner_all-resume
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
+##SBATCH --mail-user=you@example.com
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
@@ -24,19 +24,20 @@ SWEEP_ID="${SWEEP_PATH##*/}"
 mkdir -p logs
 exec > >(tee -a "logs/hpo-resume-${SWEEP_ID}-${SLURM_JOB_ID}.out") 2>&1
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/cluster_env.sh"
+source "$SCRIPT_DIR/lib/auth.sh"
+setup_sallm_cluster_env
+
 # Note: Don't set PYTHONPATH - venv has patched transformers
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
 mkdir -p "$TRITON_CACHE_DIR"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
-export HF_TOKEN=$(cat ~/.huggingface/token)
+load_hf_token || true
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
-export UV_CACHE_DIR="$SCRATCH/.cache/uv"
-export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 module load python/miniconda3-py3.12
 set +u
@@ -45,7 +46,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+cd "$PROJECT_ROOT"
 uv sync --frozen --inexact
 source .venv/bin/activate
 
