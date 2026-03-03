@@ -7,7 +7,7 @@ name = "sallm"
 version = "0.1.0"
 description = "A modular framework for training small language models for South African languages."
 authors = [{name = "Anri Lombard", email = "anri.m.lombard@gmail.com"}]
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "torch>=2.8.0",
@@ -33,14 +33,14 @@ dependencies = [
     "peft>=0.14.0",
     "seqeval>=1.2.2",
     "evaluate>=0.4.3",
+    "nltk>=3.9.3",
     "sentencepiece>=0.2.0",
     "rouge-score>=0.1.2",
     "lm-eval>=0.4.0",
 ]
 
 [project.optional-dependencies]
-# GPU packages installed separately via pip (require CUDA at build time)
-# Run on cluster: pip install mamba-ssm causal-conv1d kernels
+# GPU packages installed separately via pip when needed at build time
 gpu = [
     "kernels>=0.11.0",  # pure Python, can be in lockfile
 ]

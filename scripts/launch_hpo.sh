@@ -5,19 +5,19 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
-#SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
 
 SWEEP_ARG="${1:-}"
 COUNT="${2:-50}"
 SWEEP_DIR="src/conf/sweeps"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/auth.sh"
 
 SWEEP_NAME="${SWEEP_ARG%.yaml}"
 SWEEP_NAME="${SWEEP_NAME##*/}"
-JOB_NAME="hpo-${SWEEP_NAME#mamba_}"
-JOB_NAME="${JOB_NAME#llama_}"
+JOB_NAME="hpo-${SWEEP_NAME#llama_}"
 if [[ -n "${SLURM_JOB_ID:-}" ]]; then
   scontrol update JobId="$SLURM_JOB_ID" JobName="$JOB_NAME"
   mkdir -p logs
@@ -31,9 +31,7 @@ if [[ -z "$SWEEP_ARG" ]]; then
   exit 1
 fi
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
-# Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
+export SCRATCH="${SCRATCH:-/scratch/lmbanr001}"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
@@ -42,7 +40,7 @@ export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
-export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
+load_hf_token || true
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
 
@@ -61,46 +59,9 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+cd "$REPO_ROOT"
 uv sync --frozen --inexact
 source .venv/bin/activate
-
-# Install CUDA kernels based on model type
-echo "--- CUDA kernel status ---"
-IS_MAMBA=false
-IS_XLSTM=false
-[[ "$SWEEP_NAME" == *mamba* ]] && IS_MAMBA=true
-[[ "$SWEEP_NAME" == *xlstm* ]] && IS_XLSTM=true
-
-if $IS_MAMBA; then
-    if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
-        echo "✓ Mamba fast path (CUDA kernels) available"
-    else
-        echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-        uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
-        uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 || true
-        if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
-            echo "✓ Mamba fast path (CUDA kernels) available"
-        else
-            echo "ℹ Using HF Transformers native Mamba implementation"
-        fi
-    fi
-fi
-
-if $IS_XLSTM; then
-    if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
-        echo "✓ xLSTM fast path (NX-AI kernels) available"
-    else
-        echo "Installing xlstm package..."
-        uv pip install xlstm 2>&1 | tail -5 || true
-        if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
-            echo "✓ xLSTM fast path (NX-AI kernels) available"
-        else
-            echo "ℹ Using xLSTM native implementation"
-        fi
-    fi
-fi
-echo "-------------------------------"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 

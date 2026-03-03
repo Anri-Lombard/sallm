@@ -30,19 +30,15 @@ class LazyRegistry(dict):
 MODEL_CONFIG_REGISTRY = LazyRegistry(
     {
         "llama": "LlamaConfig",
-        "mamba2": "Mamba2Config",
         "recurrent_gemma": "RecurrentGemmaConfig",
         "rwkv": "RwkvConfig",
-        "xlstm": "xLSTMConfig",
     }
 )
 
 MODEL_CLASS_REGISTRY = LazyRegistry(
     {
         "llama": "LlamaForCausalLM",
-        "mamba2": "Mamba2ForCausalLM",
         "recurrent_gemma": "RecurrentGemmaForCausalLM",
         "rwkv": "RwkvForCausalLM",
-        "xlstm": "xLSTMForCausalLM",
     }
 )
