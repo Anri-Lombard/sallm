@@ -135,13 +135,12 @@ source .venv/bin/activate
 
 Some workflows expect external credentials to be available through environment variables or standard local auth files, especially for Hugging Face and Weights & Biases.
 
-Some scripts and configs also contain account-specific defaults from the original training environment, including:
+Some scripts and configs also contain environment-specific defaults from the original training environment, including:
 
-- Hugging Face org and model IDs under `anrilombard/...`
 - SLURM accounts, mail addresses, and scratch paths for the UCT HPC environment
 - local `HOME` and `SCRATCH` assumptions in cluster launch scripts
 
-If you are reusing this repository outside the original environment, update those fields for your own infrastructure before running jobs.
+The published Hugging Face artifact IDs under `anrilombard/...` are the official release locations and should remain unchanged unless you are publishing your own fork. If you are reusing this repository outside the original environment, update the cluster- and path-specific settings for your own infrastructure before running jobs.
 
 ## Reproducing Runs
 
