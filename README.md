@@ -7,6 +7,16 @@
 
 This repository accompanies the paper **"MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages"**.
 
+**For exact reproduction of the LREC 2026 paper results, use the permanent snapshot:**
+
+```bash
+git clone https://github.com/Anri-Lombard/sallm.git
+cd sallm
+git checkout tags/mzansitext-mzansilm-lrec2026-v1
+```
+
+The `main` branch is actively maintained and will continue to evolve beyond the paper snapshot.
+
 The repository contains code and configuration for:
 
 - MzansiText data preparation
@@ -38,6 +48,12 @@ Project artifacts are released on Hugging Face:
 - RMSNorm epsilon: `1e-5`
 - Tied word embeddings: `true`
 - Attention implementation used for training: `flash_attention_2`
+
+## Key Results
+
+- T2X (isiXhosa data-to-text): `20.65` BLEU with monolingual task-specific fine-tuning
+- MasakhaNEWS (isiXhosa): `78.5%` macro-F1 with multilingual task-specific fine-tuning
+- On selected generation and NER tasks, MzansiLM outperforms much larger decoder-only baselines
 
 ## Tokenizer
 
@@ -75,6 +91,27 @@ The raw and tokenized dataset releases are available on Hugging Face:
 
 - [anrilombard/mzansi-text](https://huggingface.co/datasets/anrilombard/mzansi-text)
 - [anrilombard/mzansi-text-tokenized](https://huggingface.co/datasets/anrilombard/mzansi-text-tokenized)
+
+### Token Distribution
+
+Token counts below are from the paper release after filtering with the MzansiText cleaning pipeline and tokenization with the `65536`-vocabulary BPE tokenizer.
+
+| Language | Train Tokens | % | Val Tokens | Test Tokens |
+| --- | ---: | ---: | ---: | ---: |
+| Afrikaans | 2,475,913,822 | 64.96 | 1,865,255 | 1,875,605 |
+| English | 740,994,679 | 19.44 | 1,813,651 | 1,821,803 |
+| isiZulu | 320,224,015 | 8.40 | 2,017,406 | 2,021,343 |
+| isiXhosa | 152,212,403 | 3.99 | 2,016,503 | 2,012,000 |
+| Sesotho | 97,558,939 | 2.56 | 2,315,298 | 2,316,170 |
+| Setswana | 10,082,930 | 0.26 | 1,216,539 | 1,413,473 |
+| Sepedi | 6,697,358 | 0.18 | 685,425 | 778,656 |
+| Xitsonga | 3,013,408 | 0.08 | 510,463 | 319,496 |
+| siSwati | 1,932,989 | 0.05 | 196,247 | 225,810 |
+| Tshivenda | 1,852,481 | 0.05 | 191,495 | 243,315 |
+| isiNdebele | 818,549 | 0.02 | 106,224 | 143,458 |
+| **Total** | **3,811,301,573** | **100** | **12,934,506** | **13,171,129** |
+
+Validation and test sets are capped at approximately `2M` tokens per language.
 
 The exact cleaning pipeline used to produce the filtered corpus is included in
 `data/cleaning/`.
