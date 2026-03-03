@@ -1,0 +1,24 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "anrilombard/sallm-mamba-injongointent_eng"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs: ["injongointent_eng"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_injongointent_eng"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-mamba-125m-injongointent-eng"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

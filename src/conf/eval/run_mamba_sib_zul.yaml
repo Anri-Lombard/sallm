@@ -1,0 +1,24 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "anrilombard/sallm-mamba-sib_zul"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  task_packs: ["sib_zul"]
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_mamba_125m_sib_zul"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-ft-mamba-125m-sib-zul"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

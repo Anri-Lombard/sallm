@@ -1,0 +1,62 @@
+mode: TRAIN
+
+wandb:
+  project: "sallm-xlstm"
+  name: "125m-final"
+
+model:
+  architecture: "xlstm"
+  config:
+    vocab_size: 65536
+    hidden_size: 768
+    num_hidden_layers: 12
+    num_heads: 4
+    tie_word_embeddings: true
+    mode: "train"
+    chunk_size: 64  # Fixed HF bug allows proper chunking
+  param_validation:
+    min_params_m: 120.0
+    max_params_m: 140.0
+
+data:
+  hf_name: "anrilombard/mzansi-text-tokenized"
+  train_split: "train"
+  eval_split: "validation"
+  test_split: "test"
+
+tokenizer:
+  path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-xlstm-125m"
+
+  learning_rate: 4.0e-4
+  max_seq_length: 512
+  pad_to_multiple_of: 64  # Must match chunk_size for xLSTM
+  lr_scheduler_type: "cosine"
+  warmup_steps: 2000
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+
+  per_device_train_batch_size: 12
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
+
+  num_train_epochs: 5
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_strategy: "epoch"
+  save_total_limit: 1
+
+  bf16: true
+  bf16_full_eval: true
+  logging_steps: 10
+  report_to: "wandb"
+  prediction_loss_only: true
+  ddp_find_unused_parameters: false
+  torch_compile: false
+  gradient_checkpointing: false  # Disabled due to transformers xLSTM bug: mlstm_backend returns >2 values
+  dataloader_num_workers: 8
