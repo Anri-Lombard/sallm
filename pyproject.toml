@@ -33,6 +33,7 @@ dependencies = [
     "peft>=0.14.0",
     "seqeval>=1.2.2",
     "evaluate>=0.4.3",
+    "nltk>=3.9.3",
     "sentencepiece>=0.2.0",
     "rouge-score>=0.1.2",
     "lm-eval>=0.4.0",
