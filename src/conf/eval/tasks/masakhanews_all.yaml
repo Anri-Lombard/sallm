@@ -10,5 +10,5 @@ tasks:
   - masakhanews_xho_prompt_4
   - masakhanews_xho_prompt_5
 fewshot: 0
-batch_size: 8
+batch_size: "auto:4"
 apply_chat_template: true

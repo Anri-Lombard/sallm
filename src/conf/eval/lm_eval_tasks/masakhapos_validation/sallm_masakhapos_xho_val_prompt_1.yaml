@@ -1,0 +1,19 @@
+include: _masakhapos_val_common.yaml
+task: sallm_masakhapos_xho_val_prompt_1
+dataset_kwargs:
+  data_files:
+    train: https://github.com/masakhane-io/masakhane-pos/raw/main/data/xho/train.txt
+    validation: https://github.com/masakhane-io/masakhane-pos/raw/main/data/xho/dev.txt
+doc_to_text: |
+  Please provide the POS tags for each word in the input sentence.
+  The input will be a list of words in the sentence. The output format should be a
+  list of tuples, where each tuple consists of a word from the input text and its
+  corresponding POS tag label from the tag label set: ['ADJ', 'ADP', 'ADV', 'AUX',
+  'CCONJ', 'DET', 'INTJ', 'NOUN', 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ',
+  'SYM', 'VERB', 'X'].
+  Your response should include only a list of tuples, in the order that the words
+  appear in the input sentence, including punctuations, with each tuple containing the
+  corresponding POS tag label for a word.
+
+  Sentence: {{tokens}}
+  Output:

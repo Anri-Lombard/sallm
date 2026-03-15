@@ -370,7 +370,8 @@ class DecodingConfig:
     repetition_penalty: float | None = None
     num_return_sequences: int | None = None
     diversity_penalty: float | None = None
-    batch_size: int | None = None
+    batch_size: int | str | None = "auto:4"
+    max_batch_size: int | None = 64
 
     @classmethod
     def from_any(cls, value: Any | None) -> "DecodingConfig":

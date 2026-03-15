@@ -15,9 +15,14 @@ fi
 shift || true
 EXTRA_ARGS=("$@")
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/cluster_env.sh"
-source "$SCRIPT_DIR/lib/auth.sh"
+SUBMIT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-$(pwd)}}"
+LIB_DIR="${SUBMIT_ROOT%/}/scripts/lib"
+if [[ ! -f "$LIB_DIR/cluster_env.sh" || ! -f "$LIB_DIR/auth.sh" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  LIB_DIR="$SCRIPT_DIR/lib"
+fi
+source "$LIB_DIR/cluster_env.sh"
+source "$LIB_DIR/auth.sh"
 setup_sallm_cluster_env
 
 if [[ "$CONFIG_NAME" != */* ]]; then
