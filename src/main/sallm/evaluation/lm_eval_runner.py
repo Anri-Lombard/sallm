@@ -5,12 +5,14 @@ import logging
 import textwrap
 from copy import deepcopy
 from datetime import date, datetime
+from hashlib import sha1
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
 from lm_eval import evaluator
+from lm_eval.tasks import TaskManager
 from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
@@ -19,6 +21,63 @@ from sallm.evaluation.harness import load_model_and_tokenizer
 from sallm.evaluation.registry import load_task_pack
 
 logger = logging.getLogger(__name__)
+LM_EVAL_TASKS_ROOT = (
+    Path(__file__).resolve().parents[4]
+    / ".venv"
+    / "lib"
+    / "python3.12"
+    / "site-packages"
+    / "lm_eval"
+    / "tasks"
+)
+
+
+def _prepare_include_paths(include_path: str | list[str]) -> list[str]:
+    raw_paths = include_path if isinstance(include_path, list) else [include_path]
+    prepared_paths: list[str] = []
+
+    for raw_path in raw_paths:
+        path = Path(str(raw_path))
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        else:
+            path = path.resolve()
+
+        try:
+            path.relative_to(LM_EVAL_TASKS_ROOT)
+            prepared_paths.append(str(path))
+            continue
+        except ValueError:
+            pass
+
+        link_root = LM_EVAL_TASKS_ROOT / "_sallm_repo_overrides"
+        link_root.mkdir(parents=True, exist_ok=True)
+        link_name = f"{path.name}-{sha1(str(path).encode('utf-8')).hexdigest()[:8]}"
+        link_path = link_root / link_name
+
+        if link_path.exists() or link_path.is_symlink():
+            if link_path.is_symlink() and link_path.resolve() == path:
+                prepared_paths.append(str(link_path))
+                continue
+            if link_path.is_dir() and link_path.resolve() == path:
+                prepared_paths.append(str(link_path))
+                continue
+            if link_path.is_dir() and not link_path.is_symlink():
+                raise FileExistsError(
+                    f"lm-eval include-path shim already exists and is not a symlink: {link_path}"
+                )
+            link_path.unlink()
+
+        try:
+            link_path.symlink_to(path, target_is_directory=True)
+        except FileExistsError:
+            if not link_path.exists() and not link_path.is_symlink():
+                raise
+            if link_path.resolve() != path:
+                raise
+        prepared_paths.append(str(link_path))
+
+    return prepared_paths
 
 
 def _format_model_args(
@@ -207,11 +266,27 @@ def _run_pack(
     }
 
     pack_kwargs = pack.to_lm_eval_kwargs()
+    task_manager: TaskManager | None = None
+    include_path = pack_kwargs.pop("include_path", None)
+    include_defaults = bool(pack_kwargs.pop("include_defaults", True))
     eval_kwargs.update(pack_kwargs)
     eval_kwargs["apply_chat_template"] = pack.apply_chat_template
 
     if pack_overrides:
-        eval_kwargs.update(pack_overrides)
+        override_kwargs = dict(pack_overrides)
+        if "include_path" in override_kwargs:
+            include_path = override_kwargs.pop("include_path")
+        if "include_defaults" in override_kwargs:
+            include_defaults = bool(override_kwargs.pop("include_defaults"))
+        eval_kwargs.update(override_kwargs)
+
+    if include_path:
+        resolved_paths = _prepare_include_paths(include_path)
+        task_manager = TaskManager(
+            include_path=resolved_paths,
+            include_defaults=include_defaults,
+        )
+        eval_kwargs["task_manager"] = task_manager
 
     logger.info(
         "Running lm-eval task pack '%s' with tasks=%s, fewshot=%s, batch_size=%s, "
@@ -222,6 +297,10 @@ def _run_pack(
         pack.batch_size,
         pack.apply_chat_template,
     )
+    if task_manager is not None:
+        logger.info(
+            "Using extra lm-eval task search paths: %s", task_manager.include_path
+        )
 
     raw_result = evaluator.simple_evaluate(**eval_kwargs)
 

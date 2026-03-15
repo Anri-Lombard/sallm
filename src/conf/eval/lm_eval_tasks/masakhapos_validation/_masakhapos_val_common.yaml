@@ -1,0 +1,27 @@
+dataset_path: text
+dataset_name: null
+output_type: generate_until
+fewshot_split: train
+fewshot_delimiter: "\n\n"
+target_delimiter: " "
+validation_split: validation
+generation_kwargs:
+  do_sample: false
+  until:
+    - "</s>"
+    - "<|im_end|>"
+process_docs: |
+process_docs: !function utils.process_pos_docs
+doc_to_target: !function utils.doc_to_target
+filter_list:
+  - name: flexible-extract
+    filter:
+      - function: regex_pos
+metric_list:
+  - metric: !function utils.token_accuracy
+    aggregation: mean
+    higher_is_better: true
+should_decontaminate: false
+unsafe_code: false
+metadata:
+  version: 1.0
