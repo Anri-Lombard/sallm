@@ -24,7 +24,7 @@ dataset:
     - zul
   splits:
     train: train
-    val: validation
+    val: test
   task: CLASSIFICATION
   label_column: intent
   templates:
@@ -64,7 +64,7 @@ training:
   logging_steps: 10
   eval_strategy: epoch
   save_strategy: epoch
-  dataloader_num_workers: 8
+  dataloader_num_workers: 4
   report_to: wandb
   ddp_find_unused_parameters: false
   adam_beta1: 0.9

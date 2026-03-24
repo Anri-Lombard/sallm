@@ -1,48 +1,45 @@
 mode: FINETUNE
-
 wandb:
-  project: "sallm-ft"
-  name: "llama-125m-t2x-xho"
-
+  project: sallm-ft
+  name: llama-125m-t2x-xho
 model:
-  architecture: "llama"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
-
+  architecture: llama
+  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
 peft:
-  method: "lora"
+  method: lora
   kwargs:
     r: 16
     lora_alpha: 32
     lora_dropout: 0.05
-
 dataset:
-  hf_name: "github:francois-meyer/t2x"
-  subset: "xho"
-  splits: {train: "train", val: "validation"}
+  hf_name: github:francois-meyer/t2x
+  subset: xho
+  splits:
+    train: train
+    val: validation
   task: INSTRUCTION
   templates:
-    - {id: "t2x_verbalisation/v1", weight: 1}
+    - id: t2x_verbalisation/v1
+      weight: 1
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 1024
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 generation_decoding:
-  strategy: "beam"
+  strategy: beam
   num_beams: 5
   length_penalty: 1.0
   early_stopping: true
-
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_t2x_xho"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_t2x_xho"
-  run_name: "llama-125m-t2x-xho"
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_t2x_xho
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_t2x_xho
+  run_name: llama-125m-t2x-xho
   learning_rate: 0.00015373792550986017
   weight_decay: 0.1529293154724379
   adam_beta2: 0.95
-  lr_scheduler_type: "linear"
+  lr_scheduler_type: linear
   warmup_ratio: 0
   per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
@@ -54,13 +51,12 @@ training:
   label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true
-  eval_strategy: "epoch"
-  save_strategy: "no"
-  dataloader_num_workers: 8
+  eval_strategy: epoch
+  save_strategy: 'no'
+  dataloader_num_workers: 4
   eval_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: false
-
 hub:
   enabled: true
   organization: anrilombard

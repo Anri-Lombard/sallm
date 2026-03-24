@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SWEEP_PATH="${1:-}"
-COUNT="${2:-43}"
+COUNT="${2:-20}"
 
 if [[ -z "$SWEEP_PATH" ]]; then
   echo "Usage: sbatch $0 <sweep_path> [count]" >&2
@@ -24,9 +24,31 @@ SWEEP_ID="${SWEEP_PATH##*/}"
 mkdir -p logs
 exec > >(tee -a "logs/hpo-resume-${SWEEP_ID}-${SLURM_JOB_ID}.out") 2>&1
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/cluster_env.sh"
-source "$SCRIPT_DIR/lib/auth.sh"
+resolve_repo_root() {
+  local candidate=""
+  for candidate in \
+    "${PROJECT_ROOT:-}" \
+    "${SLURM_SUBMIT_DIR:-}" \
+    "$(pwd)" \
+    "$HOME/masters/sallm"
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -f "$candidate/scripts/lib/cluster_env.sh" && -f "$candidate/scripts/lib/auth.sh" ]]; then
+      printf '%s\n' "${candidate%/}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+PROJECT_ROOT="$(resolve_repo_root)" || {
+  echo "Could not resolve project root for cluster scripts" >&2
+  exit 1
+}
+export PROJECT_ROOT
+LIB_DIR="$PROJECT_ROOT/scripts/lib"
+source "$LIB_DIR/cluster_env.sh"
+source "$LIB_DIR/auth.sh"
 setup_sallm_cluster_env
 
 # Note: Don't set PYTHONPATH - venv has patched transformers

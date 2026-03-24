@@ -4,14 +4,14 @@
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 ##SBATCH --mail-user=you@example.com
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
 
 SWEEP_ARG="${1:-}"
-COUNT="${2:-50}"
+COUNT="${2:-24}"
 SWEEP_DIR="src/conf/sweeps"
 
 SWEEP_NAME="${SWEEP_ARG%.yaml}"
@@ -31,12 +31,29 @@ if [[ -z "$SWEEP_ARG" ]]; then
   exit 1
 fi
 
-SUBMIT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-$(pwd)}}"
-LIB_DIR="${SUBMIT_ROOT%/}/scripts/lib"
-if [[ ! -f "$LIB_DIR/cluster_env.sh" || ! -f "$LIB_DIR/auth.sh" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  LIB_DIR="$SCRIPT_DIR/lib"
-fi
+resolve_repo_root() {
+  local candidate=""
+  for candidate in \
+    "${PROJECT_ROOT:-}" \
+    "${SLURM_SUBMIT_DIR:-}" \
+    "$(pwd)" \
+    "$HOME/masters/sallm"
+  do
+    [[ -n "$candidate" ]] || continue
+    if [[ -f "$candidate/scripts/lib/cluster_env.sh" && -f "$candidate/scripts/lib/auth.sh" ]]; then
+      printf '%s\n' "${candidate%/}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+PROJECT_ROOT="$(resolve_repo_root)" || {
+  echo "Could not resolve project root for cluster scripts" >&2
+  exit 1
+}
+export PROJECT_ROOT
+LIB_DIR="$PROJECT_ROOT/scripts/lib"
 source "$LIB_DIR/cluster_env.sh"
 source "$LIB_DIR/auth.sh"
 setup_sallm_cluster_env
@@ -144,6 +161,60 @@ if [[ -z "${TOKENIZER_PATH:-}" ]]; then
     export TOKENIZER_PATH
   fi
 fi
+
+BASE_CONFIG=$(python - "$SWEEP_FILE" <<'PY'
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import yaml
+
+sweep_file = Path(sys.argv[1])
+data = yaml.safe_load(sweep_file.read_text())
+command = data.get("command") or []
+for idx, token in enumerate(command[:-1]):
+    if token == "--base-config":
+        print(command[idx + 1])
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+) || {
+  echo "Failed to extract --base-config from $SWEEP_FILE" >&2
+  exit 1
+}
+
+python - "$BASE_CONFIG" <<'PY'
+from __future__ import annotations
+
+import sys
+
+from sallm.config import RunMode
+from sallm.data.loaders.github import load_from_github
+from sallm.data.loaders.huggingface import load_hf_dataset
+from sallm.hpo.trial import load_base_config
+
+base_config = sys.argv[1]
+cfg = load_base_config(base_config)
+
+if cfg.mode != RunMode.FINETUNE:
+    raise SystemExit(0)
+
+ds_cfg = cfg.dataset
+assert ds_cfg is not None
+
+if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("mix:"):
+    raise SystemExit(0)
+
+if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("github:"):
+    train_ds, val_ds = load_from_github(ds_cfg)
+else:
+    train_ds, val_ds, _ = load_hf_dataset(ds_cfg)
+
+print(
+    f"Validated {base_config}: train={len(train_ds)} val={len(val_ds)}"
+)
+PY
 
 CREATE_OUT=$(wandb sweep "$SWEEP_FILE" 2>&1)
 echo "$CREATE_OUT"
