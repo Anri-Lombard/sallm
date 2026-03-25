@@ -3,9 +3,9 @@
 **An open corpus and decoder-only language model for South African languages**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Paper](https://img.shields.io/badge/Paper-LREC_2026-red.svg)](https://github.com/Anri-Lombard/sallm#citation)
+[![Paper](https://img.shields.io/badge/Paper-arXiv_2603.20732-red.svg)](https://arxiv.org/abs/2603.20732)
 
-This repository accompanies the paper **"MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages"**.
+This repository accompanies the paper **"MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages"** ([arXiv:2603.20732](https://arxiv.org/abs/2603.20732)).
 
 **For exact reproduction of the LREC 2026 paper results, use the permanent snapshot:**
 
@@ -29,6 +29,7 @@ The repository contains code and configuration for:
 
 Project artifacts are released on Hugging Face:
 
+- Paper: [arXiv:2603.20732](https://arxiv.org/abs/2603.20732)
 - Model: [anrilombard/mzansilm-125m](https://huggingface.co/anrilombard/mzansilm-125m)
 - Raw corpus: [anrilombard/mzansi-text](https://huggingface.co/datasets/anrilombard/mzansi-text)
 - Tokenized corpus: [anrilombard/mzansi-text-tokenized](https://huggingface.co/datasets/anrilombard/mzansi-text-tokenized)
@@ -155,19 +156,19 @@ Useful helper scripts include:
 
 ## Citation
 
-Until the public paper record is live, please cite the repository:
+Please cite the paper:
 
 ```bibtex
-@misc{mzansitext-mzansilm-github,
-  title = {MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages},
-  author = {Lombard, Anri and Mawere, Simbarashe and Aina, Temi and Wolff, Ethan and Gumede, Sbonelo and Novick, Elan and Meyer, Francois and Buys, Jan},
-  year = {2026},
-  howpublished = {\url{https://github.com/Anri-Lombard/sallm}},
-  note = {GitHub repository}
+@misc{lombard2026mzansitextmzansilmopencorpus,
+      title={MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages}, 
+      author={Anri Lombard and Simbarashe Mawere and Temi Aina and Ethan Wolff and Sbonelo Gumede and Elan Novick and Francois Meyer and Jan Buys},
+      year={2026},
+      eprint={2603.20732},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2603.20732}, 
 }
 ```
-
-This citation should be updated once the final public paper record is available.
 
 ## License
 
