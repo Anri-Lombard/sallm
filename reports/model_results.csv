@@ -1,0 +1,656 @@
+source_kind,source_name,source_url,source_tab,family,model_name,run_tag,task,language,variant,setting,score,metric,raw_value,status,date_updated,config,finetune_job_id,eval_job_id,eval_output_dir,summary_path,checkpoint_path,comparisons,notes
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimgsm,Eng,base,0-shot,0.0160,,0-shot: 0.0160,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimgsm,Sot,base,0-shot,0.0160,,0-shot: 0.0160,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimgsm,Xho,base,0-shot,0.0240,,0-shot: 0.0240,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimgsm,Zul,base,0-shot,0.0080,,0-shot: 0.0080,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimmlu,Eng,base,0-shot,0.2497,,0-shot: 0.2497,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimmlu,Sot,base,0-shot,0.2514,,0-shot: 0.2514,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimmlu,Xho,base,0-shot,0.2341,,0-shot: 0.2341,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrimmlu,Zul,base,0-shot,0.2583,,0-shot: 0.2583,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrixnli,Eng,base,0-shot,0.2690,,0-shot: 0.2690,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrixnli,Sot,base,0-shot,0.3178,,0-shot: 0.3178,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrixnli,Xho,base,0-shot,0.3337,,0-shot: 0.3337,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Afrixnli,Zul,base,0-shot,0.3363,,0-shot: 0.3363,baseline_result,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Afr,base,0-shot,0.2678,Acc Norm,0-shot: 0.2678 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Eng,base,0-shot,0.233,Acc Norm,0-shot: 0.233 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Sot,base,0-shot,0.248,Acc Norm,0-shot: 0.248 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Ssw,base,0-shot,0.2711,Acc Norm,0-shot: 0.2711 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Tsn,base,0-shot,0.2867,Acc Norm,0-shot: 0.2867 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Xho,base,0-shot,0.2533,Acc Norm,0-shot: 0.2533 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Belebele,Zul,base,0-shot,0.2611,Acc Norm,0-shot: 0.2611 Acc Norm,baseline_result,25 Sep,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Eng,base,,,,- 0-shot: 0.0063 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Eng,monolingual,,,,- 0.004 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Eng,multilingual,,,,- 0.016 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Sot,base,,,,- 0-shot: 0.0012 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Sot,monolingual,,,,- 0.004 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Sot,multilingual,,,,- 0.004 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Xho,base,,,,- 0-shot: 0.0042 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Xho,monolingual,,,,- 0.205 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Xho,multilingual,,,,- 0.011 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Zul,base,,,,- 0-shot: 0.0037 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Zul,monolingual,,,,- 0.004 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,Injonjo Intent,Zul,multilingual,,,,- 0.008 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Tsn,base,,,,- 0-shot: 0 F1,baseline_note,25 Jan,,,,,,,,TODO: Investigate why multilingual performance is higher than monolingual (0.304 vs 0.144)
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Tsn,monolingual,,,,- 0.144 F1,baseline_note,25 Jan,,,,,,,,TODO: Investigate why multilingual performance is higher than monolingual (0.304 vs 0.144)
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Tsn,multilingual,,,,- 0.304 F1,baseline_note,25 Jan,,,,,,,,TODO: Investigate why multilingual performance is higher than monolingual (0.304 vs 0.144)
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Xho,base,,,,- 0-shot: 0 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Xho,monolingual,,,,- 0.115 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Xho,multilingual,,,,- 0.117 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Zul,base,,,,- 0-shot: 0 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Zul,monolingual,,,,- 0.034 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNER,Zul,multilingual,,,,- 0.105 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNews,Eng,base,,,,- 0-shot: 0.3918 F1,baseline_note,5 Jan,,,,,,,,"TODO: Investigate why multilingual performance is much lower than monolingual (0.104 vs 0.744 Eng, 0.207 vs 0.560 Xho)"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNews,Eng,monolingual,,,,- 0.744 F1,baseline_note,5 Jan,,,,,,,,"TODO: Investigate why multilingual performance is much lower than monolingual (0.104 vs 0.744 Eng, 0.207 vs 0.560 Xho)"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNews,Eng,multilingual,,,,- 0.104 F1,baseline_note,5 Jan,,,,,,,,"TODO: Investigate why multilingual performance is much lower than monolingual (0.104 vs 0.744 Eng, 0.207 vs 0.560 Xho)"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNews,Xho,base,,,,- 0-shot: 0.3726 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNews,Xho,monolingual,,,,- 0.560 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaNews,Xho,multilingual,,,,- 0.207 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaPOS,Tsn,monolingual,,,,TODO: lm eval harness task broken,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaPOS,Xho,monolingual,,,,TODO: lm eval harness task broken,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,MasakhaPOS,Zul,monolingual,,,,TODO: lm eval harness task broken,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Afr,base,,,,- 0-shot: 0.1788 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Afr,monolingual,,,,- 0.163 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Afr,multilingual,,,,- 0.161 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Eng,base,,,,- 0-shot: 0.1577 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Eng,monolingual,,,,- 0.065 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Eng,multilingual,,,,- 0.184 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Nso,base,,,,- 0-shot: 0.0515 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Nso,monolingual,,,,- 0.047 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Nso,multilingual,,,,- 0.105 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Sot,base,,,,- 0-shot: 0.0539 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Sot,monolingual,,,,- 0.066 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Sot,multilingual,,,,- 0.148 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Xho,base,,,,- 0-shot: 0.1079 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Xho,monolingual,,,,- 0.246 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Xho,multilingual,,,,- 0.136 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Zul,base,,,,- 0-shot: 0.1164 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Zul,monolingual,,,,- 0.157 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,SIB200,Zul,multilingual,,,,- 0.154 F1,baseline_note,5 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,,monolingual,,,,TODO: why does mamba do worse with beam than greedy in afrihg cases?,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,base,"""xho_chrf""",1.14,,"""xho_chrf"": 1.14",baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,base,"""xho_chrf""",6.89,,"""xho_chrf"": 6.89",baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,BLEU,0.009,,BLEU: 0.009,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,BLEU,0.034,,BLEU: 0.034,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,ROUGE-1,0.259,,ROUGE-1: 0.259,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,ROUGE-1,0.226,,ROUGE-1: 0.226,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,ROUGE-2,0.114,,ROUGE-2: 0.114,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,ROUGE-2,0.084,,ROUGE-2: 0.084,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,ROUGE-L,0.252,,ROUGE-L: 0.252,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,ROUGE-L,0.221,,ROUGE-L: 0.221,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,chrF,18.52,,chrF: 18.52,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Xho,monolingual,chrF,22.72,,chrF: 22.72,baseline_result,,,,,,,,,"- investigate more, redo with chrf
+- performance drop of hpo"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,base,"""zul_chrf""",1.01,,"""zul_chrf"": 1.01",baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,base,"""zul_chrf""",4.54,,"""zul_chrf"": 4.54",baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,ROUGE-1,0.009,,ROUGE-1: 0.009,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,ROUGE-1,0.0079,,ROUGE-1: 0.0079,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,ROUGE-2,0.001,,ROUGE-2: 0.001,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,ROUGE-2,0.0006,,ROUGE-2: 0.0006,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,ROUGE-L,0.009,,ROUGE-L: 0.009,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,ROUGE-L,0.0079,,ROUGE-L: 0.0079,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,chrF,9.38,,chrF: 9.38,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,monolingual,chrF,4.78,,chrF: 4.78,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,ROUGE-1,0.213,,ROUGE-1: 0.213,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,ROUGE-1,0.000,,ROUGE-1: 0.000,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,ROUGE-2,0.046,,ROUGE-2: 0.046,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,ROUGE-2,0.000,,ROUGE-2: 0.000,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,ROUGE-L,0.209,,ROUGE-L: 0.209,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,ROUGE-L,0.000,,ROUGE-L: 0.000,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,chrF,21.810,,chrF: 21.810,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,afrihg,Zul,multilingual,chrF,8.717,,chrF: 8.717,baseline_result,,,,,,,,,"TODO: Investigate why greedy outperforms beam for Mamba on AfriHG
+
+TODO: Investigate why multilingual (0.209 ROUGE-L) significantly outperforms monolingual (0.009 ROUGE-L) for AfriHG"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,t2x,Xho,base,"""xho_chrf""",0.73,,"""xho_chrf"": 0.73",baseline_result,,,,,,,,,"- investigate more, why different? Validation losses comparison. See curve to check.
+- check setup"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,t2x,Xho,base,"""xho_chrf""",4.78,,"""xho_chrf"": 4.78",baseline_result,,,,,,,,,"- investigate more, why different? Validation losses comparison. See curve to check.
+- check setup"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Mamba Results,mamba,mamba,,t2x,Xho,monolingual,"""xho_chrf""",27.69,,"""xho_chrf"": 27.69",baseline_result,,,,,,,,,"- investigate more, why different? Validation losses comparison. See curve to check.
+- check setup"
+cluster_manifest,llama,,,transformer,llama,2026-04-03,AfriHG,All,multilingual,,,,,eval_submitted,,finetune/llama_afrihg_all,665573,665602,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_afrihg_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,AfriHG,All,multilingual,,,,,eval_submitted,,finetune/llama_afrihg_all,665630,671357,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_afrihg_all,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_afrihg_all/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,AfriHG,Xho,monolingual,,,,,eval_submitted,,finetune/llama_afrihg_xho,665552,665581,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_afrihg_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,AfriHG,Xho,monolingual,,,,,eval_submitted,,finetune/llama_afrihg_xho,665609,671341,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_afrihg_xho,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_afrihg_xho/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,AfriHG,Zul,monolingual,,,,,eval_submitted,,finetune/llama_afrihg_zul,665553,665582,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_afrihg_zul,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,AfriHG,Zul,monolingual,,,,,eval_submitted,,finetune/llama_afrihg_zul,665610,671342,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_afrihg_zul,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_afrihg_zul/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,Injongo Intent,All,multilingual,,,,,eval_submitted,,finetune/llama_injongointent_all,665574,665603,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_injongointent_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,Injongo Intent,All,multilingual,,,,,eval_submitted,,finetune/llama_injongointent_all,665631,671358,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_injongointent_all,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_injongointent_all/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,Injongo Intent,Eng,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_eng,665554,665583,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_injongointent_eng,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,Injongo Intent,Eng,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_eng,665611,671343,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_injongointent_eng,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_injongointent_eng/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,Injongo Intent,Sot,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_sot,665555,665584,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_injongointent_sot,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,Injongo Intent,Sot,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_sot,665612,671344,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_injongointent_sot,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_injongointent_sot/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,Injongo Intent,Xho,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_xho,665556,665585,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_injongointent_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,Injongo Intent,Xho,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_xho,665613,671345,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_injongointent_xho,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_injongointent_xho/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,Injongo Intent,Zul,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_zul,665557,665586,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_injongointent_zul,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,Injongo Intent,Zul,monolingual,,,,,eval_submitted,,finetune/llama_injongointent_zul,665614,671346,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_injongointent_zul,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_injongointent_zul/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNER,All,multilingual,,,,,eval_submitted,,finetune/llama_ner_all,665575,665604,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_ner_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNER,All,multilingual,,,,,training_incomplete,,finetune/llama_ner_all,665632,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNER,All,multilingual,,,,,eval_submitted,,finetune/llama_ner_all,671327,671369,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_ner_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNER,Tsn,monolingual,,,,,eval_submitted,,finetune/llama_ner_tsn,665558,665587,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_ner_tsn,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNER,Tsn,monolingual,,,,,training_incomplete,,finetune/llama_ner_tsn,665615,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNER,Tsn,monolingual,,,,,eval_submitted,,finetune/llama_ner_tsn,671322,671365,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_ner_tsn,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNER,Xho,monolingual,,,,,eval_submitted,,finetune/llama_ner_xho,665559,665588,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_ner_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNER,Xho,monolingual,,,,,training_incomplete,,finetune/llama_ner_xho,665616,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNER,Xho,monolingual,,,,,eval_submitted,,finetune/llama_ner_xho,671323,671366,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_ner_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNER,Zul,monolingual,,,,,eval_submitted,,finetune/llama_ner_zul,665560,665589,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_ner_zul,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNER,Zul,monolingual,,,,,training_incomplete,,finetune/llama_ner_zul,665617,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNER,Zul,monolingual,,,,,eval_submitted,,finetune/llama_ner_zul,671324,671367,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_ner_zul,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNews,All,multilingual,,,,,eval_submitted,,finetune/llama_news_all,665576,665605,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_news_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNews,All,multilingual,,,,,training_incomplete,,finetune/llama_news_all,665633,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNews,All,multilingual,,,,,eval_submitted,,finetune/llama_news_all,671328,671370,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_news_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNews,Eng,monolingual,,,,,eval_submitted,,finetune/llama_news_eng,665561,665590,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_news_eng,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNews,Eng,monolingual,,,,,training_incomplete,,finetune/llama_news_eng,665618,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNews,Eng,monolingual,,,,,training_incomplete,,finetune/llama_news_eng,671325,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r4,MasakhaNews,Eng,monolingual,,,,,eval_submitted,,finetune/llama_news_eng,671337,671372,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r4/llama_news_eng,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaNews,Xho,monolingual,,,,,eval_submitted,,finetune/llama_news_xho,665562,665591,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_news_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaNews,Xho,monolingual,,,,,training_incomplete,,finetune/llama_news_xho,665619,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,MasakhaNews,Xho,monolingual,,,,,eval_submitted,,finetune/llama_news_xho,671326,671368,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_news_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaPOS,All,multilingual,,,,,eval_submitted,,finetune/llama_pos_all,665577,665606,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_pos_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaPOS,All,multilingual,,,,,eval_submitted,,finetune/llama_pos_all,665634,671359,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_pos_all,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_pos_all/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaPOS,Tsn,monolingual,,,,,eval_submitted,,finetune/llama_pos_tsn,665563,665592,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_pos_tsn,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaPOS,Tsn,monolingual,,,,,eval_submitted,,finetune/llama_pos_tsn,665620,671347,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_pos_tsn,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_pos_tsn/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaPOS,Xho,monolingual,,,,,eval_submitted,,finetune/llama_pos_xho,665564,665593,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_pos_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaPOS,Xho,monolingual,,,,,eval_submitted,,finetune/llama_pos_xho,665621,671348,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_pos_xho,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_pos_xho/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,MasakhaPOS,Zul,monolingual,,,,,eval_submitted,,finetune/llama_pos_zul,665565,665594,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_pos_zul,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,MasakhaPOS,Zul,monolingual,,,,,eval_submitted,,finetune/llama_pos_zul,665622,671349,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_pos_zul,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_pos_zul/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SA General,All,general,,,,,training_incomplete,,finetune/llama_sa_general_all,665579,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SA General,All,general,,,,,training_incomplete,,finetune/llama_sa_general_all,665636,,,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-07-r3,SA General,All,general,,,,,eval_submitted,,finetune/llama_sa_general_all,671329,671371,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-07-r3/llama_sa_general_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,Afr,monolingual,,,,,eval_submitted,,finetune/llama_sib_afr,665566,665595,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_afr,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,Afr,monolingual,,,,,eval_submitted,,finetune/llama_sib_afr,665623,671350,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_afr,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_afr/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,All,multilingual,,,,,eval_submitted,,finetune/llama_sib_all,665578,665607,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_all,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,All,multilingual,,,,,eval_submitted,,finetune/llama_sib_all,665635,671360,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_all,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_all/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,Eng,monolingual,,,,,eval_submitted,,finetune/llama_sib_eng,665567,665596,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_eng,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,Eng,monolingual,,,,,eval_submitted,,finetune/llama_sib_eng,665624,671351,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_eng,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_eng/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,Nso,monolingual,,,,,eval_submitted,,finetune/llama_sib_nso,665568,665597,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_nso,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,Nso,monolingual,,,,,eval_submitted,,finetune/llama_sib_nso,665625,671352,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_nso,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_nso/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,Sot,monolingual,,,,,eval_submitted,,finetune/llama_sib_sot,665569,665598,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_sot,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,Sot,monolingual,,,,,eval_submitted,,finetune/llama_sib_sot,665626,671353,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_sot,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_sot/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,Xho,monolingual,,,,,eval_submitted,,finetune/llama_sib_xho,665570,665599,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,Xho,monolingual,,,,,eval_submitted,,finetune/llama_sib_xho,665627,671354,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_xho,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_xho/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,SIB200,Zul,monolingual,,,,,eval_submitted,,finetune/llama_sib_zul,665571,665600,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_sib_zul,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,SIB200,Zul,monolingual,,,,,eval_submitted,,finetune/llama_sib_zul,665628,671355,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_sib_zul,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_sib_zul/final_adapter,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03,Text2Text,Xho,monolingual,,,,,eval_submitted,,finetune/llama_t2x_xho,665572,665601,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03/llama_t2x_xho,,,,
+cluster_manifest,llama,,,transformer,llama,2026-04-03-r2,Text2Text,Xho,monolingual,,,,,eval_submitted,,finetune/llama_t2x_xho,665629,671356,/scratch/lmbanr001/masters/sallm/results/eval/final_llama/2026-04-03-r2/llama_t2x_xho,,/scratch/lmbanr001/masters/sallm/checkpoints/final_llama/2026-04-03-r2/llama_t2x_xho/final_adapter,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Eng,base,0-shot,0.008,,0-shot: 0.008,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Eng,base,1-shot,0.012,,1-shot: 0.012,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Eng,base,3-shot,0.008,,3-shot: 0.008,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Eng,general_instruction,,,,- 0.016 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Sot,base,0-shot,0.012,,0-shot: 0.012,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Sot,base,1-shot,0.008,,1-shot: 0.008,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Sot,base,3-shot,0.012,,3-shot: 0.012,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Sot,general_instruction,,,,- 0.016 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Xho,base,0-shot,0.016,,0-shot: 0.016,baseline_result,15 Aug,,,,,,,,"- 3 epochs
+- apply chat template false"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Xho,base,1-shot,0.012,,1-shot: 0.012,baseline_result,15 Aug,,,,,,,,"- 3 epochs
+- apply chat template false"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Xho,base,3-shot,0.008,,3-shot: 0.008,baseline_result,15 Aug,,,,,,,,"- 3 epochs
+- apply chat template false"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Xho,general_instruction,,,,- 0.024 F1,baseline_note,15 Aug,,,,,,,,"- 3 epochs
+- apply chat template false"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Zul,base,0-shot,0.024,,0-shot: 0.024,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Zul,base,1-shot,0.012,,1-shot: 0.012,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Zul,base,3-shot,0.004,,3-shot: 0.004,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimgsm,Zul,general_instruction,,,,- 0.008 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Eng,base,0-shot,0.254,,0-shot: 0.254,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Eng,general_instruction,,,,- 0.234 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Sot,base,0-shot,0.237,,0-shot: 0.237,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Sot,general_instruction,,,,- 0.251 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Xho,base,0-shot,0.227,,0-shot: 0.227,baseline_result,23 Aug,,,,,,,- inkubalm-0.4: 27.4,"- 3 epochs
+- apply chat template false"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Xho,general_instruction,,,,- 0.230 F1,baseline_note,23 Aug,,,,,,,- inkubalm-0.4: 27.4,"- 3 epochs
+- apply chat template false"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Zul,base,0-shot,0.247,,0-shot: 0.247,baseline_result,23 Aug,,,,,,,- inkubalm-0.4: 24.2,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrimmlu,Zul,general_instruction,,,,- 0.242 F1,baseline_note,23 Aug,,,,,,,- inkubalm-0.4: 24.2,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Eng,base,0-shot,0.273,,0-shot: 0.273,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Eng,general_instruction,,,,- 0.269 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Sot,base,0-shot,0.323,,0-shot: 0.323,baseline_result,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Sot,general_instruction,,,,- 0.318 F1,baseline_note,23 Aug,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Xho,base,0-shot,0.323,,0-shot: 0.323,baseline_result,17 Aug,,,,,,,"https://arxiv.org/pdf/2408.17024v1
+https://arxiv.org/pdf/2311.07978
+- inkubalm-0.4: 32.8","- 3 epochs
+- apply chat template false
+- inkuba lm was prompted in african languages"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Xho,general_instruction,,,,- 0.334 F1,baseline_note,17 Aug,,,,,,,"https://arxiv.org/pdf/2408.17024v1
+https://arxiv.org/pdf/2311.07978
+- inkubalm-0.4: 32.8","- 3 epochs
+- apply chat template false
+- inkuba lm was prompted in african languages"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Zul,base,0-shot,0.320,,0-shot: 0.320,baseline_result,23 Aug,,,,,,,- inkubalm-0.4: 33.1,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Afrixnli,Zul,general_instruction,,,,- 0.336 F1,baseline_note,23 Aug,,,,,,,- inkubalm-0.4: 33.1,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Afr,base,0-shot,0.273,Acc Norm,0-shot: 0.273 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Afr,base,1-shot,0.276,Acc Norm,1-shot: 0.276 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Afr,base,3-shot,0.274,Acc Norm,3-shot: 0.274 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Afr,general_instruction,,,,- 0.311 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Eng,base,0-shot,0.273,Acc Norm,0-shot: 0.273 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Eng,base,1-shot,0.274,Acc Norm,1-shot: 0.274 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Eng,base,3-shot,0.276,Acc Norm,3-shot: 0.276 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Eng,general_instruction,,,,- 0.296 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Sot,base,0-shot,0.271,Acc Norm,0-shot: 0.271 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Sot,base,1-shot,0.274,Acc Norm,1-shot: 0.274 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Sot,base,3-shot,0.273,Acc Norm,3-shot: 0.273 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Sot,general_instruction,,,,- 0.220 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Ssw,base,0-shot,0.278,Acc Norm,0-shot: 0.278 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Ssw,base,1-shot,0.297,Acc Norm,1-shot: 0.297 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Ssw,base,3-shot,0.288,Acc Norm,3-shot: 0.288 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Ssw,general_instruction,,,,- 0.236 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Tsn,base,0-shot,0.283,Acc Norm,0-shot: 0.283 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Tsn,base,1-shot,0.308,Acc Norm,1-shot: 0.308 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Tsn,base,3-shot,0.29,Acc Norm,3-shot: 0.29 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Tsn,general_instruction,,,,- 0.219 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Xho,base,0-shot,0.278,Acc Norm,0-shot: 0.278 Acc Norm,baseline_result,5 Oct,,,,,,,"https://arxiv.org/pdf/2308.16884
+- llama 2 chat 70B: 0.2-0.8
+- random chance: 0.2-0.25",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Xho,base,1-shot,0.294,Acc Norm,1-shot: 0.294 Acc Norm,baseline_result,5 Oct,,,,,,,"https://arxiv.org/pdf/2308.16884
+- llama 2 chat 70B: 0.2-0.8
+- random chance: 0.2-0.25",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Xho,base,3-shot,0.288,Acc Norm,3-shot: 0.288 Acc Norm,baseline_result,5 Oct,,,,,,,"https://arxiv.org/pdf/2308.16884
+- llama 2 chat 70B: 0.2-0.8
+- random chance: 0.2-0.25",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Xho,general_instruction,,,,- 0.219 F1,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2308.16884
+- llama 2 chat 70B: 0.2-0.8
+- random chance: 0.2-0.25",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Zul,base,0-shot,0.280,Acc Norm,0-shot: 0.280 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Zul,base,1-shot,0.282,Acc Norm,1-shot: 0.282 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Zul,base,3-shot,0.282,Acc Norm,3-shot: 0.282 Acc Norm,baseline_result,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Belebele,Zul,general_instruction,,,,- 0.251 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Flores,,general_instruction,,,,- use smaller english instruction tuning dataset,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Eng,base,,,,"- 0-shot: 0.031 F1
+- 1-shot: 0.043 F1
+- 3-shot: 0.023 F1",baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2502.09814
+- quite a bit worse than llama 8B and 70B",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Eng,general_instruction,,,,- 0.035 F1,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2502.09814
+- quite a bit worse than llama 8B and 70B",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Eng,monolingual,,,,TODO,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2502.09814
+- quite a bit worse than llama 8B and 70B",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Eng,multilingual,,,,- 0.029 F1,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2502.09814
+- quite a bit worse than llama 8B and 70B",
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Sot,base,,,,"- 0-shot: 0.014 F1
+- 1-shot: 0.037 F1
+- 3-shot: 0.041 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Sot,general_instruction,,,,- 0.009 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Sot,monolingual,,,,- 0.009 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Sot,multilingual,,,,- 0.007 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Xho,base,,,,"- 0-shot: 0.008 F1
+- 1-shot: 0.037 F1
+- 3-shot: 0.041 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Xho,general_instruction,,,,- 0.006 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Xho,monolingual,,,,- 0.006 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Xho,multilingual,,,,- 0.010 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Zul,base,,,,"- 0-shot: 0.009 F1
+- 1-shot: 0.037 F1
+- 3-shot: 0.041 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Zul,general_instruction,,,,- 0.006 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Zul,monolingual,,,,- 0.006 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Injonjo Intent,Zul,multilingual,,,,- 0.007 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Mafand-MT,,general_instruction,,,,- aya instruction tuning dataset,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Mafand-MT,,general_instruction,,,,- try to use english,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,Mafand-MT,,general_instruction,,,,- can you write your own custom prompt?,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Tsn,base,,,,"- 0-shot: 0 F1
+- 1-shot: 0 F1
+- 3-shot: 0 F1",baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.658
+- 0.738 (+Awes)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.68 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Tsn,general_instruction,,,,- 0.123 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.658
+- 0.738 (+Awes)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.68 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Tsn,monolingual,,,,- 0.389 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.658
+- 0.738 (+Awes)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.68 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Tsn,multilingual,,,,- 0.237 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.658
+- 0.738 (+Awes)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.68 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Xho,base,,0.305,Accuracy,0.305 Accuracy,baseline_result,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.245
+- 0.791 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.05-0.25 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Xho,general_instruction,,,,- 0.136 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.245
+- 0.791 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.05-0.25 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Xho,monolingual,,0.000,Accuracy,0.000 Accuracy,baseline_result,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.245
+- 0.791 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.05-0.25 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Xho,multilingual,,,,- 0.248 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.245
+- 0.791 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.05-0.25 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Zul,base,,,,"- 0-shot: 0 F1
+- 1-shot: 0 F1
+- 3-shot: 0 F1",baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.447
+- 0.748 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.35 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template
+- seems to generate too much, causing false positives and reducing f1"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Zul,general_instruction,,,,- 0.207 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.447
+- 0.748 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.35 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template
+- seems to generate too much, causing false positives and reducing f1"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Zul,monolingual,,,,- 0.261 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.447
+- 0.748 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.35 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template
+- seems to generate too much, causing false positives and reducing f1"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNER,Zul,multilingual,,,,- 0.226 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.findings-acl.357.pdf
+- 0.447
+- 0.748 (+XML)
+https://arxiv.org/pdf/2311.07978 (promt, not fine-tuning)
+- 0.03-0.35 across all decoder only models","- added tokenizer.backend_tokenizer.decoder = ByteLevel() which takes away the unusual characters that mess up ner. Then apply_chat_template = true
+- 50 epochs
+- trained on v5 template
+- seems to generate too much, causing false positives and reducing f1"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Eng,base,,,,"- 0-shot: 0.383 F1
+- 1-shot: 0.300 F1
+- 3-shot: 0.322 F1",baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.ijcnlp-main.10.pdf
+- gpt-4: 0.791
+- gpt-3.5-turbo: 0.793
+https://arxiv.org/pdf/2311.07978
+- figure 11
+- 0.6-0.8 in general
+- Aya-101 13B: 0.85
+- LLaMa 2 7B: 0.23","- Got many logs like this: Running loglikelihood requests:   0%|          | 1/33180 [00:00<7:15:24,  1.27it/s][2025-08-05 17:15:54,951][lm_eval.models.huggingface][WARNING] - Combined length of context (5001) and continuation (2) exceeds model's maximum length (2048). Truncating 2956 tokens from the left.
+- fine tuned on v5 and v1 template (duplicated data per template)
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- GFT then compare"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Eng,general_instruction,,,,- 0.492 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.ijcnlp-main.10.pdf
+- gpt-4: 0.791
+- gpt-3.5-turbo: 0.793
+https://arxiv.org/pdf/2311.07978
+- figure 11
+- 0.6-0.8 in general
+- Aya-101 13B: 0.85
+- LLaMa 2 7B: 0.23","- Got many logs like this: Running loglikelihood requests:   0%|          | 1/33180 [00:00<7:15:24,  1.27it/s][2025-08-05 17:15:54,951][lm_eval.models.huggingface][WARNING] - Combined length of context (5001) and continuation (2) exceeds model's maximum length (2048). Truncating 2956 tokens from the left.
+- fine tuned on v5 and v1 template (duplicated data per template)
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- GFT then compare"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Eng,monolingual,,,,- 0.635 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.ijcnlp-main.10.pdf
+- gpt-4: 0.791
+- gpt-3.5-turbo: 0.793
+https://arxiv.org/pdf/2311.07978
+- figure 11
+- 0.6-0.8 in general
+- Aya-101 13B: 0.85
+- LLaMa 2 7B: 0.23","- Got many logs like this: Running loglikelihood requests:   0%|          | 1/33180 [00:00<7:15:24,  1.27it/s][2025-08-05 17:15:54,951][lm_eval.models.huggingface][WARNING] - Combined length of context (5001) and continuation (2) exceeds model's maximum length (2048). Truncating 2956 tokens from the left.
+- fine tuned on v5 and v1 template (duplicated data per template)
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- GFT then compare"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Eng,multilingual,,,,- 0.608 F1,baseline_note,5 Oct,,,,,,,"https://aclanthology.org/2023.ijcnlp-main.10.pdf
+- gpt-4: 0.791
+- gpt-3.5-turbo: 0.793
+https://arxiv.org/pdf/2311.07978
+- figure 11
+- 0.6-0.8 in general
+- Aya-101 13B: 0.85
+- LLaMa 2 7B: 0.23","- Got many logs like this: Running loglikelihood requests:   0%|          | 1/33180 [00:00<7:15:24,  1.27it/s][2025-08-05 17:15:54,951][lm_eval.models.huggingface][WARNING] - Combined length of context (5001) and continuation (2) exceeds model's maximum length (2048). Truncating 2956 tokens from the left.
+- fine tuned on v5 and v1 template (duplicated data per template)
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- GFT then compare"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Xho,base,,,,"- 0-shot: 0.391 F1
+- 1-shot: 0.309 F1
+- 3-shot: 0.290 F1",baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2311.07978
+- LLaMa 2 7B: 0.2
+- Some 0.5
+- Some 0.7
+- Some 0.8<","- all eval examples fit in the sequence length
+- fine tuned on v5 template
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- loss only on assistant loss made a huge difference: 0.64 -> 0.73"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Xho,general_instruction,,,,- 0.509 F1,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2311.07978
+- LLaMa 2 7B: 0.2
+- Some 0.5
+- Some 0.7
+- Some 0.8<","- all eval examples fit in the sequence length
+- fine tuned on v5 template
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- loss only on assistant loss made a huge difference: 0.64 -> 0.73"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Xho,monolingual,,,,- 0.732 F1,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2311.07978
+- LLaMa 2 7B: 0.2
+- Some 0.5
+- Some 0.7
+- Some 0.8<","- all eval examples fit in the sequence length
+- fine tuned on v5 template
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- loss only on assistant loss made a huge difference: 0.64 -> 0.73"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaNews,Xho,multilingual,,,,- 0.785 F1,baseline_note,5 Oct,,,,,,,"https://arxiv.org/pdf/2311.07978
+- LLaMa 2 7B: 0.2
+- Some 0.5
+- Some 0.7
+- Some 0.8<","- all eval examples fit in the sequence length
+- fine tuned on v5 template
+- apply chat template false for evaluation (haven't figured out why results crash when apply chat template is true for multiple choice, something to do with https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/chat-template-readme.md)
+- fewshot 0
+- no hpo done yet
+- 20 epochs fine tuned
+- loss only on assistant loss made a huge difference: 0.64 -> 0.73"
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Tsn,base,,0.000,Accuracy,0.000 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Tsn,general_instruction,,0.000,Accuracy,0.000 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Tsn,monolingual,,0.056,Accuracy,0.056 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Tsn,multilingual,,0.005,Accuracy,0.005 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Xho,base,,0.000,Accuracy,0.000 Accuracy,baseline_result,13 Mar,,,,,,,https://aclanthology.org/2023.acl-long.609.pdf,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Xho,general_instruction,,0.000,Accuracy,0.000 Accuracy,baseline_result,13 Mar,,,,,,,https://aclanthology.org/2023.acl-long.609.pdf,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Xho,monolingual,,0.305,Accuracy,0.305 Accuracy,baseline_result,13 Mar,,,,,,,https://aclanthology.org/2023.acl-long.609.pdf,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Xho,multilingual,,0.116,Accuracy,0.116 Accuracy,baseline_result,13 Mar,,,,,,,https://aclanthology.org/2023.acl-long.609.pdf,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Zul,base,,0.000,Accuracy,0.000 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Zul,general_instruction,,0.000,Accuracy,0.000 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Zul,monolingual,,0.378,Accuracy,0.378 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,MasakhaPOS,Zul,multilingual,,0.095,Accuracy,0.095 Accuracy,baseline_result,13 Mar,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Afr,base,,,,"- 0-shot: 0.434 F1
+- 1-shot: 0.166 F1
+- 3-shot: 0.202 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Afr,general_instruction,,,,- 0.544 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Afr,monolingual,,,,- 0.544 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Afr,multilingual,,,,- 0.296 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Eng,base,,,,"- 0-shot: 0.323 F1
+- 1-shot: 0.164 F1
+- 3-shot: 0.206 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Eng,general_instruction,,,,- 0.280 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Eng,monolingual,,,,- 0.280 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Eng,multilingual,,,,- 0.333 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Nso,base,,,,"- 0-shot: 0.173 F1
+- 1-shot: 0.132 F1
+- 2-shot: 0.193 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Nso,general_instruction,,,,- 0.339 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Nso,monolingual,,,,- 0.366 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Nso,multilingual,,,,- 0.305 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Sot,base,,,,"- 0-shot: 0.180 F1
+- 1-shot: 0.167 F1
+- 3-shot: 0.173 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Sot,general_instruction,,,,- 0.368 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Sot,monolingual,,,,- 0.368 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Sot,multilingual,,,,- 0.347 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Tsn,base,,,,TODO,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Xho,base,,,,"- 0-shot: 0.289 F1
+- 1-shot: 0.194 F1
+- 3-shot: 0.199 F1",baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Xho,general_instruction,,,,- 0.391 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Xho,monolingual,,,,- 0.391 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Xho,multilingual,,,,- 0.404 F1,baseline_note,5 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Zul,base,,,,"- 0-shot: 0.312 F1
+- 1-shot: 0.211 F1
+- 3-shot: 0.240 F1",baseline_note,5 Oct,,,,,,,https://arxiv.org/pdf/2309.07445,- apply chat template false
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Zul,general_instruction,,,,- 0.472 F1,baseline_note,5 Oct,,,,,,,https://arxiv.org/pdf/2309.07445,- apply chat template false
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Zul,monolingual,,,,- 0.220 F1,baseline_note,5 Oct,,,,,,,https://arxiv.org/pdf/2309.07445,- apply chat template false
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,SIB200,Zul,multilingual,,,,- 0.472 F1,baseline_note,5 Oct,,,,,,,https://arxiv.org/pdf/2309.07445,- apply chat template false
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,TODO: Sadilar (not on lm-eval-harness) - use Francois' nguni dataset - last section of results,,general_instruction,,,,- can we do DPO?,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,"TODO: do 1 shot and 3 shot prompting, not 5 and 8 shot since the model tends to do worse then.",,base,,,,"Notes
+- flashattention just show speedup (to justify)
+- sadilar
+- pos fix?
+- balanced dataset evaluation
+- add hf and github links
+- put on arxiv (claim name)
+- apply for scholarships (Francois can send)
+- student can apply to volunteer (search on booking.com)
+- emphasize outperforming
+- release filtering pipeline code (double check with Ethan)
+- can take out hpo
+- can open source now
+- invite francois and Jan to github and huggingface to see it's structured well",baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,,base,,,,TODO: eval base model with few-shot on these tasks,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,,base,,,,"TODO: why belebele is not doing well? Measures Acc Norm, so what if I just apply chat template?",baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,,general_instruction,,,,TODO: fix general fine tuning,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,,general_instruction,,,,- instructions in african languages?,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Xho,base,"""eval/afrihg_xho/xho_chrf""",3.2945051580716136,,"""eval/afrihg_xho/xho_chrf"": 3.2945051580716136",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Xho,base,"""eval/afrihg_xho/xho_chrf""",4.07971440437065,,"""eval/afrihg_xho/xho_chrf"": 4.07971440437065",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Xho,base,"""eval/afrihg_xho/xho_chrf""",0.7364378385858514,,"""eval/afrihg_xho/xho_chrf"": 0.7364378385858514",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Xho,general_instruction,"""eval/afrihg_xho/xho_chrf""",10.984692578808522,,"""eval/afrihg_xho/xho_chrf"": 10.984692578808522",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Xho,monolingual,"""eval/afrihg_xho/xho_chrf""",14.283043952280138,,"""eval/afrihg_xho/xho_chrf"": 14.283043952280138",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Xho,multilingual,"""eval/afrihg_xho/xho_chrf""",16.97792874587668,,"""eval/afrihg_xho/xho_chrf"": 16.97792874587668",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Zul,base,"""eval/afrihg_zul/zul_chrf""",4.239479888756929,,"""eval/afrihg_zul/zul_chrf"": 4.239479888756929",baseline_result,6 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Zul,base,"""eval/afrihg_zul/zul_chrf""",4.6054772046826145,,"""eval/afrihg_zul/zul_chrf"": 4.6054772046826145",baseline_result,6 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Zul,base,"""eval/afrihg_zul/zul_chrf""",0.8552273179322823,,"""eval/afrihg_zul/zul_chrf"": 0.8552273179322823",baseline_result,6 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Zul,general_instruction,"""eval/afrihg_zul/zul_chrf""",9.986626158981073,,"""eval/afrihg_zul/zul_chrf"": 9.986626158981073",baseline_result,6 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Zul,monolingual,"""eval/afrihg_zul/zul_chrf""",19.047754650090074,,"""eval/afrihg_zul/zul_chrf"": 19.047754650090074",baseline_result,6 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,afrihg,Zul,multilingual,"""eval/afrihg_zul/zul_chrf""",17.48145059430661,,"""eval/afrihg_zul/zul_chrf"": 17.48145059430661",baseline_result,6 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,t2x,Xho,base,"""eval/t2x_xho/xho_chrf""",2.1219979606450914,,"""eval/t2x_xho/xho_chrf"": 2.1219979606450914",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,t2x,Xho,base,"""eval/t2x_xho/xho_chrf""",2.607284603239026,,"""eval/t2x_xho/xho_chrf"": 2.607284603239026",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,t2x,Xho,base,"""eval/t2x_xho/xho_chrf""",3.508699653634692,,"""eval/t2x_xho/xho_chrf"": 3.508699653634692",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,t2x,Xho,general_instruction,"""eval/t2x_xho/xho_chrf""",16.05278067626169,,"""eval/t2x_xho/xho_chrf"": 16.05278067626169",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,Transformer Results,transformer,transformer_baseline,,t2x,Xho,monolingual,"""eval/t2x_xho/xho_chrf""",55.385166742964586,,"""eval/t2x_xho/xho_chrf"": 55.385166742964586",baseline_result,15 Oct,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimgsm,Eng,base,0-shot,0.008,EM,0-shot: 0.008 EM,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimgsm,Sot,base,0-shot,0.004,EM,0-shot: 0.004 EM,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimgsm,Xho,base,0-shot,0.008,EM,0-shot: 0.008 EM,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimgsm,Zul,base,0-shot,0.000,EM,0-shot: 0.000 EM,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimmlu,Eng,base,0-shot,0.220,Acc,0-shot: 0.220 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimmlu,Sot,base,0-shot,0.236,Acc,0-shot: 0.236 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimmlu,Xho,base,0-shot,0.222,Acc,0-shot: 0.222 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrimmlu,Zul,base,0-shot,0.236,Acc,0-shot: 0.236 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrixnli,Eng,base,0-shot,0.3333,Acc,0-shot: 0.3333 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrixnli,Sot,base,0-shot,0.3333,Acc,0-shot: 0.3333 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrixnli,Xho,base,0-shot,0.3333,Acc,0-shot: 0.3333 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Afrixnli,Zul,base,0-shot,0.3333,Acc,0-shot: 0.3333 Acc,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Afr,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Eng,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Sot,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Ssw,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Tsn,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Xho,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Belebele,Zul,base,0-shot,0.2289,Acc Norm,0-shot: 0.2289 Acc Norm,baseline_result,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Injonjo Intent,Eng,base,,,,- 0-shot: 0.0013 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Injonjo Intent,Sot,base,,,,- 0-shot: 0.0012 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Injonjo Intent,Xho,base,,,,- 0-shot: 0.0012 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,Injonjo Intent,Zul,base,,,,- 0-shot: 0.0012 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaNER,Tsn,base,,,,- 0-shot: 0.000 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaNER,Xho,base,,,,- 0-shot: 0.000 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaNER,Zul,base,,,,- 0-shot: 0.000 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaNews,Eng,base,,,,- 0-shot: 0.250 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaNews,Xho,base,,,,- 0-shot: 0.340 F1,baseline_note,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaPOS,Tsn,base,,,,TODO: lm eval harness task broken,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaPOS,Xho,base,,,,TODO: lm eval harness task broken,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,MasakhaPOS,Zul,base,,,,TODO: lm eval harness task broken,baseline_note,,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,SIB200,Afr,base,,,,- 0-shot: 0.1746 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,SIB200,Eng,base,,,,- 0-shot: 0.0269 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,SIB200,Nso,base,,,,- 0-shot: 0.0549 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,SIB200,Sot,base,,,,- 0-shot: 0.0365 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,SIB200,Xho,base,,,,- 0-shot: 0.0566 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,SIB200,Zul,base,,,,- 0-shot: 0.0269 F1,baseline_note,23 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,afrihg,Xho,base,"""xho_chrf""",3.45,,"""xho_chrf"": 3.45",baseline_result,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,afrihg,Xho,base,"""xho_chrf""",8.66,,"""xho_chrf"": 8.66",baseline_result,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,afrihg,Zul,base,"""zul_chrf""",2.72,,"""zul_chrf"": 2.72",baseline_result,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,afrihg,Zul,base,"""zul_chrf""",8.46,,"""zul_chrf"": 8.46",baseline_result,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,t2x,Xho,base,"""xho_chrf""",2.27,,"""xho_chrf"": 2.27",baseline_result,25 Jan,,,,,,,,
+google_sheet,masters_datasets_sheet,https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?usp=sharing,XLSTM Results,xlstm,xlstm,,t2x,Xho,base,"""xho_chrf""",5.20,,"""xho_chrf"": 5.20",baseline_result,25 Jan,,,,,,,,

@@ -398,46 +398,51 @@ def run(config: ExperimentConfig) -> None:
         if config.hub and config.hub.enabled and config.hub.push_adapter and i_am_main:
             repo_id = _build_hub_repo_id(config, merged=False)
 
-            # Update base model reference to HF model ID before pushing
-            if config.hub.base_model_id:
-                active_adapter = getattr(model, "active_adapter", "default")
-                peft_cfg = model.peft_config.get(active_adapter)
-                if peft_cfg:
-                    peft_cfg.base_model_name_or_path = config.hub.base_model_id
-                    logger.info(
-                        f"Set base_model reference to: {config.hub.base_model_id}"
-                    )
+            try:
+                # Update base model reference to HF model ID before pushing
+                if config.hub.base_model_id:
+                    active_adapter = getattr(model, "active_adapter", "default")
+                    peft_cfg = model.peft_config.get(active_adapter)
+                    if peft_cfg:
+                        peft_cfg.base_model_name_or_path = config.hub.base_model_id
+                        logger.info(
+                            f"Set base_model reference to: {config.hub.base_model_id}"
+                        )
 
-            logger.info(f"Pushing adapter to HuggingFace Hub: {repo_id}")
-            model.push_to_hub(repo_id, private=config.hub.private)
-            tokenizer.push_to_hub(repo_id, private=config.hub.private)
-            logger.info(f"Successfully pushed to {repo_id}")
+                logger.info(f"Pushing adapter to HuggingFace Hub: {repo_id}")
+                model.push_to_hub(repo_id, private=config.hub.private)
+                tokenizer.push_to_hub(repo_id, private=config.hub.private)
+                logger.info(f"Successfully pushed to {repo_id}")
 
-            # Add to collection if specified
-            if config.hub.collection_slug:
-                try:
-                    from huggingface_hub import add_collection_item
+                if config.hub.collection_slug:
+                    try:
+                        from huggingface_hub import add_collection_item
 
-                    add_collection_item(
-                        collection_slug=config.hub.collection_slug,
-                        item_id=repo_id,
-                        item_type="model",
-                        exists_ok=True,
-                    )
-                    logger.info(f"Added to collection: {config.hub.collection_slug}")
-                except Exception as e:
-                    logger.warning(f"Could not add to collection: {e}")
+                        add_collection_item(
+                            collection_slug=config.hub.collection_slug,
+                            item_id=repo_id,
+                            item_type="model",
+                            exists_ok=True,
+                        )
+                        logger.info(
+                            f"Added to collection: {config.hub.collection_slug}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not add to collection: {e}")
 
-            # Auto-delete local checkpoint after successful push to save space
-            checkpoint_dir = trainer.args.output_dir
-            if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
-                try:
-                    shutil.rmtree(checkpoint_dir)
-                    logger.info(
-                        f"Deleted local checkpoint to free space: {checkpoint_dir}"
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to delete checkpoint {checkpoint_dir}: {e}")
+                checkpoint_dir = trainer.args.output_dir
+                if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+                    try:
+                        shutil.rmtree(checkpoint_dir)
+                        logger.info(
+                            f"Deleted local checkpoint to free space: {checkpoint_dir}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to delete checkpoint {checkpoint_dir}: {e}"
+                        )
+            except Exception as e:
+                logger.warning(f"Hub push failed, keeping local adapter artifact: {e}")
 
         return
 
@@ -480,6 +485,9 @@ def run(config: ExperimentConfig) -> None:
 
     if config.hub and config.hub.enabled and config.hub.push_merged and i_am_main:
         repo_id = _build_hub_repo_id(config, merged=True)
-        logger.info(f"Pushing merged model to HuggingFace Hub: {repo_id}")
-        merged_model.push_to_hub(repo_id, private=config.hub.private)
-        tokenizer.push_to_hub(repo_id, private=config.hub.private)
+        try:
+            logger.info(f"Pushing merged model to HuggingFace Hub: {repo_id}")
+            merged_model.push_to_hub(repo_id, private=config.hub.private)
+            tokenizer.push_to_hub(repo_id, private=config.hub.private)
+        except Exception as e:
+            logger.warning(f"Hub push failed, keeping local merged artifact: {e}")
