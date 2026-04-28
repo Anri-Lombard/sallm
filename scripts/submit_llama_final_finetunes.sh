@@ -192,7 +192,7 @@ family_overrides() {
         "++finetune.training.per_device_eval_batch_size=2" \
         "++finetune.training.num_train_epochs=8"
       ;;
-    llama_pos_*|llama_ner_*)
+    llama_pos_*)
       printf '%s\n' \
         "++finetune.dataset.max_seq_length=1024" \
         "++finetune.training.learning_rate=0.00016" \
@@ -203,6 +203,34 @@ family_overrides() {
         "++finetune.training.per_device_train_batch_size=2" \
         "++finetune.training.per_device_eval_batch_size=2" \
         "++finetune.training.num_train_epochs=10"
+      ;;
+    llama_ner_all)
+      printf '%s\n' \
+        "++finetune.dataset.max_seq_length=256" \
+        "++finetune.dataset.packing=true" \
+        "++finetune.training.learning_rate=0.00016" \
+        "++finetune.training.weight_decay=0.12" \
+        "++finetune.training.warmup_ratio=0.1" \
+        "++finetune.training.lr_scheduler_type=constant_with_warmup" \
+        "++finetune.training.gradient_accumulation_steps=1" \
+        "++finetune.training.per_device_train_batch_size=32" \
+        "++finetune.training.per_device_eval_batch_size=32" \
+        "++finetune.training.num_train_epochs=20" \
+        "++finetune.training.eval_strategy=epoch"
+      ;;
+    llama_ner_*)
+      printf '%s\n' \
+        "++finetune.dataset.max_seq_length=256" \
+        "++finetune.dataset.packing=true" \
+        "++finetune.training.learning_rate=0.00016" \
+        "++finetune.training.weight_decay=0.12" \
+        "++finetune.training.warmup_ratio=0.1" \
+        "++finetune.training.lr_scheduler_type=constant_with_warmup" \
+        "++finetune.training.gradient_accumulation_steps=1" \
+        "++finetune.training.per_device_train_batch_size=32" \
+        "++finetune.training.per_device_eval_batch_size=32" \
+        "++finetune.training.num_train_epochs=20" \
+        "++finetune.training.eval_strategy=epoch"
       ;;
     llama_afrihg_*)
       printf '%s\n' \

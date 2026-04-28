@@ -2,8 +2,8 @@ name: hpo-llama-ner-all
 project: sallm-ft
 method: bayes
 metric:
-  name: eval/loss
-  goal: minimize
+  name: eval/all_f1
+  goal: maximize
 parameters:
   training.learning_rate:
     distribution: log_uniform_values

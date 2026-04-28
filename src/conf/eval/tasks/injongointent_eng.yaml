@@ -6,4 +6,4 @@ tasks:
   - injongointent_eng_prompt_5
 fewshot: 0
 batch_size: "auto:4"
-apply_chat_template: false
+apply_chat_template: true

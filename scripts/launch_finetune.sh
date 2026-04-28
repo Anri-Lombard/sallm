@@ -69,21 +69,42 @@ cd "$PROJECT_ROOT"
 uv sync --frozen --inexact
 source .venv/bin/activate
 
-# Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
-echo "--- Mamba CUDA kernel status ---"
-if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-    echo "✓ Mamba fast path (CUDA kernels) available"
-else
-    echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-    uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
-    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
-    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-        echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl is too slow)."
-        exit 1
+# Install CUDA kernels only when the selected model needs them.
+echo "--- CUDA kernel status ---"
+IS_MAMBA=false
+IS_XLSTM=false
+[[ "$CFG_NAME" == *mamba* ]] && IS_MAMBA=true
+[[ "$CFG_NAME" == *xlstm* ]] && IS_XLSTM=true
+
+if $IS_MAMBA; then
+    if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+        echo "✓ Mamba fast path (CUDA kernels) available"
+    else
+        echo "Mamba kernels missing or ABI mismatch, rebuilding..."
+        uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
+        uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
+        if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+            echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl is too slow)."
+            exit 1
+        fi
+        echo "✓ Mamba fast path (CUDA kernels) available"
     fi
-    echo "✓ Mamba fast path (CUDA kernels) available"
+    export MAMBA_SCAN_IMPL="cuda"
+elif $IS_XLSTM; then
+    if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
+        echo "✓ xLSTM fast path (NX-AI kernels) available"
+    else
+        echo "Installing xlstm package..."
+        uv pip install xlstm 2>&1 | tail -5 || true
+        if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
+            echo "✓ xLSTM fast path (NX-AI kernels) available"
+        else
+            echo "ℹ Using xLSTM native implementation"
+        fi
+    fi
+else
+    echo "ℹ No model-specific CUDA kernels required for $CFG_NAME"
 fi
-export MAMBA_SCAN_IMPL="cuda"
 echo "-------------------------------"
 
 # Set PyTorch CUDA allocation config to reduce fragmentation (optional)

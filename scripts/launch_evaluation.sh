@@ -1,7 +1,7 @@
 #!/bin/bash
 ##SBATCH --account=your-slurm-account
 #SBATCH --partition=l40s
-#SBATCH --gres=gpu:l40s:2
+#SBATCH --gres=gpu:l40s:1
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
@@ -35,7 +35,7 @@ JOB_NAME="${JOB_NAME#llama_}"
 
 export HYDRA_FULL_ERROR=1
 
-export JOB_LOG_DIR="${JOB_LOG_DIR:-$SCRATCH/sallm/logs/jobs}"
+export JOB_LOG_DIR="${JOB_LOG_DIR:-$PROJECT_ROOT/logs/jobs}"
 # Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
 export XDG_CACHE_HOME="$SCRATCH/.cache"
 load_hf_token || true

@@ -3,7 +3,7 @@ project: sallm-ft
 method: bayes
 run_cap: 50
 metric:
-  name: classification/all_accuracy
+  name: classification/all_f1
   goal: maximize
 parameters:
   training.learning_rate:

@@ -13,6 +13,10 @@ set -euo pipefail
 SWEEP_ARG="${1:-}"
 COUNT="${2:-24}"
 SWEEP_DIR="src/conf/sweeps"
+SWEEP_MIN_ITER="${WANDB_SWEEP_MIN_ITER:-1}"
+ENABLE_SWEEP_PRUNING="${WANDB_SWEEP_EARLY_TERMINATE:-1}"
+SWEEP_STRICT="${WANDB_SWEEP_STRICT:-0}"
+HPO_EVAL_STEPS_CAP="${WANDB_HPO_EVAL_STEPS_CAP:-${WANDB_HPO_CLASSIFICATION_EVAL_STEPS:-200}}"
 
 SWEEP_NAME="${SWEEP_ARG%.yaml}"
 SWEEP_NAME="${SWEEP_NAME##*/}"
@@ -153,6 +157,102 @@ fi
 if [[ ! -f "$SWEEP_FILE" ]]; then
   echo "Sweep file not found: $SWEEP_FILE" >&2
   exit 1
+fi
+
+TMP_SWEEP_FILE=""
+cleanup_tmp_sweep() {
+  if [[ -n "$TMP_SWEEP_FILE" && -f "$TMP_SWEEP_FILE" ]]; then
+    rm -f "$TMP_SWEEP_FILE"
+  fi
+}
+trap cleanup_tmp_sweep EXIT
+
+prepare_sweep_file() {
+  local src_file="$1"
+  local dst_file="$2"
+  local min_iter="$3"
+  local strict_flag="$4"
+  local eval_steps_cap="$5"
+  python - "$src_file" "$dst_file" "$min_iter" "$strict_flag" "$eval_steps_cap" <<'PY'
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import yaml
+
+src_file = Path(sys.argv[1])
+dst_file = Path(sys.argv[2])
+min_iter = max(1, int(sys.argv[3]))
+strict = sys.argv[4] == "1"
+eval_steps_cap = max(1, int(sys.argv[5]))
+
+data = yaml.safe_load(src_file.read_text()) or {}
+
+if "early_terminate" not in data:
+    data["early_terminate"] = {
+        "type": "hyperband",
+        "min_iter": min_iter,
+    }
+elif "min_iter" not in data["early_terminate"]:
+    data["early_terminate"]["min_iter"] = min_iter
+
+if strict:
+    data["early_terminate"].setdefault("strict", True)
+
+metric = data.get("metric") or {}
+metric_name = str(metric.get("name") or "")
+parameters = data.get("parameters") or {}
+
+
+def _literal_param_value(key: str):
+    param = parameters.get(key)
+    if isinstance(param, dict):
+        return param.get("value")
+    return None
+
+
+def _set_literal_param(key: str, value):
+    param = parameters.get(key)
+    if isinstance(param, dict):
+        param.clear()
+        param["value"] = value
+    else:
+        parameters[key] = {"value": value}
+
+
+def _cap_literal_int_param(key: str, cap: int) -> int | None:
+    value = _literal_param_value(key)
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        return None
+    capped = min(int(value), cap)
+    if capped > 0:
+        _set_literal_param(key, capped)
+        return capped
+    return None
+
+
+if metric_name.startswith(("classification/", "eval/")):
+    capped_eval_steps = _cap_literal_int_param("training.eval_steps", eval_steps_cap)
+    save_strategy = _literal_param_value("training.save_strategy")
+    load_best = _literal_param_value("training.load_best_model_at_end")
+    if capped_eval_steps and (save_strategy == "steps" or load_best is True):
+        _set_literal_param("training.save_steps", capped_eval_steps)
+
+dst_file.write_text(yaml.safe_dump(data, sort_keys=False))
+PY
+}
+
+if [[ "$ENABLE_SWEEP_PRUNING" != "0" ]]; then
+  TMP_SWEEP_FILE="$(mktemp "${TMPDIR:-/tmp}/sallm-sweep-XXXXXX.yaml")"
+  prepare_sweep_file \
+    "$SWEEP_FILE" \
+    "$TMP_SWEEP_FILE" \
+    "$SWEEP_MIN_ITER" \
+    "$SWEEP_STRICT" \
+    "$HPO_EVAL_STEPS_CAP"
+  SWEEP_FILE="$TMP_SWEEP_FILE"
+  echo "Enabled W&B Hyperband pruning for this sweep (min_iter=$SWEEP_MIN_ITER, strict=$SWEEP_STRICT, eval_steps_cap=$HPO_EVAL_STEPS_CAP)."
 fi
 
 if [[ -z "${TOKENIZER_PATH:-}" ]]; then

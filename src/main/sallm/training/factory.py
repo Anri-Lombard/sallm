@@ -108,14 +108,16 @@ def build_trainer(
         if not isinstance(metric_name, str) or not metric_name.strip():
             if task_type == FinetuneTaskType.CLASSIFICATION:
                 training_args_dict["metric_for_best_model"] = (
-                    "eval_classification/all_accuracy"
+                    "eval_classification/all_f1"
                 )
                 training_args_dict.setdefault("greater_is_better", True)
-            elif task_type in (
-                FinetuneTaskType.INSTRUCTION,
-                FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
-                FinetuneTaskType.POS_TAGGING,
-            ):
+            elif task_type in (FinetuneTaskType.NAMED_ENTITY_RECOGNITION,):
+                training_args_dict["metric_for_best_model"] = "eval_all_f1"
+                training_args_dict.setdefault("greater_is_better", True)
+            elif task_type == FinetuneTaskType.POS_TAGGING:
+                training_args_dict["metric_for_best_model"] = "eval_all_token_accuracy"
+                training_args_dict.setdefault("greater_is_better", True)
+            elif task_type == FinetuneTaskType.INSTRUCTION:
                 training_args_dict["metric_for_best_model"] = "eval_all_rougeL"
                 training_args_dict.setdefault("greater_is_better", True)
             else:
@@ -191,6 +193,7 @@ def build_trainer(
                     max_new_tokens=64,
                     max_samples_per_lang=None,
                     decoding=config.generation_decoding,
+                    task_type=task_type,
                 )
             )
 

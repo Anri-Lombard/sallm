@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import shutil
+import tempfile
 import textwrap
 from copy import deepcopy
 from datetime import date, datetime
@@ -64,7 +67,8 @@ def _prepare_include_paths(include_path: str | list[str]) -> list[str]:
                 continue
             if link_path.is_dir() and not link_path.is_symlink():
                 raise FileExistsError(
-                    f"lm-eval include-path shim already exists and is not a symlink: {link_path}"
+                    "lm-eval include-path shim already exists and is not a "
+                    f"symlink: {link_path}"
                 )
             link_path.unlink()
 
@@ -148,7 +152,17 @@ def _materialize_model_for_lm_eval(
 
     merged_dir.mkdir(parents=True, exist_ok=True)
     tokenizer.save_pretrained(merged_dir)
-    model.save_pretrained(merged_dir)
+    _sync_weight_tying_flag(model)
+    try:
+        model.save_pretrained(merged_dir)
+    except RuntimeError as exc:
+        if "shared tensors" not in str(exc):
+            raise
+        logger.warning(
+            "Retrying save_pretrained with safe_serialization=False due to "
+            "shared tensors."
+        )
+        model.save_pretrained(merged_dir, safe_serialization=False)
 
     del model
     try:
@@ -158,6 +172,57 @@ def _materialize_model_for_lm_eval(
         pass
 
     return str(merged_dir), None
+
+
+def _sync_weight_tying_flag(model) -> None:
+    config = getattr(model, "config", None)
+    if config is None or not hasattr(config, "tie_word_embeddings"):
+        return
+    get_input = getattr(model, "get_input_embeddings", None)
+    get_output = getattr(model, "get_output_embeddings", None)
+    if not callable(get_input) or not callable(get_output):
+        return
+    input_emb = get_input()
+    output_emb = get_output()
+    if input_emb is None or output_emb is None:
+        return
+    input_weight = getattr(input_emb, "weight", None)
+    output_weight = getattr(output_emb, "weight", None)
+    if input_weight is None or output_weight is None:
+        return
+    shared = input_weight is output_weight
+    if not shared:
+        shared = input_weight.data_ptr() == output_weight.data_ptr()
+    if shared and not bool(config.tie_word_embeddings):
+        logger.info(
+            "Detected tied embeddings; updating config.tie_word_embeddings to "
+            "True before saving."
+        )
+        config.tie_word_embeddings = True
+    if not shared and bool(config.tie_word_embeddings):
+        logger.info(
+            "Detected untied embeddings; updating config.tie_word_embeddings to "
+            "False before saving."
+        )
+        config.tie_word_embeddings = False
+
+
+def _resolve_ephemeral_eval_root() -> Path:
+    candidates = [
+        os.environ.get("SLURM_TMPDIR"),
+        os.environ.get("TMPDIR"),
+        f"/tmp/{os.environ.get('USER', 'sallm')}",
+    ]
+    for raw in candidates:
+        if not raw:
+            continue
+        path = Path(raw).expanduser()
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+        return path
+    return Path(tempfile.gettempdir())
 
 
 def _fallback_chat_template() -> str:
@@ -237,6 +302,7 @@ def _run_pack(
     pack_name: str,
     model_cfg: ModelEvalConfig,
     output_dir: Path,
+    work_root: Path,
     pack_overrides: dict[str, Any] | None,
     pretrained_path: str,
     peft_adapter: str | None,
@@ -246,7 +312,7 @@ def _run_pack(
     pack_out.mkdir(parents=True, exist_ok=True)
 
     tokenizer_override = _prepare_tokenizer_for_lm_eval(
-        pretrained_path, output_dir / "_tokenizer", pack.apply_chat_template
+        pretrained_path, work_root / "_tokenizer", pack.apply_chat_template
     )
     model_args = _format_model_args(
         pretrained_path,
@@ -336,30 +402,39 @@ def run_task_pack_evaluations(
     if not pack_names:
         return []
 
-    pretrained_path, peft_adapter = _materialize_model_for_lm_eval(
-        model_cfg, output_dir / "_lm_eval"
-    )
-
-    summaries: list[dict[str, Any]] = []
-    for pack_name in pack_names:
-        pack_overrides = None
-        if overrides and pack_name in overrides:
-            raw_override = overrides[pack_name]
-            if raw_override is not None:
-                if not isinstance(raw_override, dict):
-                    raise TypeError(
-                        "evaluation.overrides values must be mappings keyed by "
-                        "task-pack"
-                    )
-                pack_overrides = raw_override
-
-        summary = _run_pack(
-            pack_name,
-            model_cfg,
-            output_dir,
-            pack_overrides,
-            pretrained_path,
-            peft_adapter,
+    temp_root_parent = _resolve_ephemeral_eval_root()
+    with tempfile.TemporaryDirectory(
+        prefix="sallm_lm_eval_", dir=temp_root_parent
+    ) as temp_root:
+        work_root = Path(temp_root)
+        pretrained_path, peft_adapter = _materialize_model_for_lm_eval(
+            model_cfg, work_root / "_lm_eval"
         )
-        summaries.append(summary)
-    return summaries
+
+        summaries: list[dict[str, Any]] = []
+        try:
+            for pack_name in pack_names:
+                pack_overrides = None
+                if overrides and pack_name in overrides:
+                    raw_override = overrides[pack_name]
+                    if raw_override is not None:
+                        if not isinstance(raw_override, dict):
+                            raise TypeError(
+                                "evaluation.overrides values must be mappings keyed by "
+                                "task-pack"
+                            )
+                        pack_overrides = raw_override
+
+                summary = _run_pack(
+                    pack_name,
+                    model_cfg,
+                    output_dir,
+                    work_root,
+                    pack_overrides,
+                    pretrained_path,
+                    peft_adapter,
+                )
+                summaries.append(summary)
+            return summaries
+        finally:
+            shutil.rmtree(work_root, ignore_errors=True)

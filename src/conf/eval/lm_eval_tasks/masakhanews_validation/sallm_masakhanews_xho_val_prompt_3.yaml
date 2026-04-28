@@ -1,0 +1,12 @@
+include: _masakhanews_val_common.yaml
+dataset_name: xho
+doc_to_text: |
+  You are an assistant able to classify topics in texts.
+
+  Given the categories technology, religion, politics, sports, health,
+  entertainment, or business; what is the topic of the statement below?
+  Return only the category.
+
+  text: {{headline}} {{text}}
+  category:
+task: sallm_masakhanews_xho_val_prompt_3

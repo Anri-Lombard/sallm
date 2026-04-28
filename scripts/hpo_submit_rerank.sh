@@ -16,6 +16,8 @@ Options:
   --eval-pack-suffix <txt>  Append suffix to the default task pack name
                             Use `_val` for post-HPO rerank selection so we score
                             candidates on validation/dev via lm-eval, not test.
+  --allow-test-rerank       Permit rerank eval jobs that hit held-out test splits
+                            when no validation pack exists. Default is off.
   --eval-output-root <dir>  Base output dir for eval results
   --dry-run                 Print sbatch commands only
 
@@ -42,6 +44,7 @@ SBATCH_GRES=""
 SBATCH_EVAL_GRES=""
 EVAL_PACK_SUFFIX=""
 EVAL_OUTPUT_ROOT=""
+ALLOW_TEST_RERANK=0
 DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
@@ -81,6 +84,10 @@ while [[ $# -gt 0 ]]; do
     --eval-output-root)
       EVAL_OUTPUT_ROOT="${2:-}"
       shift 2
+      ;;
+    --allow-test-rerank)
+      ALLOW_TEST_RERANK=1
+      shift
       ;;
     --dry-run)
       DRY_RUN=1
@@ -169,27 +176,55 @@ map_eval_task() {
   esac
 }
 
-infer_task_and_lang() {
+infer_model_task_and_lang() {
   local cfg="$1"
-  if [[ "$cfg" =~ ^llama_sa_general_(.+)$ ]]; then
-    echo "sa_general ${BASH_REMATCH[1]}"
+  if [[ "$cfg" =~ ^([^_]+)_sa_general_(.+)$ ]]; then
+    echo "${BASH_REMATCH[1]} sa_general ${BASH_REMATCH[2]}"
     return
   fi
-  if [[ "$cfg" =~ ^llama_([^_]+)_(.+)$ ]]; then
-    echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+  if [[ "$cfg" =~ ^([^_]+)_([^_]+)_(.+)$ ]]; then
+    echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]}"
     return
   fi
-  echo "unknown unknown"
+  echo "unknown unknown unknown"
 }
 
 topk_metric_for_cfg() {
   local cfg="$1"
   if [[ "$cfg" == *"_ner_"* ]]; then
     echo "f1"
+  elif [[ "$cfg" == *"_news_"* || "$cfg" == *"_injongointent_"* || "$cfg" == *"_sib_"* ]]; then
+    echo "f1"
   elif [[ "$cfg" == *"_pos_"* ]]; then
     echo "token_accuracy"
+  elif [[ "$cfg" == *"_afrihg_"* || "$cfg" == *"_t2x_"* ]]; then
+    echo "all_chrf"
   else
-    echo "eval/loss"
+    echo ""
+  fi
+}
+
+best_model_metric_for_cfg() {
+  local cfg="$1"
+  if [[ "$cfg" == *"_ner_"* ]]; then
+    echo "eval_all_f1"
+  elif [[ "$cfg" == *"_news_"* || "$cfg" == *"_injongointent_"* || "$cfg" == *"_sib_"* ]]; then
+    echo "eval_classification/all_f1"
+  elif [[ "$cfg" == *"_pos_"* ]]; then
+    echo "eval_all_token_accuracy"
+  elif [[ "$cfg" == *"_afrihg_"* || "$cfg" == *"_t2x_"* ]]; then
+    echo "eval_all_chrf"
+  else
+    echo "eval_loss"
+  fi
+}
+
+best_model_greater_is_better_for_metric() {
+  local metric="$1"
+  if [[ "$metric" == "eval_loss" ]]; then
+    echo "false"
+  else
+    echo "true"
   fi
 }
 
@@ -262,7 +297,10 @@ with open(csv_path, newline="", encoding="utf-8") as handle:
 PY
 )
 
-mapfile -t ROWS <<<"$PY_ROWS"
+ROWS=()
+while IFS= read -r line; do
+  ROWS+=("$line")
+done <<<"$PY_ROWS"
 if [[ "${#ROWS[@]}" -eq 0 ]]; then
   echo "No rows selected from $TOPK_CSV for --task $TASK_FILTER"
   exit 0
@@ -280,10 +318,11 @@ elif [[ -n "$SBATCH_GRES" ]]; then
 fi
 
 echo "Submitting independent rerank candidates from $TOPK_CSV"
-if [[ -z "$EVAL_PACK_SUFFIX" ]]; then
-  echo "WARNING: no --eval-pack-suffix provided."
-  echo "For clean post-HPO selection, rerank should usually target validation packs (for example `_val`),"
-  echo "and the held-out test split should be reserved for the final selected winner only."
+if [[ -z "$EVAL_PACK_SUFFIX" ]] && [[ "$ALLOW_TEST_RERANK" -eq 0 ]]; then
+  echo "Validation-only mode active: rerank eval jobs will be skipped unless a validation pack is requested."
+  echo "Pass --eval-pack-suffix _val for validation rerank, or --allow-test-rerank to explicitly opt into test leakage."
+elif [[ -z "$EVAL_PACK_SUFFIX" ]]; then
+  echo "WARNING: test-bearing rerank eval is enabled via --allow-test-rerank."
 fi
 echo "Rows selected: ${#ROWS[@]} | dry-run=${DRY_RUN}"
 
@@ -317,7 +356,22 @@ def render(value):
 
 raw = sys.argv[1].strip()
 obj = json.loads(raw) if raw else {}
+rerank_unsafe_keys = {
+    "training.eval_steps",
+    "training.eval_strategy",
+    "training.greater_is_better",
+    "training.load_best_model_at_end",
+    "training.max_steps",
+    "training.metric_for_best_model",
+    "training.output_dir",
+    "training.run_name",
+    "training.save_steps",
+    "training.save_strategy",
+    "training.save_total_limit",
+}
 for key in sorted(obj.keys()):
+    if key in rerank_unsafe_keys:
+        continue
     # Use Hydra '++' so HPO-selected keys can be added when the current
     # finetune YAML omits them (for example gradient_checkpointing or
     # weight_decay on llama_pos_* configs) while still overriding existing keys.
@@ -330,19 +384,31 @@ PY
     [[ -n "$line" ]] && param_overrides+=("$line")
   done <<< "$PY_PARAM_OVERRIDES"
 
-  read -r task lang <<<"$(infer_task_and_lang "$task_config")"
+  read -r model task lang <<<"$(infer_model_task_and_lang "$task_config")"
   eval_task="$(map_eval_task "$task")"
   eval_cfg=""
   eval_task_pack=""
-  if [[ -n "$eval_task" ]]; then
-    eval_cfg="run_llama_${eval_task}_${lang}"
-    eval_task_pack="${eval_task}_${lang}"
+  validation_ready=0
+  if [[ -n "$eval_task" ]] && [[ "$model" != "unknown" ]]; then
+    candidate_eval_cfg="run_${model}_${eval_task}_${lang}"
+    if [[ -f "src/conf/eval/${candidate_eval_cfg}.yaml" ]]; then
+      eval_cfg="$candidate_eval_cfg"
+    fi
+
+    candidate_pack="${eval_task}_${lang}"
     if [[ -n "$EVAL_PACK_SUFFIX" ]]; then
-      eval_task_pack="${eval_task_pack}${EVAL_PACK_SUFFIX}"
-      if [[ ! -f "src/conf/eval/tasks/${eval_task_pack}.yaml" ]]; then
-        echo "Missing eval task pack override: src/conf/eval/tasks/${eval_task_pack}.yaml" >&2
-        eval_cfg=""
+      candidate_pack="${candidate_pack}${EVAL_PACK_SUFFIX}"
+    fi
+    if [[ -f "src/conf/eval/tasks/${candidate_pack}.yaml" ]]; then
+      eval_task_pack="$candidate_pack"
+    fi
+
+    if [[ -n "$EVAL_PACK_SUFFIX" ]]; then
+      if [[ -n "$eval_task_pack" ]]; then
+        validation_ready=1
       fi
+    elif [[ "$ALLOW_TEST_RERANK" -eq 1 ]]; then
+      validation_ready=1
     fi
   fi
 
@@ -351,6 +417,7 @@ PY
   logging_dir="${SCRATCH_ROOT}/masters/sallm/logs/rerank/${task_config}/${candidate_root}"
   eval_output_dir="${EVAL_OUTPUT_ROOT}/${task_config}/${candidate_root}"
   checkpoint_path="${output_dir}/final_merged_model"
+  best_model_metric="$(best_model_metric_for_cfg "$task_config")"
 
   wandb_name="rerank-${task_config//_/-}-${candidate_root}"
   eval_wandb_name="eval-rerank-${task_config//_/-}-${candidate_root}"
@@ -361,9 +428,13 @@ PY
     "finetune.training.logging_dir=${logging_dir}"
     "finetune.training.run_name=${rerank_run_name}"
     "finetune.wandb.name=${wandb_name}"
-    # Rerank only needs the final adapter; epoch checkpoints burn scratch quota
-    # and can poison eval dependencies when a finetune fails mid-save.
-    "finetune.training.save_strategy=no"
+    # Keep only the best checkpoint for rerank so we score the same validation
+    # peak that HPO optimized, while still keeping scratch usage bounded.
+    "finetune.training.save_strategy=epoch"
+    "finetune.training.save_total_limit=1"
+    "finetune.training.load_best_model_at_end=true"
+    "finetune.training.metric_for_best_model=${best_model_metric}"
+    "finetune.training.greater_is_better=$(best_model_greater_is_better_for_metric "$best_model_metric")"
     "finetune.hub.enabled=false"
   )
   extra_args+=("${param_overrides[@]}")
@@ -388,12 +459,18 @@ PY
 
   eval_job_id=""
   status="submitted"
-  if [[ -n "$eval_cfg" ]] && [[ -f "src/conf/eval/${eval_cfg}.yaml" ]] && [[ -n "$ft_job_id" ]]; then
+  if [[ -n "$eval_cfg" ]] && [[ -n "$ft_job_id" ]] && [[ "$validation_ready" -eq 1 ]]; then
     eval_override_args=(
       "++eval.eval_model.checkpoint=${checkpoint_path}"
       "++eval.evaluation.output_dir=${eval_output_dir}"
       "++eval.wandb.name=${eval_wandb_name}"
     )
+    if [[ "$task_config" == mamba_* ]]; then
+      eval_override_args+=(
+        "++eval.evaluation.overrides.batch_size=1"
+        "++eval.evaluation.overrides.max_batch_size=1"
+      )
+    fi
     if [[ -n "$eval_task_pack" ]] && [[ -f "src/conf/eval/tasks/${eval_task_pack}.yaml" ]]; then
       eval_override_args+=("++eval.evaluation.task_packs=[${eval_task_pack}]")
     fi
@@ -415,7 +492,13 @@ PY
       fi
     fi
   else
-    status="submitted_no_eval"
+    if [[ -n "$EVAL_PACK_SUFFIX" ]] && [[ -z "$eval_task_pack" ]]; then
+      status="submitted_no_validation_pack"
+    elif [[ -z "$EVAL_PACK_SUFFIX" ]] && [[ "$ALLOW_TEST_RERANK" -eq 0 ]]; then
+      status="submitted_no_validation_eval"
+    else
+      status="submitted_no_eval"
+    fi
   fi
 
   topk_metric="$(topk_metric_for_cfg "$task_config")"

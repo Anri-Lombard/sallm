@@ -12,7 +12,6 @@ from typing import Any
 
 import yaml
 
-
 LANG_MAP = {
     "tn": "tsn",
     "xh": "xho",
@@ -37,13 +36,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--winners-yaml", required=True, help="Best-hparams YAML output"
     )
+    parser.add_argument(
+        "--sheet-out",
+        help="Optional optimization spreadsheet CSV output "
+        "(defaults next to winners YAML)",
+    )
     return parser.parse_args()
 
 
 def _to_float(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         f = float(value)
         if math.isnan(f):
             return None
@@ -226,6 +230,19 @@ def _better(metric_name: str, lhs: float, rhs: float) -> bool:
     return lhs > rhs
 
 
+def _objective_can_score(metric_name: str, metric_value: Any) -> bool:
+    metric = metric_name.strip().lower()
+    return bool(metric) and "loss" not in metric and _to_float(metric_value) is not None
+
+
+def _default_sheet_path(winners_yaml: str) -> Path:
+    winners_path = Path(winners_yaml)
+    stem = winners_path.stem
+    if stem.endswith("_best_hparams"):
+        stem = stem[: -len("_best_hparams")]
+    return winners_path.with_name(f"{stem}_optimization_sheet.csv")
+
+
 def main() -> int:
     args = parse_args()
 
@@ -247,8 +264,17 @@ def main() -> int:
         out["results_file"] = str(result_file) if result_file else ""
         out["score_metric"] = ""
         out["score"] = ""
+        objective_metric = row.get("objective_metric", "")
+        objective_value = row.get("objective_value", "")
 
         if result_file is None:
+            if _objective_can_score(objective_metric, objective_value):
+                out["score_metric"] = objective_metric
+                out["score"] = f"{float(objective_value):.10f}"
+                out["status"] = "scored_from_hpo_objective"
+                scored_rows.append(out)
+                winner_candidates[task_config].append(out)
+                continue
             out["status"] = "missing_results"
             scored_rows.append(out)
             continue
@@ -256,12 +282,26 @@ def main() -> int:
         try:
             payload = json.loads(result_file.read_text(encoding="utf-8"))
         except Exception:
+            if _objective_can_score(objective_metric, objective_value):
+                out["score_metric"] = objective_metric
+                out["score"] = f"{float(objective_value):.10f}"
+                out["status"] = "scored_from_hpo_objective"
+                scored_rows.append(out)
+                winner_candidates[task_config].append(out)
+                continue
             out["status"] = "invalid_results_json"
             scored_rows.append(out)
             continue
 
         results = payload.get("results") if isinstance(payload, dict) else None
         if not isinstance(results, dict) or not results:
+            if _objective_can_score(objective_metric, objective_value):
+                out["score_metric"] = objective_metric
+                out["score"] = f"{float(objective_value):.10f}"
+                out["status"] = "scored_from_hpo_objective"
+                scored_rows.append(out)
+                winner_candidates[task_config].append(out)
+                continue
             out["status"] = "results_empty"
             scored_rows.append(out)
             continue
@@ -359,7 +399,9 @@ def main() -> int:
         "defaults": {
             "k_ner_pos": 10,
             "k_other": 6,
-            "aggregation": "macro-over-languages for *_all; mean-over-prompts per language",
+            "aggregation": (
+                "macro-over-languages for *_all; mean-over-prompts per language"
+            ),
         },
         "winners": winners,
     }
@@ -370,7 +412,11 @@ def main() -> int:
         yaml.safe_dump(winners_payload, sort_keys=False), encoding="utf-8"
     )
 
-    sheet_path = Path("outputs/hpo/llama_optimization_sheet.csv")
+    sheet_path = (
+        Path(args.sheet_out)
+        if args.sheet_out
+        else _default_sheet_path(args.winners_yaml)
+    )
     sheet_path.parent.mkdir(parents=True, exist_ok=True)
     with sheet_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(

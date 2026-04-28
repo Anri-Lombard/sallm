@@ -5,8 +5,8 @@ tasks:
   - sallm_masakhaner_xh_prompt_4_val
   - sallm_masakhaner_xh_prompt_5_val
 fewshot: 0
-batch_size: "auto:4"
-max_batch_size: 64
+batch_size: 1
+max_batch_size: 1
 apply_chat_template: true
 task_manager_kwargs:
   include_path:

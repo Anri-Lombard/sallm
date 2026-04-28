@@ -1,37 +1,89 @@
 import collections
 import re
 
+NER_TAGS = [
+    "O",
+    "B-PER",
+    "I-PER",
+    "B-ORG",
+    "I-ORG",
+    "B-LOC",
+    "I-LOC",
+    "B-DATE",
+    "I-DATE",
+]
+
 
 def doc_to_target(doc):
-    return transform_text(doc["ner_tags"])
+    return transform_text(doc["ner_tags"], doc.get("tokens"))
 
 
-def transform_text(text):
+def transform_text(text, tokens=None):
+    if isinstance(text, list):
+        if tokens is None:
+            tokens = []
+        return transform_iob_tags(tokens, text)
+
     entities = []
-    current_entity = ""
+    current_entity_tokens = []
     current_tag = ""
 
     for pair in text.split("\n"):
         if pair:
             word, tag = pair.strip().split(": ")
             tag = tag.upper()
-            word = word.lower()
             word = word.strip(",.").strip()
 
             if tag.startswith("B-"):
-                if current_entity:
-                    entities.append(f"{current_tag}: {current_entity}")
+                if current_entity_tokens:
+                    entity = " ".join(current_entity_tokens)
+                    entities.append(f"{current_tag}: {entity}")
                 current_tag = tag.split("-")[1]
-                current_entity = word
+                current_entity_tokens = [word]
             elif tag.startswith("I-") and tag.split("-")[1] == current_tag:
-                current_entity += word
+                current_entity_tokens.append(word)
             else:
-                if current_entity:
-                    entities.append(f"{current_tag}: {current_entity}")
-                    current_entity = ""
+                if current_entity_tokens:
+                    entity = " ".join(current_entity_tokens)
+                    entities.append(f"{current_tag}: {entity}")
+                    current_entity_tokens = []
                     current_tag = ""
-    if current_entity:
-        entities.append(f"{current_tag}: {current_entity}")
+    if current_entity_tokens:
+        entity = " ".join(current_entity_tokens)
+        entities.append(f"{current_tag}: {entity}")
+
+    return " $$ ".join(entities)
+
+
+def transform_iob_tags(tokens, tag_ids):
+    entities = []
+    current_entity_tokens = []
+    current_tag = ""
+
+    for token, tag_id in zip(tokens, tag_ids, strict=False):
+        try:
+            tag = NER_TAGS[int(tag_id)]
+        except (ValueError, IndexError, TypeError):
+            tag = str(tag_id).upper()
+
+        if tag.startswith("B-"):
+            if current_entity_tokens:
+                entity = " ".join(current_entity_tokens)
+                entities.append(f"{current_tag}: {entity}")
+            current_tag = tag.split("-", 1)[1]
+            current_entity_tokens = [str(token)]
+        elif tag.startswith("I-") and tag.split("-", 1)[1] == current_tag:
+            current_entity_tokens.append(str(token))
+        else:
+            if current_entity_tokens:
+                entity = " ".join(current_entity_tokens)
+                entities.append(f"{current_tag}: {entity}")
+            current_entity_tokens = []
+            current_tag = ""
+
+    if current_entity_tokens:
+        entity = " ".join(current_entity_tokens)
+        entities.append(f"{current_tag}: {entity}")
 
     return " $$ ".join(entities)
 
@@ -92,11 +144,11 @@ def span_f1_agg(items):
         f1_measures = 2.0 * ((precision * recall) / (precision + recall + 1e-13))
         return precision, recall, f1_measures
 
-    unzipped_list = list(zip(*items))
+    unzipped_list = list(zip(*items, strict=False))
     targets = unzipped_list[0]
     predictions = unzipped_list[1]
 
-    for target, pred in zip(targets, predictions):
+    for target, pred in zip(targets, predictions, strict=False):
         gold_spans = tags_to_spans(target)
         predicted_spans = tags_to_spans(pred)
 

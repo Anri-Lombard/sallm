@@ -122,6 +122,10 @@ class ModelEvalConfig:
 
         checkpoint_path: Path | None = None
         if chosen_path is not None:
+            resolved_existing = self._resolve_existing_checkpoint(chosen_path)
+            if resolved_existing != chosen_path:
+                chosen_path = resolved_existing
+                used_adapter_fallback = True
             self.checkpoint = str(chosen_path)
             checkpoint_path = chosen_path
         elif hub_checkpoint is not None:
@@ -185,6 +189,35 @@ class ModelEvalConfig:
 
         if self.merge_lora is None and self.peft_adapter:
             self.merge_lora = True
+
+    def _resolve_existing_checkpoint(self, checkpoint_path: Path) -> Path:
+        if not checkpoint_path.exists() or not checkpoint_path.is_dir():
+            return checkpoint_path
+
+        adapter_config = checkpoint_path / "adapter_config.json"
+        adapter_weights = [
+            checkpoint_path / "adapter_model.bin",
+            checkpoint_path / "adapter_model.safetensors",
+        ]
+        full_model_weights = [
+            checkpoint_path / "pytorch_model.bin",
+            checkpoint_path / "model.safetensors",
+        ]
+
+        has_adapter = adapter_config.exists() and any(
+            path.exists() for path in adapter_weights
+        )
+        has_full_model = any(path.exists() for path in full_model_weights)
+        if has_adapter or has_full_model:
+            return checkpoint_path
+
+        nested = self._resolve_missing_checkpoint(checkpoint_path)
+        if nested is None:
+            return checkpoint_path
+        try:
+            return nested.resolve()
+        except Exception:
+            return nested
 
     def _resolve_missing_checkpoint(self, checkpoint_path: Path) -> Path | None:
         name = checkpoint_path.name
@@ -303,6 +336,7 @@ class FinetuneDatasetConfig:
     splits: dict[str, str] = field(default_factory=dict)
     templates: list[TemplateRef] = field(default_factory=list)
     template_choice: TemplateChoice = TemplateChoice.CYCLE
+    eval_template_choice: TemplateChoice | None = None
     label_column: str | None = "label"
     max_seq_length: int = MISSING
     packing: bool = MISSING
@@ -321,6 +355,13 @@ class FinetuneDatasetConfig:
             raise ValueError(
                 "dataset.template_choice is 'ALL' but no templates were provided. "
                 "Add at least one entry under dataset.templates."
+            )
+        if self.eval_template_choice == TemplateChoice.ALL and (
+            self.templates is None or len(self.templates) == 0
+        ):
+            raise ValueError(
+                "dataset.eval_template_choice is 'ALL' but no templates were "
+                "provided. Add at least one entry under dataset.templates."
             )
 
         if self.mix_epoch_size not in (None, "sum") and not isinstance(
@@ -459,6 +500,8 @@ class GeneratedExample:
     prompt_text: str
     prediction: str
     reference: str
+    raw_prediction: str | None = None
+    debug: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

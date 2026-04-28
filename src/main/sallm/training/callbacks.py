@@ -1,5 +1,8 @@
+import json
 import logging
+import os
 import random
+from pathlib import Path
 
 import torch
 import wandb
@@ -13,11 +16,27 @@ from transformers import (
     TrainingArguments,
 )
 
-from sallm.config import DecodingConfig
+from sallm.config import DecodingConfig, FinetuneTaskType
 from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 
 logger = logging.getLogger(__name__)
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r; using %d.", name, raw, default)
+        return default
+
+
+def _safe_path_component(value: str) -> str:
+    safe = "".join(char if char.isalnum() or char in "._-" else "_" for char in value)
+    return safe.strip("._") or "run"
 
 
 # TODO: add models to model.py
@@ -176,15 +195,29 @@ class GenerationMetricsCallback(TrainerCallback):
         max_new_tokens: int = 64,
         max_samples_per_lang: int | None = 64,
         decoding: DecodingConfig | None = None,
+        task_type: FinetuneTaskType | None = None,
+        debug_examples_per_lang: int | None = None,
+        debug_wandb_save: bool | None = None,
     ):
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
         self.decoding_config = DecodingConfig.from_any(decoding)
+        if debug_examples_per_lang is None:
+            debug_examples_per_lang = _env_int(
+                "SALLM_GENERATION_DEBUG_EXAMPLES_PER_LANG", 64
+            )
+        self.debug_examples_per_lang = max(0, int(debug_examples_per_lang))
+        if debug_wandb_save is None:
+            debug_wandb_save = (
+                os.getenv("SALLM_GENERATION_DEBUG_WANDB_SAVE", "1") != "0"
+            )
+        self.debug_wandb_save = debug_wandb_save
         self.evaluator = GenerationEvaluator(
             tokenizer,
             max_new_tokens=max_new_tokens,
             max_samples_per_lang=max_samples_per_lang,
             decoding=self.decoding_config,
+            task_type=task_type,
         )
 
     def on_evaluate(
@@ -203,12 +236,14 @@ class GenerationMetricsCallback(TrainerCallback):
             )
         elif state.is_world_process_zero:
             world_size = getattr(args, "world_size", 1)
+            collect_debug_examples = self.debug_examples_per_lang > 0
             result = self.evaluator.evaluate(
                 model,
                 self.eval_dataset,
                 world_size=world_size,
                 metric_prefix="eval",
-                collect_examples=False,
+                collect_examples=collect_debug_examples,
+                example_limit_per_lang=self.debug_examples_per_lang,
             )
 
             if result.metrics:
@@ -218,6 +253,8 @@ class GenerationMetricsCallback(TrainerCallback):
                     if "/" in key:
                         trainer_metrics[key.replace("/", "_")] = value
                 wandb_metrics = dict(result.metrics)
+            if collect_debug_examples:
+                self._write_debug_examples(args=args, state=state, result=result)
 
         trainer_metrics = _broadcast_metrics_from_rank0(
             local_metrics=trainer_metrics,
@@ -228,6 +265,57 @@ class GenerationMetricsCallback(TrainerCallback):
             callback_metrics.update(trainer_metrics)
         if state.is_world_process_zero and wandb_metrics:
             wandb.log(wandb_metrics)
+
+    def _write_debug_examples(
+        self,
+        *,
+        args: TrainingArguments,
+        state: TrainerState,
+        result,
+    ) -> None:
+        records: list[dict[str, object]] = []
+        for lang_key, lang_result in result.per_language.items():
+            for example_idx, example in enumerate(lang_result.examples):
+                records.append(
+                    {
+                        "global_step": state.global_step,
+                        "epoch": state.epoch,
+                        "language": lang_key,
+                        "example_index": example_idx,
+                        "prompt": example.prompt_text,
+                        "prompt_messages": example.prompt_messages,
+                        "raw_prediction": example.raw_prediction,
+                        "prediction": example.prediction,
+                        "reference": example.reference,
+                        "debug": example.debug,
+                        "metrics": lang_result.metrics,
+                        "decoding": self.decoding_config.to_generate_kwargs(),
+                    }
+                )
+        if not records:
+            return
+
+        run_id = None
+        if getattr(wandb, "run", None) is not None:
+            run_id = getattr(wandb.run, "id", None)
+        run_name = run_id or getattr(args, "run_name", None) or "run"
+        out_dir = (
+            Path(args.output_dir)
+            / "debug_generation_examples"
+            / _safe_path_component(str(run_name))
+        )
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"step-{int(state.global_step):08d}.jsonl"
+        with path.open("w", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        logger.info("Saved %d generation debug examples to %s", len(records), path)
+
+        if self.debug_wandb_save and getattr(wandb, "run", None) is not None:
+            try:
+                wandb.save(str(path), policy="now")
+            except Exception:
+                logger.exception("Failed to save generation debug examples to W&B.")
 
 
 class ClassificationMetricsCallback(TrainerCallback):

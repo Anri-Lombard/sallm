@@ -47,3 +47,5 @@ dist/
 .bmad-core
 *.csv
 tmp/spreadsheets/chrome-profile/
+.playwright-cli/
+output/

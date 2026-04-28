@@ -12,7 +12,11 @@ import torch
 import wandb
 from omegaconf import OmegaConf
 from sallm.config import ExperimentConfig
-from sallm.data.factory import build_conversation_dataset, build_datasets
+from sallm.data.factory import (
+    build_conversation_dataset,
+    build_datasets,
+    resolve_eval_template_choice,
+)
 from sallm.models.factory import build_model, build_tokenizer
 from sallm.training.factory import build_trainer
 
@@ -322,7 +326,11 @@ def run(config: ExperimentConfig) -> None:
     if val_ds and not _has_messages(val_ds):
         if hasattr(val_ds, "column_names"):
             logger.warning("Validation dataset lacks 'messages'; applying formatter.")
-            val_ds = build_conversation_dataset(val_ds, config)
+            val_ds = build_conversation_dataset(
+                val_ds,
+                config,
+                template_choice_override=resolve_eval_template_choice(config.dataset),
+            )
         else:
             raise ValueError(
                 "Validation dataset lacks 'messages' and cannot be auto-formatted."

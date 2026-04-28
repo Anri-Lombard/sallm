@@ -3,7 +3,7 @@ project: sallm-ft
 method: bayes
 run_cap: 50
 metric:
-  name: classification/all_accuracy
+  name: classification/all_f1
   goal: maximize
 parameters:
   training.learning_rate:
@@ -40,7 +40,7 @@ parameters:
   training.eval_strategy:
     value: steps
   training.eval_steps:
-    value: 500
+    value: 20
   training.save_strategy:
     value: 'no'
   training.load_best_model_at_end:

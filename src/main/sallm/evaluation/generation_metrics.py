@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import collections
 import logging
 import os
 import random
 import textwrap
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import torch
 from datasets import Dataset
@@ -13,12 +16,32 @@ from transformers import AutoTokenizer, PreTrainedModel
 
 from sallm.config import (
     DecodingConfig,
+    FinetuneTaskType,
     GeneratedExample,
     GenerationEvalResult,
     LanguageEvalResult,
 )
+from sallm.evaluation.task_metrics import (
+    build_ner_debug_record,
+    build_pos_debug_record,
+    compute_ner_span_f1,
+    compute_pos_token_accuracy,
+)
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _temporary_padding_side(
+    tokenizer: AutoTokenizer, padding_side: str
+) -> Iterator[None]:
+    original = getattr(tokenizer, "padding_side", None)
+    tokenizer.padding_side = padding_side
+    try:
+        yield
+    finally:
+        if original is not None:
+            tokenizer.padding_side = original
 
 
 class GenerationEvaluator:
@@ -31,6 +54,7 @@ class GenerationEvaluator:
         skip_special_tokens: bool = True,
         decoding: DecodingConfig | None = None,
         batch_size: int | str | None = None,
+        task_type: FinetuneTaskType | None = None,
     ) -> None:
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
@@ -38,6 +62,7 @@ class GenerationEvaluator:
         self.sample_seed = sample_seed
         self.skip_special_tokens = skip_special_tokens
         self.decoding_config = DecodingConfig.from_any(decoding)
+        self.task_type = task_type
         if (
             self.decoding_config.num_return_sequences is not None
             and self.decoding_config.num_return_sequences != 1
@@ -62,6 +87,7 @@ class GenerationEvaluator:
         self.max_batch_size = max(1, int(resolved_max_bs))
         self.auto_batch_schedule = 1
         self._auto_batch_sizes: dict[int, int] = {}
+        self._logged_mamba_batch_cap = False
 
         if isinstance(resolved_bs, str):
             raw_bs = resolved_bs.strip()
@@ -93,6 +119,56 @@ class GenerationEvaluator:
     def _is_oom_error(exc: RuntimeError) -> bool:
         message = str(exc).lower()
         return "out of memory" in message or "cublas_status_alloc_failed" in message
+
+    @staticmethod
+    def _is_mamba_model(model: PreTrainedModel) -> bool:
+        candidates: list[object] = [getattr(model, "config", None)]
+
+        base_model = getattr(model, "base_model", None)
+        if base_model is not None:
+            candidates.append(getattr(base_model, "config", None))
+            wrapped_model = getattr(base_model, "model", None)
+            if wrapped_model is not None:
+                candidates.append(getattr(wrapped_model, "config", None))
+
+        for config in candidates:
+            if config is None:
+                continue
+            model_type = str(getattr(config, "model_type", "")).lower()
+            if "mamba" in model_type:
+                return True
+            architectures = getattr(config, "architectures", None) or []
+            for architecture in architectures:
+                if "mamba" in str(architecture).lower():
+                    return True
+        return False
+
+    def _effective_max_batch_size(self, model: PreTrainedModel) -> int:
+        if not self._is_mamba_model(model):
+            return self.max_batch_size
+
+        raw_cap = os.getenv("SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE", "1")
+        try:
+            cap = max(1, int(raw_cap))
+        except ValueError:
+            logger.warning(
+                "Ignoring invalid SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE=%r; "
+                "using 1.",
+                raw_cap,
+            )
+            cap = 1
+
+        effective = min(self.max_batch_size, cap)
+        if effective < self.max_batch_size and not self._logged_mamba_batch_cap:
+            logger.info(
+                "Clamping Mamba generation max batch size from %d to %d to avoid "
+                "unstable CUDA auto-batch probing. Override with "
+                "SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE if needed.",
+                self.max_batch_size,
+                effective,
+            )
+            self._logged_mamba_batch_cap = True
+        return effective
 
     @staticmethod
     def _clear_cuda_cache() -> None:
@@ -154,11 +230,12 @@ class GenerationEvaluator:
         if not any(prompt_texts):
             return None
 
-        tokenized = self.tokenizer(
-            prompt_texts,
-            return_tensors="pt",
-            padding=True,
-        ).to(device)
+        with _temporary_padding_side(self.tokenizer, "left"):
+            tokenized = self.tokenizer(
+                prompt_texts,
+                return_tensors="pt",
+                padding=True,
+            ).to(device)
 
         input_ids = tokenized["input_ids"]
         attn = tokenized.get("attention_mask")
@@ -208,7 +285,8 @@ class GenerationEvaluator:
         pad_id: int | None,
         eos_id: int | None,
     ) -> int:
-        candidate_bs = max(1, min(self.max_batch_size, total - start))
+        max_batch_size = self._effective_max_batch_size(model)
+        candidate_bs = max(1, min(max_batch_size, total - start))
         while candidate_bs >= 1:
             end = min(start + candidate_bs, total)
             batch_samples = [dataset[i] for i in range(start, end)]
@@ -260,15 +338,13 @@ class GenerationEvaluator:
         if self.batch_size != "auto":
             return max(1, int(self.batch_size)), None
 
+        max_batch_size = self._effective_max_batch_size(model)
         segment = self._auto_batch_segment(start, total)
         if segment in self._auto_batch_sizes:
             return min(self._auto_batch_sizes[segment], total - start), segment
 
-        if (
-            segment > 0
-            and self._auto_batch_sizes.get(segment - 1) == self.max_batch_size
-        ):
-            self._auto_batch_sizes[segment] = min(self.max_batch_size, total - start)
+        if segment > 0 and self._auto_batch_sizes.get(segment - 1) == max_batch_size:
+            self._auto_batch_sizes[segment] = min(max_batch_size, total - start)
             return self._auto_batch_sizes[segment], segment
 
         detected = self._detect_auto_batch_size(
@@ -297,6 +373,7 @@ class GenerationEvaluator:
         world_size: int = 1,
         metric_prefix: str = "eval",
         collect_examples: bool = False,
+        example_limit_per_lang: int | None = None,
     ) -> GenerationEvalResult:
         fallback_template = None
         if getattr(self.tokenizer, "chat_template", None) is None:
@@ -338,6 +415,7 @@ class GenerationEvaluator:
 
         metrics: dict[str, float] = {}
         per_language: dict[str, LanguageEvalResult] = {}
+        aggregate_metrics: dict[str, list[float]] = collections.defaultdict(list)
 
         model_ctx_limit = None
         if hasattr(model, "config"):
@@ -462,13 +540,26 @@ class GenerationEvaluator:
                         preds.append(cleaned_prediction)
                         refs.append(reference_lists[b_idx])
 
-                        if collect_examples:
+                        if collect_examples and (
+                            example_limit_per_lang is None
+                            or len(examples) < example_limit_per_lang
+                        ):
+                            reference = (
+                                reference_lists[b_idx][0]
+                                if reference_lists[b_idx]
+                                else ""
+                            )
                             examples.append(
                                 GeneratedExample(
                                     prompt_messages=prompt_messages_list[b_idx],
                                     prompt_text=prompt_texts[b_idx],
                                     prediction=cleaned_prediction,
                                     reference=" | ".join(reference_lists[b_idx]),
+                                    raw_prediction=generated_text,
+                                    debug=self._build_example_debug(
+                                        reference=reference,
+                                        prediction=cleaned_prediction,
+                                    ),
                                 )
                             )
                     start = end
@@ -479,34 +570,31 @@ class GenerationEvaluator:
                 for name, value in lang_metrics.items()
             }
             metrics.update(metric_entries)
+            for name, value in lang_metrics.items():
+                aggregate_metrics[name].append(value)
             per_language[lang_key] = LanguageEvalResult(
                 key=lang_key,
                 metrics=metric_entries,
                 examples=examples,
             )
 
-        if len(per_language) > 0:
-            all_bleu: list[float] = []
-            all_chrf: list[float] = []
-            all_rougeL: list[float] = []
-            for lang_result in per_language.values():
-                for key, val in lang_result.metrics.items():
-                    if key.endswith("_bleu"):
-                        all_bleu.append(val)
-                    elif key.endswith("_chrf"):
-                        all_chrf.append(val)
-                    elif key.endswith("_rougeL"):
-                        all_rougeL.append(val)
-            if all_bleu:
-                metrics[f"{metric_prefix}/all_bleu"] = sum(all_bleu) / len(all_bleu)
-            if all_chrf:
-                metrics[f"{metric_prefix}/all_chrf"] = sum(all_chrf) / len(all_chrf)
-            if all_rougeL:
-                metrics[f"{metric_prefix}/all_rougeL"] = sum(all_rougeL) / len(
-                    all_rougeL
-                )
+        for name, values in aggregate_metrics.items():
+            if values:
+                metrics[f"{metric_prefix}/all_{name}"] = sum(values) / len(values)
 
         return GenerationEvalResult(metrics=metrics, per_language=per_language)
+
+    def _build_example_debug(
+        self, reference: str, prediction: str
+    ) -> dict[str, object]:
+        if self.task_type == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
+            return build_ner_debug_record(reference, prediction)
+        if self.task_type == FinetuneTaskType.POS_TAGGING:
+            return build_pos_debug_record(reference, prediction)
+        return {
+            "empty_prediction": not bool(prediction.strip()),
+            "exact_match": prediction.strip() == reference.strip(),
+        }
 
     def _cap_dataset(
         self,
@@ -593,6 +681,16 @@ class GenerationEvaluator:
             out["bleu"] = float(bleu_score)
         if chrf_score is not None:
             out["chrf"] = float(chrf_score)
+        if self.task_type == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
+            out["f1"] = compute_ner_span_f1(
+                references=[refs[0] if refs else "" for refs in cleaned_refs],
+                predictions=predictions,
+            )
+        elif self.task_type == FinetuneTaskType.POS_TAGGING:
+            out["token_accuracy"] = compute_pos_token_accuracy(
+                references=[refs[0] if refs else "" for refs in cleaned_refs],
+                predictions=predictions,
+            )
         return out
 
     def _prepare_references(self, text: str) -> list[str]:

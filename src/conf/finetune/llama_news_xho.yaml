@@ -26,7 +26,7 @@ dataset:
     - {id: "masakhane_news_classification/lm_eval_p4", weight: 1.0}
     - {id: "masakhane_news_classification/lm_eval_p5", weight: 1.0}
   template_choice: CYCLE
-  label_column: "label"
+  label_column: "category"
   task: CLASSIFICATION
   packing: false
   assistant_only_loss: true
@@ -53,7 +53,7 @@ training:
   logging_steps: 10
   eval_strategy: "epoch"
   save_strategy: "no"
-  dataloader_num_workers: 8
+  dataloader_num_workers: 4
   report_to: "wandb"
   ddp_find_unused_parameters: false
 

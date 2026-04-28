@@ -1,4 +1,5 @@
-dataset_name: zu
-doc_to_text: "Provide a concise list of named entities in the text below. Use the following labels: PERSON, LOCATION, ORGANIZATION, and DATE. Ensure the output strictly follows the format: label: entity $$ label: entity, with each unique entity on a separate label line, avoiding grouped entities (e.g., avoid LOC: entity, entity) or irrelevant entries like none. Return only the output.  \n\nText: {{text}}"
+# yamllint disable rule:line-length
+dataset_name: zul
+doc_to_text: "Provide a concise list of named entities in the text below. Use the following labels: PERSON, LOCATION, ORGANIZATION, and DATE. Ensure the output strictly follows the format: label: entity $$ label: entity, with each unique entity on a separate label line, avoiding grouped entities (e.g., avoid LOC: entity, entity) or irrelevant entries like none. Return only the output.  \n\nText: {{tokens | join(' ')}}"
 include: _masakhaner_val_common.yaml
 task: sallm_masakhaner_zu_prompt_5_val

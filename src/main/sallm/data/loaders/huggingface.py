@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from urllib.request import urlopen
 
 from datasets import (
@@ -10,6 +11,7 @@ from datasets import (
 
 from sallm.config import FinetuneDatasetConfig
 from sallm.data.loaders.base import VALIDATION_ALIASES, load_split_with_fallback
+from sallm.data.loaders.injongointent_split import split_injongointent_rows
 from sallm.data.transforms.language_filter import (
     filter_by_language,
     filter_by_single_language,
@@ -18,6 +20,10 @@ from sallm.data.transforms.language_filter import (
 PARQUET_REVISION = "refs/convert/parquet"
 MASAKHAPOS_DATASET = "masakhane/masakhapos"
 MASAKHAPOS_BASE_URL = "https://github.com/masakhane-io/masakhane-pos/raw/main/data"
+INJONGOINTENT_DATASET = "masakhane/InjongoIntent"
+INJONGOINTENT_BASE_URL = (
+    "https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main"
+)
 
 
 def _load_train_val_with_revision_fallback(
@@ -56,10 +62,10 @@ def _masakhapos_split_candidates(split: str) -> list[str]:
     if s == "train":
         return ["train.txt"]
     if s in VALIDATION_ALIASES:
-        return ["dev.txt", "validation.txt", "val.txt", "valid.txt", "test.txt"]
+        return ["dev.txt", "validation.txt", "val.txt", "valid.txt"]
     if s == "test":
-        return ["test.txt", "dev.txt"]
-    return [f"{split}.txt", "dev.txt", "test.txt"]
+        return ["test.txt"]
+    return [f"{split}.txt"]
 
 
 def _parse_masakhapos_conll(content: str, lang_code: str) -> Dataset:
@@ -151,6 +157,82 @@ def _load_masakhapos_dataset(
     return concatenate_datasets(train_parts), concatenate_datasets(val_parts), False
 
 
+def _injongointent_split_candidates(split: str) -> list[str]:
+    """Map requested split names to likely JSONL filenames in InjongoIntent."""
+    s = split.lower()
+    if s == "train":
+        return ["train.jsonl"]
+    if s in VALIDATION_ALIASES:
+        return ["dev.jsonl", "validation.jsonl"]
+    if s == "test":
+        return ["test.jsonl"]
+    return [f"{split}.jsonl"]
+
+
+def _load_injongointent_split(lang_code: str, split: str) -> Dataset:
+    """Load an InjongoIntent split directly from dataset files on the Hub."""
+    last_err: Exception | None = None
+    for filename in _injongointent_split_candidates(split):
+        try:
+            url = f"{INJONGOINTENT_BASE_URL}/{lang_code}/{filename}"
+            with urlopen(url, timeout=30) as response:
+                rows = [
+                    {
+                        **json.loads(line),
+                        "lang": lang_code,
+                    }
+                    for line in response.read().decode("utf-8").splitlines()
+                    if line.strip()
+                ]
+            return Dataset.from_list(rows)
+        except Exception as err:  # noqa: BLE001 - try alternate filename candidates
+            last_err = err
+
+    assert last_err is not None
+    raise last_err
+
+
+def _load_injongointent_dataset(
+    ds_cfg: FinetuneDatasetConfig,
+) -> tuple[Dataset, Dataset, bool]:
+    """Load InjongoIntent directly from Hub-hosted JSONL files."""
+    splits = ds_cfg.splits
+    lang_list_cfg = list(ds_cfg.languages or [])
+    if not lang_list_cfg:
+        if ds_cfg.subset:
+            lang_list_cfg = [ds_cfg.subset]
+        else:
+            raise ValueError(
+                "masakhane/InjongoIntent requires dataset.subset or dataset.languages."
+            )
+
+    train_parts: list[Dataset] = []
+    val_parts: list[Dataset] = []
+    for lang_code in lang_list_cfg:
+        train_ds = _load_injongointent_split(lang_code, splits["train"])
+
+        val_split = splits["val"]
+        if val_split.lower() in VALIDATION_ALIASES:
+            try:
+                val_ds = _load_injongointent_split(lang_code, val_split)
+            except Exception:
+                train_rows, val_rows = split_injongointent_rows(train_ds.to_list())
+                if not val_rows:
+                    raise
+                train_ds = Dataset.from_list(train_rows)
+                val_ds = Dataset.from_list(val_rows)
+        else:
+            val_ds = _load_injongointent_split(lang_code, val_split)
+
+        train_parts.append(train_ds)
+        val_parts.append(val_ds)
+
+    if len(train_parts) == 1:
+        return train_parts[0], val_parts[0], False
+
+    return concatenate_datasets(train_parts), concatenate_datasets(val_parts), False
+
+
 def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bool]:
     """Load train/val datasets from HuggingFace with language handling.
 
@@ -162,6 +244,8 @@ def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bo
     """
     if ds_cfg.hf_name == MASAKHAPOS_DATASET:
         return _load_masakhapos_dataset(ds_cfg)
+    if ds_cfg.hf_name == INJONGOINTENT_DATASET:
+        return _load_injongointent_dataset(ds_cfg)
 
     load_name = ds_cfg.subset
     lang_list_cfg = list(ds_cfg.languages or [])

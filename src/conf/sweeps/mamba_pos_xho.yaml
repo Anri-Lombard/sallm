@@ -3,8 +3,8 @@ project: sallm-ft
 method: bayes
 run_cap: 50
 metric:
-  name: eval/loss
-  goal: minimize
+  name: eval/all_token_accuracy
+  goal: maximize
 parameters:
   training.learning_rate:
     distribution: log_uniform_values
@@ -40,6 +40,10 @@ parameters:
   training.eval_strategy:
     value: steps
   training.eval_steps:
+    value: 500
+  training.save_strategy:
+    value: steps
+  training.save_steps:
     value: 500
 command:
   - ${env}

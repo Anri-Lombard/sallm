@@ -3,7 +3,7 @@ project: sallm-ft
 method: bayes
 run_cap: 50
 metric:
-  name: eval/all_rougeL
+  name: eval/all_chrf
   goal: maximize
 parameters:
   training.learning_rate:
@@ -40,7 +40,7 @@ parameters:
   training.eval_strategy:
     value: steps
   training.eval_steps:
-    value: 500
+    value: 10
   training.save_strategy:
     value: 'no'
   training.load_best_model_at_end:

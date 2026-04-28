@@ -493,8 +493,11 @@ def run_generation_task(
                     "task": task_cfg.id,
                     "language": lang_key,
                     "prompt": example.prompt_text,
+                    "prompt_messages": example.prompt_messages,
+                    "raw_prediction": example.raw_prediction,
                     "prediction": example.prediction,
                     "reference": example.reference,
+                    "debug": example.debug,
                 }
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 

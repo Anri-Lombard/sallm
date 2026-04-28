@@ -1,0 +1,9 @@
+include: _masakhanews_val_common.yaml
+dataset_name: eng
+doc_to_text: |
+  Label the following text as technology, religion, politics, sports,
+  health, entertainment, or business. Provide only the category as your response.
+
+  text: {{headline}} {{text}}
+  category:
+task: sallm_masakhanews_eng_val_prompt_4

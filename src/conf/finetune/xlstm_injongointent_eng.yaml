@@ -22,7 +22,7 @@ dataset:
   subset: eng
   splits:
     train: train
-    val: test
+    val: validation
   task: CLASSIFICATION
   label_column: intent
   templates:

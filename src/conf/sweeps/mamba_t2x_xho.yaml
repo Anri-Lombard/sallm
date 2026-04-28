@@ -39,7 +39,7 @@ parameters:
   training.eval_strategy:
     value: steps
   training.eval_steps:
-    value: 500
+    value: 100
   training.save_strategy:
     value: 'no'
   training.load_best_model_at_end:

@@ -29,7 +29,7 @@ def _load_mapping(raw: Any) -> dict[str, Any]:
     if isinstance(raw, Mapping):
         return {str(key): value for key, value in raw.items()}
     if hasattr(raw, "_json_dict"):
-        parsed = getattr(raw, "_json_dict")
+        parsed = raw._json_dict
         if isinstance(parsed, dict):
             return dict(parsed)
     if hasattr(raw, "as_dict"):
@@ -83,7 +83,12 @@ def _infer_task_config(base_config: str, sweep_name: str) -> str:
 
     name = sweep_name.strip().replace("hpo-", "")
     name = name.replace("-", "_")
-    if not name.startswith("llama_"):
+    if re.match(r"^(llama|mamba|xlstm)_", name):
+        return name
+    if re.match(
+        r"^(afrihg|injongointent|ner|news|pos|sa_general|sib|t2x)_",
+        name,
+    ):
         name = f"llama_{name}"
     return name
 
@@ -94,7 +99,7 @@ def _metric_from_summary(summary: dict[str, Any], metric_name: str) -> float | N
         candidates.append(metric_name.replace("/", "_"))
     for key in candidates:
         value = summary.get(key)
-        if isinstance(value, (int, float)) and not math.isnan(float(value)):
+        if isinstance(value, int | float) and not math.isnan(float(value)):
             return float(value)
     return None
 
@@ -104,7 +109,7 @@ def _render_scalar(value: Any) -> str:
         return "true" if value else "false"
     if value is None:
         return "null"
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return repr(value)
     text = str(value)
     if re.fullmatch(r"[A-Za-z0-9_./:-]+", text):
@@ -112,16 +117,33 @@ def _render_scalar(value: Any) -> str:
     return json.dumps(text)
 
 
+RERANK_UNSAFE_OVERRIDE_KEYS = {
+    "training.eval_steps",
+    "training.eval_strategy",
+    "training.greater_is_better",
+    "training.load_best_model_at_end",
+    "training.max_steps",
+    "training.metric_for_best_model",
+    "training.output_dir",
+    "training.run_name",
+    "training.save_steps",
+    "training.save_strategy",
+    "training.save_total_limit",
+}
+
+
 def _build_override_args(params: dict[str, Any]) -> str:
     overrides = []
     for key in sorted(params):
+        if key in RERANK_UNSAFE_OVERRIDE_KEYS:
+            continue
         overrides.append(f"finetune.{key}={_render_scalar(params[key])}")
     return " ".join(overrides)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Select top-K completed sweep runs from W&B for re-ranking"
+        description="Select top-K completed W&B sweep runs for re-ranking"
     )
     parser.add_argument("--project", required=True, help="entity/project")
     parser.add_argument("--sweep", required=True, help="sweep id or full sweep path")
@@ -134,6 +156,12 @@ def main() -> int:
     args = parse_args()
     if args.k <= 0:
         raise SystemExit("--k must be > 0")
+    return _select_from_wandb(args)
+
+
+def _select_from_wandb(args: argparse.Namespace) -> int:
+    if not args.project:
+        raise SystemExit("--project is required with --sweep")
 
     sweep_ref = _normalize_sweep_ref(args.project, args.sweep)
     api = wandb.Api()
@@ -194,7 +222,22 @@ def main() -> int:
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_rows(out_path, selected)
 
+    print(
+        f"Wrote {len(selected)} runs (from {len(rows)} completed) to {out_path}",
+        file=sys.stderr,
+    )
+    print(
+        "Sweep="
+        f"{sweep_ref} objective={objective.name} ({objective.goal}) "
+        f"task={task_config}",
+        file=sys.stderr,
+    )
+    return 0
+
+
+def _write_rows(out_path: Path, selected: list[dict[str, Any]]) -> None:
     fieldnames = [
         "rank",
         "project",
@@ -218,16 +261,6 @@ def main() -> int:
             row_with_rank = dict(row)
             row_with_rank["rank"] = idx
             writer.writerow(row_with_rank)
-
-    print(
-        f"Wrote {len(selected)} runs (from {len(rows)} completed) to {out_path}",
-        file=sys.stderr,
-    )
-    print(
-        f"Sweep={sweep_ref} objective={objective.name} ({objective.goal}) task={task_config}",
-        file=sys.stderr,
-    )
-    return 0
 
 
 if __name__ == "__main__":
