@@ -1,14 +1,16 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
 
 SWEEP_ARG="${1:-}"
 COUNT="${2:-50}"
@@ -31,8 +33,6 @@ if [[ -z "$SWEEP_ARG" ]]; then
   exit 1
 fi
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 # Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
@@ -42,7 +42,7 @@ export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
-export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
+export HF_TOKEN=$(cat "${HF_TOKEN_FILE:-$SALLM_HOME_DIR/.huggingface/token}" 2>/dev/null || echo "")
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
 
@@ -60,8 +60,8 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate sallm-uv
 set -u
 
-export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
+cd "$SALLM_REPO_DIR"
 uv sync --frozen --inexact
 source .venv/bin/activate
 

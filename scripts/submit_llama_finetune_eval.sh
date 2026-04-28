@@ -4,9 +4,14 @@
 set -u
 set -o pipefail
 
-cd ~/masters/sallm
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
+set_sallm_sbatch_options
 
-SCRATCH_ROOT="${SCRATCH:-/scratch/lmbanr001}"
+cd "$SALLM_REPO_DIR"
+
+SCRATCH_ROOT="$SCRATCH"
 
 # Mapping of finetune task names to eval task names.
 declare -A TASK_MAP=(
@@ -47,6 +52,7 @@ submit_eval_if_present() {
 
     local result
     result=$(sbatch \
+        "${SALLM_SBATCH_OPTIONS[@]}" \
         --dependency=afterok:"$dep_job" \
         scripts/launch_evaluation.sh \
         "eval/${eval_cfg}" \
@@ -109,7 +115,7 @@ for cfg in "${CONFIGS[@]}"; do
     fi
 
     # LoRA run
-    lora_result=$(sbatch scripts/launch_finetune.sh "finetune/${cfg}" 2>&1)
+    lora_result=$(sbatch "${SALLM_SBATCH_OPTIONS[@]}" scripts/launch_finetune.sh "finetune/${cfg}" 2>&1)
     lora_job_id=$(echo "$lora_result" | grep -oP '(?<=Submitted batch job )\d+')
     if [ -z "$lora_job_id" ]; then
         echo "ERROR: Failed to submit LoRA finetune for $cfg"
@@ -136,6 +142,7 @@ for cfg in "${CONFIGS[@]}"; do
     full_wandb_name="${wandb_name}-fullft"
 
     full_result=$(sbatch \
+        "${SALLM_SBATCH_OPTIONS[@]}" \
         scripts/launch_finetune.sh \
         "finetune/${cfg}" \
         "peft.method=none" \

@@ -1,12 +1,14 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
 
 CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1; }
 shift || true
@@ -16,8 +18,6 @@ CFG_NAME="${CFG##*/}"
 JOB_NAME="ft-${CFG_NAME#mamba_}"
 JOB_NAME="${JOB_NAME#llama_}"
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
 export JOB_LOG_DIR="$SCRATCH/masters/sallm/logs/jobs"
@@ -25,7 +25,7 @@ mkdir -p "$TRITON_CACHE_DIR"
 mkdir -p "$JOB_LOG_DIR"
 # export TOKENIZERS_PARALLELISM="false"
 export TOKENIZERS_PARALLELISM="true"
-export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
+export HF_TOKEN=$(cat "${HF_TOKEN_FILE:-$SALLM_HOME_DIR/.huggingface/token}" 2>/dev/null || echo "")
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
@@ -58,8 +58,8 @@ set +u
 conda activate sallm-uv
 set -u
 
-export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
+cd "$SALLM_REPO_DIR"
 uv sync --frozen --inexact
 source .venv/bin/activate
 

@@ -1,12 +1,10 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:4
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name="sallm-recurrent-gemma"
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
@@ -14,9 +12,10 @@ set -euo pipefail
 export MKL_INTERFACE_LAYER=LP64,INTEL64
 
 CONFIG="base/recurrent_gemma_125m.yaml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
@@ -28,8 +27,8 @@ set +u
 conda activate sallm-uv
 set -u
 
-export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
+cd "$SALLM_REPO_DIR"
 uv sync --frozen
 source .venv/bin/activate
 

@@ -6,7 +6,8 @@ load_hf_token() {
     return 0
   fi
 
-  local token_file="${HF_TOKEN_FILE:-$HOME/.huggingface/token}"
+  local token_home="${SALLM_HOME_DIR:-$HOME}"
+  local token_file="${HF_TOKEN_FILE:-$token_home/.huggingface/token}"
   if [[ -f "$token_file" ]]; then
     HF_TOKEN="$(<"$token_file")"
     export HF_TOKEN
@@ -22,6 +23,6 @@ require_hf_token() {
   fi
 
   echo "ERROR: Hugging Face token not found." >&2
-  echo "Set HF_TOKEN or create \$HOME/.huggingface/token." >&2
+  echo "Set HF_TOKEN or create ${SALLM_HOME_DIR:-$HOME}/.huggingface/token." >&2
   return 1
 }

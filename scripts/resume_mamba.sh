@@ -1,22 +1,22 @@
 #!/bin/bash
-#SBATCH --account=nlpgroup
 #SBATCH --partition=a100
 #SBATCH --time=12:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-gpu=2
 #SBATCH --job-name="sallm-mamba-resume"
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
 
 export MKL_INTERFACE_LAYER=LP64,INTEL64
 
 CONFIG="base/mamba_125m.yaml"
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
@@ -28,8 +28,8 @@ set +u
 conda activate sallm-uv
 set -u
 
-export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
+cd "$SALLM_REPO_DIR"
 uv sync --frozen --inexact
 source .venv/bin/activate
 
