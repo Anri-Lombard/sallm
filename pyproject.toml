@@ -39,6 +39,9 @@ dependencies = [
     "lm-eval>=0.4.0",
 ]
 
+[project.scripts]
+sallm = "sallm.cli:main"
+
 [project.optional-dependencies]
 # GPU packages installed separately via pip when needed at build time
 gpu = [
