@@ -1,12 +1,14 @@
 #!/bin/bash
-#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
 
 CONFIG_NAME="$1"
 if [ -z "$CONFIG_NAME" ]; then
@@ -25,14 +27,12 @@ JOB_NAME="${JOB_NAME#llama_}"
 
 export HYDRA_FULL_ERROR=1
 
-export SCRATCH="/scratch/lmbanr001"
-export HOME="/home/lmbanr001"
 export JOB_LOG_DIR="$SCRATCH/masters/sallm/logs/jobs"
 # Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 export XDG_CACHE_HOME="$SCRATCH/.cache"
-export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
+export HF_TOKEN=$(cat "${HF_TOKEN_FILE:-$SALLM_HOME_DIR/.huggingface/token}" 2>/dev/null || echo "")
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
@@ -61,8 +61,8 @@ set +u
 conda activate sallm-uv
 set -u
 
-export PATH="$HOME/.local/bin:$PATH"
-cd "$HOME/masters/sallm"
+export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
+cd "$SALLM_REPO_DIR"
 uv sync --frozen --inexact
 source .venv/bin/activate
 

@@ -134,7 +134,22 @@ uv sync
 source .venv/bin/activate
 ```
 
+For local quality checks, use the same pre-commit entrypoint as CI:
+
+```bash
+uv sync --extra dev
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
 Some workflows expect external credentials to be available through environment variables or standard local auth files, especially for Hugging Face and Weights & Biases.
+
+Cluster helper scripts under `scripts/` are advanced workflows. Pass SLURM
+account/mail settings through `sbatch` flags for your environment, and override
+runtime paths with `SALLM_SCRATCH_DIR`, `SALLM_HOME_DIR`, `SALLM_REPO_DIR`, and
+`SALLM_SLURM_USER` when the defaults do not match your cluster.
+Wrapper scripts that submit nested jobs also respect `SALLM_SLURM_ACCOUNT` and
+`SALLM_SLURM_MAIL_USER`.
 
 ## Reproducing Runs
 

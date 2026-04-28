@@ -3,6 +3,10 @@
 # Usage: ./scripts/launch_xlstm_baseline_eval.sh [--dry-run]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
+set_sallm_sbatch_options
+
 EVAL_SCRIPT="$SCRIPT_DIR/launch_evaluation.sh"
 
 DRY_RUN=false
@@ -62,10 +66,12 @@ echo ""
 submitted=0
 for config in "${CONFIGS[@]}"; do
     if $DRY_RUN; then
-        echo "[DRY RUN] sbatch $EVAL_SCRIPT $config"
+        printf "[DRY RUN] sbatch"
+        printf " %q" "${SALLM_SBATCH_OPTIONS[@]}" "$EVAL_SCRIPT" "$config"
+        printf "\n"
     else
         echo "Submitting: $config"
-        sbatch "$EVAL_SCRIPT" "$config"
+        sbatch "${SALLM_SBATCH_OPTIONS[@]}" "$EVAL_SCRIPT" "$config"
         ((submitted++))
         # Small delay to avoid overwhelming scheduler
         sleep 0.5

@@ -1,7 +1,12 @@
 #!/bin/bash
 # Submit finetune jobs then eval jobs with dependencies
 
-cd ~/masters/sallm
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
+set_sallm_sbatch_options
+
+cd "$SALLM_REPO_DIR"
 
 # Mapping of finetune task names to eval task names
 declare -A TASK_MAP=(
@@ -51,7 +56,7 @@ for cfg in "${CONFIGS[@]}"; do
     eval_config_path="src/conf/eval/${eval_cfg}.yaml"
 
     # Submit finetune job
-    ft_result=$(sbatch scripts/launch_finetune.sh "finetune/$cfg" 2>&1)
+    ft_result=$(sbatch "${SALLM_SBATCH_OPTIONS[@]}" scripts/launch_finetune.sh "finetune/$cfg" 2>&1)
     ft_job_id=$(echo "$ft_result" | grep -oP '(?<=Submitted batch job )\d+')
 
     if [ -z "$ft_job_id" ]; then
@@ -64,7 +69,7 @@ for cfg in "${CONFIGS[@]}"; do
 
     # Submit eval job with dependency if eval config exists
     if [ -n "$eval_task" ] && [ -f "$eval_config_path" ]; then
-        eval_result=$(sbatch --dependency=afterok:$ft_job_id scripts/launch_evaluation.sh "eval/$eval_cfg" 2>&1)
+        eval_result=$(sbatch "${SALLM_SBATCH_OPTIONS[@]}" --dependency=afterok:$ft_job_id scripts/launch_evaluation.sh "eval/$eval_cfg" 2>&1)
         eval_job_id=$(echo "$eval_result" | grep -oP '(?<=Submitted batch job )\d+')
 
         if [ -n "$eval_job_id" ]; then

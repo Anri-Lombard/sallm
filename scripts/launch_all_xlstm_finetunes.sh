@@ -4,6 +4,11 @@
 # This script submits all xLSTM monolingual finetune jobs to SLURM
 # with staggered submissions to avoid overwhelming the scheduler.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/env.sh"
+set_sallm_cluster_env
+set_sallm_sbatch_options
+
 # All xLSTM finetune configs
 CONFIGS=(
   # NER tasks (3)
@@ -41,7 +46,7 @@ FAILED=0
 for cfg in "${CONFIGS[@]}"; do
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Submitting: $cfg"
 
-  if sbatch scripts/launch_finetune.sh "$cfg"; then
+  if sbatch "${SALLM_SBATCH_OPTIONS[@]}" scripts/launch_finetune.sh "$cfg"; then
     SUBMITTED=$((SUBMITTED + 1))
     echo "  ✓ Job submitted successfully"
   else
@@ -64,7 +69,7 @@ echo "  Failed: $FAILED"
 echo "============================================================"
 echo ""
 echo "Monitor jobs with:"
-echo "  squeue -u lmbanr001 | grep 'ft-'"
+echo "  squeue -u \${SALLM_SLURM_USER:-\$USER} | grep 'ft-'"
 echo ""
 echo "Check job logs in:"
 echo "  ~/masters/sallm/logs/ft-*"
