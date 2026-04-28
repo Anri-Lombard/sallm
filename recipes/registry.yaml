@@ -1,0 +1,27 @@
+- id: llama_t2x_xho
+  description: Fine-tune and evaluate Llama on isiXhosa T2X data-to-text.
+  configs:
+    finetune: finetune/llama_t2x_xho
+    evaluate: eval/run_llama_t2x_xho
+  tags:
+    - llama
+    - t2x
+    - xho
+- id: mamba_news_xho
+  description: Fine-tune and evaluate Mamba on isiXhosa MasakhaNEWS classification.
+  configs:
+    finetune: finetune/mamba_news_xho
+    evaluate: eval/run_mamba_masakhanews_xho
+  tags:
+    - mamba
+    - masakhanews
+    - xho
+- id: xlstm_sib_xho
+  description: Fine-tune and evaluate xLSTM on isiXhosa SIB topic classification.
+  configs:
+    finetune: finetune/xlstm_sib_xho
+    evaluate: eval/run_xlstm_sib_xho
+  tags:
+    - xlstm
+    - sib
+    - xho

@@ -153,6 +153,10 @@ Wrapper scripts that submit nested jobs also respect `SALLM_SLURM_ACCOUNT` and
 
 ## Reproducing Runs
 
+Known good public entrypoints are indexed in `recipes/registry.yaml`. Each
+recipe points to existing Hydra configs; the config files remain the source of
+truth for hyperparameters.
+
 All workflows route through Hydra:
 
 ```bash
