@@ -24,6 +24,13 @@ INJONGOINTENT_DATASET = "masakhane/InjongoIntent"
 INJONGOINTENT_BASE_URL = (
     "https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main"
 )
+MASAKHANER_DATASET = "masakhane/masakhaner2"
+MASAKHANER_PARQUET_DATASET = "anrilombard/masakhaner-x-parquet"
+MASAKHANER_PARQUET_LANG_DIRS = {
+    "tsn": "tn",
+    "xho": "xh",
+    "zul": "zu",
+}
 
 
 def _load_train_val_with_revision_fallback(
@@ -233,6 +240,73 @@ def _load_injongointent_dataset(
     return concatenate_datasets(train_parts), concatenate_datasets(val_parts), False
 
 
+def _requested_languages(ds_cfg: FinetuneDatasetConfig, dataset_name: str) -> list[str]:
+    """Resolve a required language list for language-scoped datasets."""
+    lang_list_cfg = list(ds_cfg.languages or [])
+    if lang_list_cfg:
+        return lang_list_cfg
+    if ds_cfg.subset:
+        return [ds_cfg.subset]
+    raise ValueError(f"{dataset_name} requires dataset.subset or dataset.languages.")
+
+
+def _masakhaner_data_files(lang_code: str) -> dict[str, str]:
+    """Return parquet file paths for the mirrored MasakhaNER language."""
+    lang_dir = MASAKHANER_PARQUET_LANG_DIRS.get(lang_code)
+    if lang_dir is None:
+        supported = ", ".join(sorted(MASAKHANER_PARQUET_LANG_DIRS))
+        raise ValueError(
+            f"Unsupported MasakhaNER language '{lang_code}'. "
+            f"Supported languages: {supported}."
+        )
+    return {
+        "train": f"data/{lang_dir}/train.parquet",
+        "validation": f"data/{lang_dir}/validation.parquet",
+        "test": f"data/{lang_dir}/test.parquet",
+    }
+
+
+def _load_masakhaner_dataset(
+    ds_cfg: FinetuneDatasetConfig,
+) -> tuple[Dataset, Dataset, bool]:
+    """Load MasakhaNER from explicit per-language parquet files.
+
+    The upstream `masakhane/masakhaner2` dataset can fall back to a cached
+    default config without language columns. That silently turns an xho/zul/tsn
+    run into an all-language run, so use the mirrored parquet files with
+    explicit language paths instead.
+    """
+    splits = ds_cfg.splits
+    train_parts: list[Dataset] = []
+    val_parts: list[Dataset] = []
+
+    for lang_code in _requested_languages(ds_cfg, MASAKHANER_DATASET):
+        data_files = _masakhaner_data_files(lang_code)
+        train_ds = load_dataset(
+            MASAKHANER_PARQUET_DATASET,
+            data_files=data_files,
+            split=splits["train"],
+        )
+        val_ds = load_split_with_fallback(
+            MASAKHANER_PARQUET_DATASET,
+            None,
+            splits["val"],
+            None,
+            data_files=data_files,
+        )
+        if "lang" not in train_ds.column_names:
+            train_ds = train_ds.add_column("lang", [lang_code] * len(train_ds))
+        if "lang" not in val_ds.column_names:
+            val_ds = val_ds.add_column("lang", [lang_code] * len(val_ds))
+        train_parts.append(train_ds)
+        val_parts.append(val_ds)
+
+    if len(train_parts) == 1:
+        return train_parts[0], val_parts[0], False
+
+    return concatenate_datasets(train_parts), concatenate_datasets(val_parts), False
+
+
 def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bool]:
     """Load train/val datasets from HuggingFace with language handling.
 
@@ -246,6 +320,8 @@ def load_hf_dataset(ds_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset, bo
         return _load_masakhapos_dataset(ds_cfg)
     if ds_cfg.hf_name == INJONGOINTENT_DATASET:
         return _load_injongointent_dataset(ds_cfg)
+    if ds_cfg.hf_name == MASAKHANER_DATASET:
+        return _load_masakhaner_dataset(ds_cfg)
 
     load_name = ds_cfg.subset
     lang_list_cfg = list(ds_cfg.languages or [])
@@ -336,12 +412,34 @@ def apply_language_filters(
         val_ds = filter_by_single_language(val_ds, lang_tag)
 
     if lang_list:
-        has_lang_col = any(
+        train_has_lang_col = any(
             col in train_ds.column_names
             for col in ("lang", "language_code", "language")
         )
-        if has_lang_col:
-            train_ds = filter_by_language(train_ds, lang_list)
-            val_ds = filter_by_language(val_ds, lang_list)
+        val_has_lang_col = any(
+            col in val_ds.column_names for col in ("lang", "language_code", "language")
+        )
+        if not train_has_lang_col or not val_has_lang_col:
+            missing = []
+            if not train_has_lang_col:
+                missing.append("train")
+            if not val_has_lang_col:
+                missing.append("validation")
+            raise ValueError(
+                "dataset.languages was requested, but the loaded dataset has no "
+                f"language column to filter in {', '.join(missing)} split(s). "
+                "Use an explicit per-language loader or set dataset.subset to a "
+                "valid dataset config."
+            )
+        before_train = len(train_ds)
+        before_val = len(val_ds)
+        train_ds = filter_by_language(train_ds, lang_list)
+        val_ds = filter_by_language(val_ds, lang_list)
+        if len(train_ds) == 0 or len(val_ds) == 0:
+            raise ValueError(
+                "dataset.languages filtering produced an empty split "
+                f"(train {before_train}->{len(train_ds)}, "
+                f"val {before_val}->{len(val_ds)})."
+            )
 
     return train_ds, val_ds

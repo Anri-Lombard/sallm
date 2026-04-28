@@ -74,6 +74,15 @@ def format_ner(ex: dict[str, Any], template_id: str) -> list[dict[str, str]]:
             "but is missing the 'ner_tags' list."
         )
 
+    if "text" in ex and "target" in ex:
+        text_input = str(ex["text"])
+        assistant_response = str(ex["target"])
+        user_prompt = safe_format_prompt(template_spec.prompt, {"text": text_input})
+        return [
+            {"role": "user", "content": user_prompt},
+            {"role": "assistant", "content": assistant_response},
+        ]
+
     text_input = " ".join(ex["tokens"])
     user_prompt = safe_format_prompt(template_spec.prompt, {"text": text_input})
     reconstructed_entities = reconstruct_entities_from_iob(

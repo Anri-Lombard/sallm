@@ -1,16 +1,31 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from datasets import Dataset, load_dataset
 
 VALIDATION_ALIASES = ["validation", "dev", "val", "valid"]
 
 
 def load_split_with_fallback(
-    hf_name: str, name: str | None, split: str, revision: str | None = None
+    hf_name: str,
+    name: str | None,
+    split: str,
+    revision: str | None = None,
+    **load_kwargs: Any,
 ) -> Dataset:
     """Load a dataset split, falling back to alternative split names if needed."""
     try:
-        return load_dataset(hf_name, name=name, split=split, revision=revision)
+        return cast(
+            Dataset,
+            load_dataset(
+                hf_name,
+                name=name,
+                split=split,
+                revision=revision,
+                **load_kwargs,
+            ),
+        )
     except Exception as err:
         s = split.lower()
         if s in VALIDATION_ALIASES:
@@ -25,7 +40,16 @@ def load_split_with_fallback(
             if alt == split:
                 continue
             try:
-                return load_dataset(hf_name, name=name, split=alt, revision=revision)
+                return cast(
+                    Dataset,
+                    load_dataset(
+                        hf_name,
+                        name=name,
+                        split=alt,
+                        revision=revision,
+                        **load_kwargs,
+                    ),
+                )
             except Exception as e:
                 last_err = e
         raise last_err from None

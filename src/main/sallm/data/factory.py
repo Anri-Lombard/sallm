@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import is_dataclass, replace
-from typing import Protocol
+from typing import Protocol, cast
 
 from datasets import Dataset
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import Dataset as TorchDataset
 from transformers import PreTrainedTokenizerBase
 
@@ -49,8 +50,13 @@ def _dataset_config_with_template_choice(
         return ds_cfg
     if is_dataclass(ds_cfg):
         return replace(ds_cfg, template_choice=template_choice)
+    if isinstance(ds_cfg, DictConfig):
+        cloned_cfg = OmegaConf.create(OmegaConf.to_container(ds_cfg, resolve=False))
+        cloned_cfg.template_choice = template_choice
+        return cast(FinetuneDatasetConfig, cloned_cfg)
     raise TypeError(
-        f"Expected dataset config to be a dataclass, got {type(ds_cfg).__name__}"
+        "Expected dataset config to be a dataclass or DictConfig, got "
+        f"{type(ds_cfg).__name__}"
     )
 
 

@@ -1,0 +1,21 @@
+tasks:
+  - sallm_masakhaner_tn_prompt_1_val
+  - sallm_masakhaner_tn_prompt_2_val
+  - sallm_masakhaner_tn_prompt_3_val
+  - sallm_masakhaner_tn_prompt_4_val
+  - sallm_masakhaner_tn_prompt_5_val
+  - sallm_masakhaner_xh_prompt_1_val
+  - sallm_masakhaner_xh_prompt_2_val
+  - sallm_masakhaner_xh_prompt_3_val
+  - sallm_masakhaner_xh_prompt_4_val
+  - sallm_masakhaner_xh_prompt_5_val
+  - sallm_masakhaner_zu_prompt_1_val
+  - sallm_masakhaner_zu_prompt_2_val
+  - sallm_masakhaner_zu_prompt_3_val
+  - sallm_masakhaner_zu_prompt_4_val
+  - sallm_masakhaner_zu_prompt_5_val
+fewshot: 0
+batch_size: 1
+apply_chat_template: true
+lm_eval_kwargs:
+  max_batch_size: 1
