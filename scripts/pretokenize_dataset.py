@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Pre-tokenize the SALLM dataset to avoid distributed training timeouts."""
+
 import logging
 from pathlib import Path
 

@@ -138,7 +138,7 @@ class CustomTrainer(Trainer):
                     num_samples += batch_size
 
             if self.is_world_process_zero() and nan_count > 0:
-                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx+1} "
+                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx + 1} "
                 msg += f"batches had nan loss, total_loss={total_loss}, "
                 msg += f"num_samples={num_samples}"
                 print(msg, flush=True)
@@ -307,7 +307,7 @@ class CustomSFTTrainer(SFTTrainer):
                     num_samples += batch_size
 
             if self.is_world_process_zero() and nan_count > 0:
-                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx+1} "
+                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx + 1} "
                 msg += f"batches had nan loss, total_loss={total_loss}, "
                 msg += f"num_samples={num_samples}"
                 print(msg, flush=True)

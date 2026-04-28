@@ -23,9 +23,9 @@ def _resolve_model_config(eval_model_cfg: ModelEvalConfig | dict) -> ModelEvalCo
 
 
 def run(config: ExperimentConfig) -> None:
-    assert (
-        config.evaluation and config.eval_model
-    ), "`evaluation` and `eval_model` blocks required."
+    assert config.evaluation and config.eval_model, (
+        "`evaluation` and `eval_model` blocks required."
+    )
 
     eval_cfg = config.evaluation
     model_cfg = _resolve_model_config(config.eval_model)

@@ -42,9 +42,9 @@ def transform_config(mamba_config: dict, task: str, lang: str) -> dict:
 
     # 1. Update model architecture and checkpoint
     xlstm_config["model"]["architecture"] = "xlstm"
-    xlstm_config["model"][
-        "init_checkpoint"
-    ] = "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m/final_model"
+    xlstm_config["model"]["init_checkpoint"] = (
+        "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m/final_model"
+    )
 
     # 2. Update PEFT target modules
     if "peft" in xlstm_config and "kwargs" in xlstm_config["peft"]:
@@ -151,13 +151,13 @@ def main():
                 continue
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"✓ Successfully created {len(configs_created)} configs")
     if configs_failed:
         print(f"❌ Failed to create {len(configs_failed)} configs:")
         for config in configs_failed:
             print(f"   - {config}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     return 0 if not configs_failed else 1
 

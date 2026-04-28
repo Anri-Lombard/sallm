@@ -152,8 +152,7 @@ class GenerationEvaluator:
             cap = max(1, int(raw_cap))
         except ValueError:
             logger.warning(
-                "Ignoring invalid SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE=%r; "
-                "using 1.",
+                "Ignoring invalid SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE=%r; using 1.",
                 raw_cap,
             )
             cap = 1
