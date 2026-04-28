@@ -45,4 +45,5 @@ dist/
 .DS_Store
 .github/chatmodes
 .bmad-core
+reports/
 *.csv
