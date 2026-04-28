@@ -4,6 +4,7 @@ import bisect
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from random import Random
+from typing import Any
 
 from datasets import Dataset as HFDataset
 from torch.utils.data import Dataset as TorchDataset
@@ -13,7 +14,7 @@ from torch.utils.data import get_worker_info
 @dataclass(frozen=True)
 class TaskComponent:
     name: str
-    dataset: Sequence
+    dataset: Any
     weight: float
 
     @property
@@ -128,7 +129,7 @@ class WeightedMultiTaskDataset(TorchDataset):
     def __len__(self) -> int:
         return self._epoch_size
 
-    def __getitem__(self, index: int) -> dict:
+    def __getitem__(self, index: int) -> dict[str, object]:
         wi = get_worker_info()
         worker_seed = int(getattr(wi, "seed", 0) or 0)
         epoch_term = 1_000_003 * (self._epoch + 1)
@@ -142,7 +143,7 @@ class WeightedMultiTaskDataset(TorchDataset):
         example = component.dataset[comp_index]
         if not isinstance(example, dict):
             raise TypeError("Expected dict samples from component datasets")
-        result = dict(example)
+        result: dict[str, object] = dict(example)
         if "task_name" not in result:
             result["task_name"] = component.name
         return result
@@ -188,9 +189,9 @@ class WeightedMultiTaskDataset(TorchDataset):
                     break
         if sample is None:
             return ["messages", "task_name"]
-        keys = set(sample.keys())
+        keys = {str(key) for key in sample.keys()}
         keys.add("task_name")
-        return sorted(list(keys))
+        return sorted(keys)
 
     def to_hf_dataset(self) -> HFDataset:
         data = [self[i] for i in range(len(self))]

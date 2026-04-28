@@ -6,15 +6,22 @@ import re
 import shutil
 import textwrap
 from pathlib import Path
+from typing import Any, cast
 
 import peft
 import torch
 import wandb
+from datasets import Dataset
 from omegaconf import OmegaConf
-from sallm.config import ExperimentConfig
-from sallm.data.factory import build_conversation_dataset, build_datasets
+from sallm.config import ExperimentConfig, to_resolved_dict
+from sallm.data.factory import (
+    build_conversation_dataset,
+    build_datasets,
+    resolve_eval_template_choice,
+)
 from sallm.models.factory import build_model, build_tokenizer
 from sallm.training.factory import build_trainer
+from tokenizers import AddedToken
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +40,10 @@ def _apply_peft_if_needed(model, peft_cfg):
 
     if peft_cfg.method.lower() in {"lora", "qlora"}:
         kwargs_obj = getattr(peft_cfg, "kwargs", {})
-        if hasattr(kwargs_obj, "_parent") or hasattr(kwargs_obj, "_metadata"):
-            peft_kwargs = OmegaConf.to_container(kwargs_obj, resolve=True)
-        elif isinstance(kwargs_obj, dict):
-            peft_kwargs = dict(kwargs_obj)
+        if kwargs_obj is None:
+            peft_kwargs: dict[str, Any] = {}
         else:
-            peft_kwargs = {}
+            peft_kwargs = to_resolved_dict(kwargs_obj, name="peft kwargs")
         lora_conf = peft.LoraConfig(
             r=peft_kwargs.get("r", 64),
             lora_alpha=peft_kwargs.get("lora_alpha", 16),
@@ -180,6 +185,9 @@ def _build_hub_repo_id(config: ExperimentConfig, *, merged: bool = False) -> str
 
 
 def run(config: ExperimentConfig) -> None:
+    if config.dataset is None:
+        raise ValueError("Fine-tuning requires a `dataset` config block.")
+
     is_hpo_run = _is_hpo_run(config)
     i_am_main = _is_main_process()
 
@@ -201,8 +209,8 @@ def run(config: ExperimentConfig) -> None:
 
     if config.wandb and config.wandb.project and i_am_main and (not is_hpo_run):
         settings = wandb.Settings(init_timeout=120)
-        cfg_for_wandb = OmegaConf.to_container(
-            OmegaConf.structured(config), resolve=True, throw_on_missing=True
+        cfg_for_wandb = to_resolved_dict(
+            OmegaConf.structured(config), name="wandb config"
         )
         wandb.init(
             project=config.wandb.project,
@@ -226,14 +234,14 @@ def run(config: ExperimentConfig) -> None:
     model = build_model(config, tokenizer)
 
     logger.info("Adding special tokens and resizing model embeddings.")
-    special_tokens_dict = {
+    special_tokens_dict: dict[str, list[str | AddedToken]] = {
         "additional_special_tokens": [
             "<|system|>",
             "<|user|>",
             "<|assistant|>",
         ]
     }
-    num_added_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    num_added_tokens = tokenizer.add_special_tokens(cast(Any, special_tokens_dict))
 
     if num_added_tokens > 0:
         model.resize_token_embeddings(len(tokenizer))
@@ -242,8 +250,9 @@ def run(config: ExperimentConfig) -> None:
         # See: https://github.com/huggingface/transformers/issues/43206
         # TODO: Remove once transformers fix is released
         if hasattr(model, "lm_head") and hasattr(model, "backbone"):
+            model_any = cast(Any, model)
             expected_vocab = len(tokenizer)
-            actual_vocab = model.lm_head.weight.shape[0]
+            actual_vocab = int(model_any.lm_head.weight.shape[0])
             if actual_vocab != expected_vocab:
                 import torch.nn as nn
 
@@ -252,11 +261,11 @@ def run(config: ExperimentConfig) -> None:
                     actual_vocab,
                     expected_vocab,
                 )
-                model.lm_head = nn.Linear(
-                    model.config.hidden_size, expected_vocab, bias=False
+                model_any.lm_head = nn.Linear(
+                    model_any.config.hidden_size, expected_vocab, bias=False
                 )
-                if hasattr(model.backbone, "embeddings"):
-                    model.lm_head.weight = model.backbone.embeddings.weight
+                if hasattr(model_any.backbone, "embeddings"):
+                    model_any.lm_head.weight = model_any.backbone.embeddings.weight
 
     if tokenizer.chat_template is None:
         # TODO: move this template to its own file
@@ -311,7 +320,7 @@ def run(config: ExperimentConfig) -> None:
         return isinstance(ex, dict) and ("messages" in ex)
 
     if not _has_messages(train_ds):
-        if hasattr(train_ds, "column_names"):
+        if isinstance(train_ds, Dataset):
             logger.warning("Training dataset lacks 'messages'; applying formatter.")
             train_ds = build_conversation_dataset(train_ds, config)
         else:
@@ -320,9 +329,13 @@ def run(config: ExperimentConfig) -> None:
             )
 
     if val_ds and not _has_messages(val_ds):
-        if hasattr(val_ds, "column_names"):
+        if isinstance(val_ds, Dataset):
             logger.warning("Validation dataset lacks 'messages'; applying formatter.")
-            val_ds = build_conversation_dataset(val_ds, config)
+            val_ds = build_conversation_dataset(
+                val_ds,
+                config,
+                template_choice_override=resolve_eval_template_choice(config.dataset),
+            )
         else:
             raise ValueError(
                 "Validation dataset lacks 'messages' and cannot be auto-formatted."
@@ -355,10 +368,10 @@ def run(config: ExperimentConfig) -> None:
         logger.info(f"Messages:\n{sample['messages']}")
         logger.info("-------------------------------------------")
 
-    model.tokenizer = tokenizer
+    cast(Any, model).tokenizer = tokenizer
 
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
-    resume_ckpt = config.training.get("resume_from_checkpoint")
+    resume_ckpt = (config.training or {}).get("resume_from_checkpoint")
 
     logger.info("Fine-tuning start …")
     torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
@@ -374,12 +387,13 @@ def run(config: ExperimentConfig) -> None:
         and config.peft.method.lower() in {"lora", "qlora"}
         and isinstance(model, peft.PeftModel)
     ):
-        base_checkpoint = getattr(config.model, "init_checkpoint", None)
+        base_checkpoint = config.model.init_checkpoint if config.model else None
         if not base_checkpoint:
             raise ValueError(
                 "Saving PEFT adapters requires `model.init_checkpoint` to be set."
             )
-        output_dir = os.path.join(trainer.args.output_dir, "final_adapter")
+        trainer_output_dir = str(trainer.args.output_dir)
+        output_dir = os.path.join(trainer_output_dir, "final_adapter")
         os.makedirs(output_dir, exist_ok=True)
         active_adapter = getattr(model, "active_adapter", "default")
         peft_cfg = model.peft_config.get(active_adapter)
@@ -398,55 +412,60 @@ def run(config: ExperimentConfig) -> None:
         if config.hub and config.hub.enabled and config.hub.push_adapter and i_am_main:
             repo_id = _build_hub_repo_id(config, merged=False)
 
-            # Update base model reference to HF model ID before pushing
-            if config.hub.base_model_id:
-                active_adapter = getattr(model, "active_adapter", "default")
-                peft_cfg = model.peft_config.get(active_adapter)
-                if peft_cfg:
-                    peft_cfg.base_model_name_or_path = config.hub.base_model_id
-                    logger.info(
-                        f"Set base_model reference to: {config.hub.base_model_id}"
-                    )
+            try:
+                # Update base model reference to HF model ID before pushing
+                if config.hub.base_model_id:
+                    active_adapter = getattr(model, "active_adapter", "default")
+                    peft_cfg = model.peft_config.get(active_adapter)
+                    if peft_cfg:
+                        peft_cfg.base_model_name_or_path = config.hub.base_model_id
+                        logger.info(
+                            f"Set base_model reference to: {config.hub.base_model_id}"
+                        )
 
-            logger.info(f"Pushing adapter to HuggingFace Hub: {repo_id}")
-            model.push_to_hub(repo_id, private=config.hub.private)
-            tokenizer.push_to_hub(repo_id, private=config.hub.private)
-            logger.info(f"Successfully pushed to {repo_id}")
+                logger.info(f"Pushing adapter to HuggingFace Hub: {repo_id}")
+                cast(Any, model).push_to_hub(repo_id, private=config.hub.private)
+                tokenizer.push_to_hub(repo_id, private=config.hub.private)
+                logger.info(f"Successfully pushed to {repo_id}")
 
-            # Add to collection if specified
-            if config.hub.collection_slug:
-                try:
-                    from huggingface_hub import add_collection_item
+                if config.hub.collection_slug:
+                    try:
+                        from huggingface_hub import add_collection_item
 
-                    add_collection_item(
-                        collection_slug=config.hub.collection_slug,
-                        item_id=repo_id,
-                        item_type="model",
-                        exists_ok=True,
-                    )
-                    logger.info(f"Added to collection: {config.hub.collection_slug}")
-                except Exception as e:
-                    logger.warning(f"Could not add to collection: {e}")
+                        add_collection_item(
+                            collection_slug=config.hub.collection_slug,
+                            item_id=repo_id,
+                            item_type="model",
+                            exists_ok=True,
+                        )
+                        logger.info(
+                            f"Added to collection: {config.hub.collection_slug}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not add to collection: {e}")
 
-            # Auto-delete local checkpoint after successful push to save space
-            checkpoint_dir = trainer.args.output_dir
-            if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
-                try:
-                    shutil.rmtree(checkpoint_dir)
-                    logger.info(
-                        f"Deleted local checkpoint to free space: {checkpoint_dir}"
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to delete checkpoint {checkpoint_dir}: {e}")
+                checkpoint_dir = trainer_output_dir
+                if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+                    try:
+                        shutil.rmtree(checkpoint_dir)
+                        logger.info(
+                            f"Deleted local checkpoint to free space: {checkpoint_dir}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to delete checkpoint {checkpoint_dir}: {e}"
+                        )
+            except Exception as e:
+                logger.warning(f"Hub push failed, keeping local adapter artifact: {e}")
 
         return
 
     if hasattr(model, "merge_and_unload"):
-        merged_model = model.merge_and_unload()
+        merged_model: Any = cast(Any, model).merge_and_unload()
     else:
         merged_model = model
 
-    output_dir = os.path.join(trainer.args.output_dir, "final_merged_model")
+    output_dir = os.path.join(str(trainer.args.output_dir), "final_merged_model")
     if hasattr(merged_model, "save_pretrained"):
         _sync_weight_tying_flag(merged_model)
         safe_serialization = True
@@ -480,6 +499,9 @@ def run(config: ExperimentConfig) -> None:
 
     if config.hub and config.hub.enabled and config.hub.push_merged and i_am_main:
         repo_id = _build_hub_repo_id(config, merged=True)
-        logger.info(f"Pushing merged model to HuggingFace Hub: {repo_id}")
-        merged_model.push_to_hub(repo_id, private=config.hub.private)
-        tokenizer.push_to_hub(repo_id, private=config.hub.private)
+        try:
+            logger.info(f"Pushing merged model to HuggingFace Hub: {repo_id}")
+            merged_model.push_to_hub(repo_id, private=config.hub.private)
+            tokenizer.push_to_hub(repo_id, private=config.hub.private)
+        except Exception as e:
+            logger.warning(f"Hub push failed, keeping local merged artifact: {e}")

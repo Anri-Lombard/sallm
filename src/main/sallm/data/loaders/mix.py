@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +76,12 @@ def _component_to_config(
 
     tc_str = comp.get("template_choice", "cycle")
     template_choice = TEMPLATE_CHOICE_MAP.get(tc_str, TemplateChoice.CYCLE)
+    eval_tc_str = comp.get("eval_template_choice")
+    eval_template_choice = (
+        TEMPLATE_CHOICE_MAP.get(eval_tc_str, TemplateChoice.CYCLE)
+        if eval_tc_str is not None
+        else None
+    )
 
     max_seq = comp.get("max_seq_length_override")
     if max_seq is None:
@@ -90,6 +97,7 @@ def _component_to_config(
         splits=comp.get("splits", {"train": "train", "val": "validation"}),
         templates=templates,
         template_choice=template_choice,
+        eval_template_choice=eval_template_choice,
         label_column=comp.get("label_column"),
         max_seq_length=max_seq,
         packing=base_cfg.packing,
@@ -141,7 +149,19 @@ def _process_component(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Datase
     tr_raw, va_raw = _load_component_raw(comp_cfg)
     wrapper = _CfgWrapper(comp_cfg)
     tr = apply_templates(tr_raw, wrapper.dataset)
-    va = apply_templates(va_raw, wrapper.dataset)
+    val_cfg = comp_cfg
+    if (
+        comp_cfg.eval_template_choice is not None
+        and comp_cfg.eval_template_choice != comp_cfg.template_choice
+    ):
+        val_cfg = replace(comp_cfg, template_choice=comp_cfg.eval_template_choice)
+    elif (
+        comp_cfg.task == FinetuneTaskType.CLASSIFICATION
+        and len(comp_cfg.templates) > 1
+        and comp_cfg.template_choice != TemplateChoice.ALL
+    ):
+        val_cfg = replace(comp_cfg, template_choice=TemplateChoice.ALL)
+    va = apply_templates(va_raw, val_cfg)
     return tr, va
 
 
@@ -157,6 +177,8 @@ def load_mix_dataset(
         Tuple of (WeightedMultiTaskDataset, concatenated_val_ds, None)
     """
     ds_cfg = config.dataset
+    if ds_cfg is None:
+        raise ValueError("Mixture datasets require a `dataset` config block.")
     mix_name = ds_cfg.hf_name[len("mix:") :].strip().lower()
 
     mix_config = load_mix_config(mix_name)

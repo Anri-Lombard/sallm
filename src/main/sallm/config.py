@@ -9,6 +9,20 @@ from peft import PeftConfig as HFPEFTConfig
 from sallm.utils import RunMode
 
 
+def to_resolved_dict(value: Any, *, name: str = "config") -> dict[str, Any]:
+    """Resolve an OmegaConf or plain mapping into a string-keyed dict."""
+    if isinstance(value, DictConfig):
+        resolved = OmegaConf.to_container(value, resolve=True)
+    elif isinstance(value, dict):
+        resolved = value
+    else:
+        raise TypeError(f"{name} must be a mapping, got {type(value)!r}.")
+
+    if not isinstance(resolved, dict):
+        raise TypeError(f"{name} must resolve to a mapping.")
+    return {str(key): item for key, item in resolved.items()}
+
+
 @dataclass
 class ParamRangeConfig:
     min_params_m: float = MISSING
@@ -122,6 +136,10 @@ class ModelEvalConfig:
 
         checkpoint_path: Path | None = None
         if chosen_path is not None:
+            resolved_existing = self._resolve_existing_checkpoint(chosen_path)
+            if resolved_existing != chosen_path:
+                chosen_path = resolved_existing
+                used_adapter_fallback = True
             self.checkpoint = str(chosen_path)
             checkpoint_path = chosen_path
         elif hub_checkpoint is not None:
@@ -150,7 +168,7 @@ class ModelEvalConfig:
             )
             has_full_model = any(path.exists() for path in full_model_weights)
             if has_adapter and not has_full_model:
-                peft_config = HFPEFTConfig.from_pretrained(checkpoint_path)
+                peft_config = HFPEFTConfig.from_pretrained(str(checkpoint_path))
                 base_model = peft_config.base_model_name_or_path
                 if not base_model:
                     raise ValueError(
@@ -185,6 +203,35 @@ class ModelEvalConfig:
 
         if self.merge_lora is None and self.peft_adapter:
             self.merge_lora = True
+
+    def _resolve_existing_checkpoint(self, checkpoint_path: Path) -> Path:
+        if not checkpoint_path.exists() or not checkpoint_path.is_dir():
+            return checkpoint_path
+
+        adapter_config = checkpoint_path / "adapter_config.json"
+        adapter_weights = [
+            checkpoint_path / "adapter_model.bin",
+            checkpoint_path / "adapter_model.safetensors",
+        ]
+        full_model_weights = [
+            checkpoint_path / "pytorch_model.bin",
+            checkpoint_path / "model.safetensors",
+        ]
+
+        has_adapter = adapter_config.exists() and any(
+            path.exists() for path in adapter_weights
+        )
+        has_full_model = any(path.exists() for path in full_model_weights)
+        if has_adapter or has_full_model:
+            return checkpoint_path
+
+        nested = self._resolve_missing_checkpoint(checkpoint_path)
+        if nested is None:
+            return checkpoint_path
+        try:
+            return nested.resolve()
+        except Exception:
+            return nested
 
     def _resolve_missing_checkpoint(self, checkpoint_path: Path) -> Path | None:
         name = checkpoint_path.name
@@ -303,6 +350,7 @@ class FinetuneDatasetConfig:
     splits: dict[str, str] = field(default_factory=dict)
     templates: list[TemplateRef] = field(default_factory=list)
     template_choice: TemplateChoice = TemplateChoice.CYCLE
+    eval_template_choice: TemplateChoice | None = None
     label_column: str | None = "label"
     max_seq_length: int = MISSING
     packing: bool = MISSING
@@ -321,6 +369,13 @@ class FinetuneDatasetConfig:
             raise ValueError(
                 "dataset.template_choice is 'ALL' but no templates were provided. "
                 "Add at least one entry under dataset.templates."
+            )
+        if self.eval_template_choice == TemplateChoice.ALL and (
+            self.templates is None or len(self.templates) == 0
+        ):
+            raise ValueError(
+                "dataset.eval_template_choice is 'ALL' but no templates were "
+                "provided. Add at least one entry under dataset.templates."
             )
 
         if self.mix_epoch_size not in (None, "sum") and not isinstance(
@@ -370,7 +425,8 @@ class DecodingConfig:
     repetition_penalty: float | None = None
     num_return_sequences: int | None = None
     diversity_penalty: float | None = None
-    batch_size: int | None = None
+    batch_size: int | str | None = "auto:4"
+    max_batch_size: int | None = 64
 
     @classmethod
     def from_any(cls, value: Any | None) -> "DecodingConfig":
@@ -378,17 +434,7 @@ class DecodingConfig:
             return cls()
         if isinstance(value, cls):
             return value
-        if isinstance(value, DictConfig):
-            data = OmegaConf.to_container(value, resolve=True)
-        elif isinstance(value, dict):
-            data = value
-        else:
-            raise TypeError(
-                f"Unsupported decoding config type {type(value)!r}; "
-                "expected mapping or DecodingConfig."
-            )
-        if not isinstance(data, dict):
-            raise TypeError("DecodingConfig expects a mapping after resolution.")
+        data = to_resolved_dict(value, name="decoding config")
         return cls(**data)
 
     def to_generate_kwargs(self) -> dict[str, Any]:
@@ -458,6 +504,8 @@ class GeneratedExample:
     prompt_text: str
     prediction: str
     reference: str
+    raw_prediction: str | None = None
+    debug: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

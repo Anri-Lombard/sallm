@@ -7,13 +7,18 @@ import re
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import torch
 from datasets import Dataset, DatasetDict, get_dataset_config_names, load_dataset
 from peft import PeftModel
 from tokenizers.decoders import ByteLevel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 
 from sallm.config import (
     FewshotTemplateMode,
@@ -28,8 +33,12 @@ from sallm.evaluation.generation_metrics import GenerationEvaluator
 logger = logging.getLogger(__name__)
 
 
-def _prepare_tokenizer(tokenizer: AutoTokenizer) -> AutoTokenizer:
-    tokenizer.backend_tokenizer.decoder = ByteLevel()
+def _prepare_tokenizer(
+    tokenizer: PreTrainedTokenizerBase,
+) -> PreTrainedTokenizerBase:
+    backend_tokenizer = getattr(tokenizer, "backend_tokenizer", None)
+    if backend_tokenizer is not None:
+        backend_tokenizer.decoder = ByteLevel()
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # Required for decoder-only model generation
@@ -92,7 +101,7 @@ def _resolve_dtype(dtype_str: str) -> torch.dtype:
 
 def _load_tokenizer_and_pretrained(
     checkpoint: str, trust_remote_code: bool = True, adapter_path: str | None = None
-) -> tuple[AutoTokenizer, str]:
+) -> tuple[PreTrainedTokenizerBase, str]:
     checkpoint_path = Path(checkpoint)
     pretrained_id = checkpoint
     if checkpoint_path.exists():
@@ -123,8 +132,11 @@ def _load_tokenizer_and_pretrained(
             # Try loading tokenizer from HF hub adapter
             try:
                 logger.info("Loading tokenizer from HF hub adapter: %s", adapter_path)
-                tok = AutoTokenizer.from_pretrained(
-                    adapter_path, trust_remote_code=trust_remote_code
+                tok = cast(
+                    PreTrainedTokenizerBase,
+                    AutoTokenizer.from_pretrained(
+                        adapter_path, trust_remote_code=trust_remote_code
+                    ),
                 )
                 return tok, pretrained_id
             except Exception as exc:
@@ -152,21 +164,27 @@ def _load_tokenizer_and_pretrained(
             else "local checkpoint"
         )
         logger.info("Loading tokenizer from %s: %s", source_label, tokenizer_resolved)
-        tok = AutoTokenizer.from_pretrained(
-            tokenizer_resolved,
-            trust_remote_code=trust_remote_code,
-            local_files_only=True,
+        tok = cast(
+            PreTrainedTokenizerBase,
+            AutoTokenizer.from_pretrained(
+                tokenizer_resolved,
+                trust_remote_code=trust_remote_code,
+                local_files_only=True,
+            ),
         )
         return tok, pretrained_id
 
     logger.info("Loading tokenizer from HF hub or identifier: %s", checkpoint)
-    tok = AutoTokenizer.from_pretrained(checkpoint, trust_remote_code=trust_remote_code)
+    tok = cast(
+        PreTrainedTokenizerBase,
+        AutoTokenizer.from_pretrained(checkpoint, trust_remote_code=trust_remote_code),
+    )
     return tok, pretrained_id
 
 
 def load_model_and_tokenizer(
     model_cfg: ModelEvalConfig,
-) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
+) -> tuple[PreTrainedModel, PreTrainedTokenizerBase]:
     tokenizer, pretrained_id = _load_tokenizer_and_pretrained(
         model_cfg.checkpoint,
         trust_remote_code=True,
@@ -176,15 +194,18 @@ def load_model_and_tokenizer(
 
     torch_dtype = _resolve_dtype(model_cfg.dtype)
     logger.info("Loading model weights from %s", pretrained_id)
-    model = AutoModelForCausalLM.from_pretrained(
-        pretrained_id,
-        torch_dtype=torch_dtype,
-        trust_remote_code=True,
-        low_cpu_mem_usage=True,
+    model = cast(
+        PreTrainedModel,
+        AutoModelForCausalLM.from_pretrained(
+            pretrained_id,
+            torch_dtype=torch_dtype,
+            trust_remote_code=True,
+            low_cpu_mem_usage=True,
+        ),
     )
 
     vocab_size = len(tokenizer)
-    model_vocab_size = model.get_input_embeddings().weight.shape[0]
+    model_vocab_size = int(cast(Any, model.get_input_embeddings()).weight.shape[0])
     if vocab_size > model_vocab_size:
         logger.info(
             "Resizing model embeddings from %d to %d to match tokenizer vocabulary.",
@@ -196,13 +217,19 @@ def load_model_and_tokenizer(
     if model_cfg.peft_adapter:
         logger.info("Loading PEFT adapter from %s", model_cfg.peft_adapter)
         try:
-            model = PeftModel.from_pretrained(model, model_cfg.peft_adapter)
+            model = cast(
+                PreTrainedModel,
+                PeftModel.from_pretrained(model, model_cfg.peft_adapter),
+            )
         except RuntimeError as exc:
             target_vocab = _infer_vocab_size_from_peft_error(exc)
             adapter_tokenizer = None
             try:
-                adapter_tokenizer = AutoTokenizer.from_pretrained(
-                    model_cfg.peft_adapter, trust_remote_code=True
+                adapter_tokenizer = cast(
+                    PreTrainedTokenizerBase,
+                    AutoTokenizer.from_pretrained(
+                        model_cfg.peft_adapter, trust_remote_code=True
+                    ),
                 )
                 target_vocab = max(target_vocab or 0, len(adapter_tokenizer))
             except Exception as tok_exc:
@@ -218,7 +245,7 @@ def load_model_and_tokenizer(
             if target_vocab is None:
                 raise
 
-            current_vocab = model.get_input_embeddings().weight.shape[0]
+            current_vocab = int(cast(Any, model.get_input_embeddings()).weight.shape[0])
             if target_vocab != current_vocab:
                 logger.warning(
                     (
@@ -230,28 +257,36 @@ def load_model_and_tokenizer(
                 )
                 # A failed initial PEFT load can partially wrap embeddings with LoRA
                 # modules, which breaks resize_token_embeddings. Reload a clean base.
-                model = AutoModelForCausalLM.from_pretrained(
-                    pretrained_id,
-                    torch_dtype=torch_dtype,
-                    trust_remote_code=True,
-                    low_cpu_mem_usage=True,
+                model = cast(
+                    PreTrainedModel,
+                    AutoModelForCausalLM.from_pretrained(
+                        pretrained_id,
+                        torch_dtype=torch_dtype,
+                        trust_remote_code=True,
+                        low_cpu_mem_usage=True,
+                    ),
                 )
                 model.resize_token_embeddings(target_vocab)
 
             if adapter_tokenizer is not None:
                 tokenizer = _prepare_tokenizer(adapter_tokenizer)
 
-            model = PeftModel.from_pretrained(model, model_cfg.peft_adapter)
+            model = cast(
+                PreTrainedModel,
+                PeftModel.from_pretrained(model, model_cfg.peft_adapter),
+            )
         if model_cfg.merge_lora:
             logger.info("Merging LoRA weights into the base model for evaluation.")
-            model = model.merge_and_unload()
+            model = cast(PreTrainedModel, cast(Any, model).merge_and_unload())
 
     device = torch.device(model_cfg.device)
-    model.to(device)
-    model.generation_config.eos_token_id = tokenizer.eos_token_id
-    model.generation_config.pad_token_id = (
-        tokenizer.pad_token_id or tokenizer.eos_token_id
-    )
+    cast(Any, model).to(device)
+    generation_config = model.generation_config
+    if generation_config is not None:
+        generation_config.eos_token_id = tokenizer.eos_token_id
+        generation_config.pad_token_id = (
+            tokenizer.pad_token_id or tokenizer.eos_token_id
+        )
     return model, tokenizer
 
 
@@ -274,7 +309,7 @@ def _load_raw_split(task_cfg: GenerationEvalTaskConfig, split_key: str) -> Datas
                 f"{type(dataset_dict)}"
             )
         if split_name not in dataset_dict:
-            available = ", ".join(dataset_dict.keys())
+            available = ", ".join(str(key) for key in dataset_dict.keys())
             raise ValueError(
                 f"Requested split '{split_name}' not found. Available: {available}"
             )
@@ -453,8 +488,8 @@ def build_evaluation_dataset(task_cfg: GenerationEvalTaskConfig) -> Dataset:
 
 def run_generation_task(
     task_cfg: GenerationEvalTaskConfig,
-    model: AutoModelForCausalLM,
-    tokenizer: AutoTokenizer,
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerBase,
     out_dir: Path,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -493,8 +528,11 @@ def run_generation_task(
                     "task": task_cfg.id,
                     "language": lang_key,
                     "prompt": example.prompt_text,
+                    "prompt_messages": example.prompt_messages,
+                    "raw_prediction": example.raw_prediction,
                     "prediction": example.prediction,
                     "reference": example.reference,
+                    "debug": example.debug,
                 }
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 

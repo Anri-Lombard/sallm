@@ -1,48 +1,50 @@
 mode: FINETUNE
-
-wandb: {project: "sallm-ft", name: "llama-125m-sa-general-all"}
-
+wandb:
+  project: sallm-ft
+  name: llama-125m-sa-general-all
 model:
-  architecture: "llama"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
-
+  architecture: llama
+  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
 peft:
-  method: "lora"
-  kwargs: {r: 16, lora_alpha: 32, lora_dropout: 0}
-
+  method: lora
+  kwargs:
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0
 dataset:
-  hf_name: "mix:sa_general"
+  hf_name: mix:sa_general
   subset: null
   languages: null
   task: INSTRUCTION
-  splits: {train: "train", val: "validation"}
+  splits:
+    train: train
+    val: validation
   templates: []
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
   mix_weights:
-    sib: 3.0
-    news: 3.0
-    ner: 2.0
-    pos: 4.0
-    afrihg: 0.6
-    t2x: 0.8
-  mix_temperature: 0.3
-  mix_epoch_size: "sum"
-  mix_min_prob: 0.02
-  mix_max_prob: 0.6
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+    sib: 1.0
+    news: 1.0
+    ner: 1.0
+    pos: 1.0
+    afrihg: 1.0
+    t2x: 1.0
+  mix_temperature: 0.0
+  mix_epoch_size: sum
+  mix_min_prob: 0.05
+  mix_max_prob: 0.35
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sa_general_all"
-  run_name: "llama-125m-sa-general-all"
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sa_general_all
+  run_name: llama-125m-sa-general-all
   learning_rate: 1.053899173290038e-05
   weight_decay: 0.003722056462983181
   adam_beta2: 0.95
-  lr_scheduler_type: "constant_with_warmup"
+  lr_scheduler_type: constant_with_warmup
   warmup_ratio: 0
   per_device_train_batch_size: 2
   per_device_eval_batch_size: 2
@@ -52,13 +54,12 @@ training:
   bf16: true
   gradient_checkpointing: true
   logging_steps: 10
-  eval_strategy: "epoch"
-  save_strategy: "no"
-  dataloader_num_workers: 8
+  eval_strategy: epoch
+  save_strategy: 'no'
+  dataloader_num_workers: 4
   eval_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: false
-
 hub:
   enabled: true
   organization: anrilombard

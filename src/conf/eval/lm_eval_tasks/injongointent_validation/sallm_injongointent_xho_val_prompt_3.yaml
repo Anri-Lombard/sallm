@@ -1,0 +1,13 @@
+# yamllint disable rule:line-length
+include: _injongointent_val_common.yaml
+dataset_kwargs:
+  data_files:
+    train: https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main/xho/train.jsonl
+    validation: https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main/xho/dev.jsonl
+    test: https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main/xho/test.jsonl
+doc_to_text: |
+  You are an intent classification assistant. Read the following text and return the single best intent label from this list: [alarm, balance, bill_balance, book_flight, book_hotel, calendar_update, cancel_reservation, car_rental, confirm_reservation, cook_time, exchange_rate, food_last, freeze_account, ingredients_list, interest_rate, international_visa, make_call, meal_suggestion, min_payment, pay_bill, pin_change, play_music, plug_type, recipe, restaurant_reservation, restaurant_reviews, restaurant_suggestion, share_location, shopping_list_update, spending_history, text, time, timezone, transactions, transfer, translate, travel_notification, travel_suggestion, update_playlist, weather].
+
+  text: {{text}}
+  intent:
+task: sallm_injongointent_xho_val_prompt_3

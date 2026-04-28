@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import warnings
+from typing import cast
 
 import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
@@ -40,7 +41,7 @@ def setup_logging(config: DictConfig) -> None:
     is_main = bool(OmegaConf.select(config, "runtime.is_main"))
 
     if is_main:
-        handlers = [logging.StreamHandler(sys.stdout)]
+        handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
 
         log_file_path = None
         if config.training:
@@ -77,6 +78,8 @@ def main(cfg: DictConfig) -> None:
 
     schema = OmegaConf.structured(ExperimentConfig)
     config = OmegaConf.merge(schema, unwrapped_cfg)
+    if not isinstance(config, DictConfig):
+        raise TypeError("Hydra config must resolve to a mapping.")
 
     is_main = _is_main_process()
     with open_dict(config):
@@ -96,11 +99,11 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"Run mode: {config.mode.value}")
 
     if config.mode == RunMode.TRAIN:
-        run_train(config)
+        run_train(cast(ExperimentConfig, config))
     elif config.mode == RunMode.FINETUNE:
-        run_fine_tune(config)
+        run_fine_tune(cast(ExperimentConfig, config))
     elif config.mode == RunMode.EVALUATE:
-        run_eval(config)
+        run_eval(cast(ExperimentConfig, config))
     else:
         raise ValueError(f"Unsupported mode {config.mode!r}")
 

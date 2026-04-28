@@ -1,36 +1,61 @@
 from __future__ import annotations
 
+import collections
 import logging
 import os
 import random
 import textwrap
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any, cast
 
 import torch
 from datasets import Dataset
 from evaluate import load as eval_load
 from rouge_score import rouge_scorer
-from transformers import AutoTokenizer, PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from sallm.config import (
     DecodingConfig,
+    FinetuneTaskType,
     GeneratedExample,
     GenerationEvalResult,
     LanguageEvalResult,
+)
+from sallm.evaluation.task_metrics import (
+    build_ner_debug_record,
+    build_pos_debug_record,
+    compute_ner_span_f1,
+    compute_pos_token_accuracy,
 )
 
 logger = logging.getLogger(__name__)
 
 
+@contextmanager
+def _temporary_padding_side(
+    tokenizer: PreTrainedTokenizerBase, padding_side: str
+) -> Iterator[None]:
+    original = getattr(tokenizer, "padding_side", None)
+    tokenizer.padding_side = padding_side
+    try:
+        yield
+    finally:
+        if original is not None:
+            tokenizer.padding_side = original
+
+
 class GenerationEvaluator:
     def __init__(
         self,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         max_new_tokens: int = 64,
         max_samples_per_lang: int | None = 64,
         sample_seed: int | None = None,
         skip_special_tokens: bool = True,
         decoding: DecodingConfig | None = None,
-        batch_size: int | None = None,
+        batch_size: int | str | None = None,
+        task_type: FinetuneTaskType | None = None,
     ) -> None:
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
@@ -38,6 +63,7 @@ class GenerationEvaluator:
         self.sample_seed = sample_seed
         self.skip_special_tokens = skip_special_tokens
         self.decoding_config = DecodingConfig.from_any(decoding)
+        self.task_type = task_type
         if (
             self.decoding_config.num_return_sequences is not None
             and self.decoding_config.num_return_sequences != 1
@@ -45,27 +71,303 @@ class GenerationEvaluator:
             raise ValueError("GenerationEvaluator supports a single return sequence.")
 
         env_bs = os.getenv("SALLM_EVAL_BATCH_SIZE")
-        default_bs = 4
+        env_max_bs = os.getenv("SALLM_EVAL_MAX_BATCH_SIZE")
+        default_bs: int | str = "auto:4"
         cfg_bs = getattr(self.decoding_config, "batch_size", None)
         resolved_bs = (
             batch_size
             if batch_size is not None
-            else (
-                cfg_bs
-                if cfg_bs is not None
-                else (int(env_bs) if env_bs and env_bs.isdigit() else default_bs)
-            )
+            else (cfg_bs if cfg_bs is not None else (env_bs if env_bs else default_bs))
         )
-        if resolved_bs < 1:
+        cfg_max_bs = getattr(self.decoding_config, "max_batch_size", None)
+        resolved_max_bs = (
+            cfg_max_bs
+            if cfg_max_bs is not None
+            else (int(env_max_bs) if env_max_bs and env_max_bs.isdigit() else 64)
+        )
+        self.max_batch_size = max(1, int(resolved_max_bs))
+        self.auto_batch_schedule = 1
+        self._auto_batch_sizes: dict[int, int] = {}
+        self._logged_mamba_batch_cap = False
+
+        if isinstance(resolved_bs, str):
+            raw_bs = resolved_bs.strip()
+            if raw_bs.isdigit():
+                resolved_bs = int(raw_bs)
+            elif raw_bs.startswith("auto"):
+                parts = raw_bs.split(":", 1)
+                resolved_bs = "auto"
+                if len(parts) == 2 and parts[1]:
+                    self.auto_batch_schedule = max(1, int(float(parts[1])))
+            else:
+                raise ValueError(
+                    "Unsupported generation batch_size "
+                    f"'{resolved_bs}'. Use an integer, 'auto', or 'auto:N'."
+                )
+
+        if isinstance(resolved_bs, int) and resolved_bs < 1:
             resolved_bs = 1
         self.batch_size = resolved_bs
 
         # Lazily initialise evaluation metrics once
-        self._bleu = eval_load("bleu")
-        self._chrf = eval_load("chrf")
+        self._bleu: Any = eval_load("bleu")
+        self._chrf: Any = eval_load("chrf")
         self._rouge_scorer = rouge_scorer.RougeScorer(
             ["rouge1", "rouge2", "rougeL"], use_stemmer=True
         )
+
+    @staticmethod
+    def _is_oom_error(exc: RuntimeError) -> bool:
+        message = str(exc).lower()
+        return "out of memory" in message or "cublas_status_alloc_failed" in message
+
+    @staticmethod
+    def _is_mamba_model(model: PreTrainedModel) -> bool:
+        candidates: list[object] = [getattr(model, "config", None)]
+
+        base_model = getattr(model, "base_model", None)
+        if base_model is not None:
+            candidates.append(getattr(base_model, "config", None))
+            wrapped_model = getattr(base_model, "model", None)
+            if wrapped_model is not None:
+                candidates.append(getattr(wrapped_model, "config", None))
+
+        for config in candidates:
+            if config is None:
+                continue
+            model_type = str(getattr(config, "model_type", "")).lower()
+            if "mamba" in model_type:
+                return True
+            architectures = getattr(config, "architectures", None) or []
+            for architecture in architectures:
+                if "mamba" in str(architecture).lower():
+                    return True
+        return False
+
+    def _effective_max_batch_size(self, model: PreTrainedModel) -> int:
+        if not self._is_mamba_model(model):
+            return self.max_batch_size
+
+        raw_cap = os.getenv("SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE", "1")
+        try:
+            cap = max(1, int(raw_cap))
+        except ValueError:
+            logger.warning(
+                "Ignoring invalid SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE=%r; using 1.",
+                raw_cap,
+            )
+            cap = 1
+
+        effective = min(self.max_batch_size, cap)
+        if effective < self.max_batch_size and not self._logged_mamba_batch_cap:
+            logger.info(
+                "Clamping Mamba generation max batch size from %d to %d to avoid "
+                "unstable CUDA auto-batch probing. Override with "
+                "SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE if needed.",
+                self.max_batch_size,
+                effective,
+            )
+            self._logged_mamba_batch_cap = True
+        return effective
+
+    @staticmethod
+    def _clear_cuda_cache() -> None:
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    def _auto_batch_segment(self, start: int, total: int) -> int:
+        segment_size = max(1, total // max(1, self.auto_batch_schedule))
+        return start // segment_size
+
+    def _prepare_generation_batch(
+        self,
+        batch_samples: list[dict[str, Any]],
+        fallback_template: str | None,
+        device: torch.device,
+        model_ctx_limit: int,
+        pad_id: int | None,
+        eos_id: int | None,
+    ) -> (
+        tuple[
+            list[list[dict[str, str]]],
+            list[list[str]],
+            list[str],
+            torch.Tensor,
+            torch.Tensor,
+            dict[str, Any],
+        ]
+        | None
+    ):
+        prompt_messages_list: list[list[dict[str, str]]] = []
+        reference_lists: list[list[str]] = []
+        prompt_texts: list[str] = []
+
+        for sample in batch_samples:
+            messages = cast(list[dict[str, str]], sample["messages"])
+            system_message = sample.get("system_message")
+            if not messages:
+                prompt_messages_list.append([])
+                reference_lists.append([""])
+                prompt_texts.append("")
+                continue
+            prompt_messages = messages[:-1]
+            reference_texts = self._prepare_references(messages[-1]["content"])
+            template_kwargs: dict[str, str] = {}
+            if isinstance(system_message, str) and system_message.strip():
+                template_kwargs["system_message"] = system_message
+                template_kwargs["system_prompt"] = system_message
+            prompt_text = cast(
+                str,
+                cast(Any, self.tokenizer).apply_chat_template(
+                    prompt_messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    chat_template=fallback_template,
+                    **template_kwargs,
+                ),
+            )
+            prompt_messages_list.append(prompt_messages)
+            reference_lists.append(reference_texts)
+            prompt_texts.append(prompt_text)
+
+        if not any(prompt_texts):
+            return None
+
+        with _temporary_padding_side(self.tokenizer, "left"):
+            tokenized = self.tokenizer(
+                prompt_texts,
+                return_tensors="pt",
+                padding=True,
+            ).to(device)
+
+        input_ids = tokenized["input_ids"]
+        attn = tokenized.get("attention_mask")
+        if attn is None:
+            attn = (input_ids != pad_id).long()
+        input_lengths = attn.sum(dim=1)
+
+        max_input_len = int(input_lengths.max().item())
+        window_len = max(1, model_ctx_limit - 1)
+        if max_input_len >= window_len:
+            input_ids = input_ids[:, -window_len:]
+            attn = (input_ids != pad_id).long()
+            input_lengths = attn.sum(dim=1)
+            logger.warning(
+                "Input truncated to last %d tokens to respect context limit %d.",
+                window_len,
+                model_ctx_limit,
+            )
+
+        avail_for_gen = max(1, model_ctx_limit - int(input_lengths.max().item()) - 1)
+        eff_max_new = min(self.max_new_tokens, avail_for_gen)
+
+        generate_kwargs = self.decoding_config.to_generate_kwargs()
+        generate_kwargs["max_new_tokens"] = eff_max_new
+        generate_kwargs["pad_token_id"] = pad_id
+        generate_kwargs["eos_token_id"] = eos_id
+        generate_kwargs.setdefault("use_cache", True)
+
+        return (
+            prompt_messages_list,
+            reference_lists,
+            prompt_texts,
+            input_ids,
+            attn,
+            generate_kwargs,
+        )
+
+    def _detect_auto_batch_size(
+        self,
+        model: PreTrainedModel,
+        dataset: Dataset,
+        start: int,
+        total: int,
+        fallback_template: str | None,
+        device: torch.device,
+        model_ctx_limit: int,
+        pad_id: int | None,
+        eos_id: int | None,
+    ) -> int:
+        max_batch_size = self._effective_max_batch_size(model)
+        candidate_bs = max(1, min(max_batch_size, total - start))
+        while candidate_bs >= 1:
+            end = min(start + candidate_bs, total)
+            batch_samples = [dataset[i] for i in range(start, end)]
+            prepared = self._prepare_generation_batch(
+                batch_samples,
+                fallback_template,
+                device,
+                model_ctx_limit,
+                pad_id,
+                eos_id,
+            )
+            if prepared is None:
+                return 1
+            _, _, _, input_ids, attn, generate_kwargs = prepared
+            try:
+                outputs = cast(Any, model).generate(
+                    input_ids=input_ids,
+                    attention_mask=attn,
+                    **generate_kwargs,
+                )
+                del outputs, input_ids, attn
+                self._clear_cuda_cache()
+                return len(batch_samples)
+            except RuntimeError as exc:
+                if not self._is_oom_error(exc) or candidate_bs == 1:
+                    raise
+                next_bs = max(1, candidate_bs // 2)
+                logger.warning(
+                    "Auto batch detection hit OOM at batch size %d; retrying with %d.",
+                    candidate_bs,
+                    next_bs,
+                )
+                candidate_bs = next_bs
+                self._clear_cuda_cache()
+        return 1
+
+    def _resolve_batch_size(
+        self,
+        model: PreTrainedModel,
+        dataset: Dataset,
+        start: int,
+        total: int,
+        fallback_template: str | None,
+        device: torch.device,
+        model_ctx_limit: int,
+        pad_id: int | None,
+        eos_id: int | None,
+    ) -> tuple[int, int | None]:
+        if self.batch_size != "auto":
+            return max(1, int(self.batch_size)), None
+
+        max_batch_size = self._effective_max_batch_size(model)
+        segment = self._auto_batch_segment(start, total)
+        if segment in self._auto_batch_sizes:
+            return min(self._auto_batch_sizes[segment], total - start), segment
+
+        if segment > 0 and self._auto_batch_sizes.get(segment - 1) == max_batch_size:
+            self._auto_batch_sizes[segment] = min(max_batch_size, total - start)
+            return self._auto_batch_sizes[segment], segment
+
+        detected = self._detect_auto_batch_size(
+            model,
+            dataset,
+            start,
+            total,
+            fallback_template,
+            device,
+            model_ctx_limit,
+            pad_id,
+            eos_id,
+        )
+        self._auto_batch_sizes[segment] = detected
+        logger.info(
+            "Determined automatic generation batch size %d for segment %d.",
+            detected,
+            segment + 1,
+        )
+        return detected, segment
 
     def evaluate(
         self,
@@ -74,6 +376,7 @@ class GenerationEvaluator:
         world_size: int = 1,
         metric_prefix: str = "eval",
         collect_examples: bool = False,
+        example_limit_per_lang: int | None = None,
     ) -> GenerationEvalResult:
         fallback_template = None
         if getattr(self.tokenizer, "chat_template", None) is None:
@@ -109,12 +412,15 @@ class GenerationEvaluator:
         if lang_column_present:
             raw_langs = set(dataset["lang"])  # type: ignore[index]
             str_langs = sorted({x for x in raw_langs if isinstance(x, str) and x})
-            unique_languages = str_langs if str_langs else [None]
+            unique_languages = cast(
+                list[str | None], str_langs if str_langs else [None]
+            )
         else:
             unique_languages = [None]
 
         metrics: dict[str, float] = {}
         per_language: dict[str, LanguageEvalResult] = {}
+        aggregate_metrics: dict[str, list[float]] = collections.defaultdict(list)
 
         model_ctx_limit = None
         if hasattr(model, "config"):
@@ -157,92 +463,77 @@ class GenerationEvaluator:
             capped_dataset = self._cap_dataset(lang_dataset, world_size, lang_key)
 
             preds: list[str] = []
-            refs: list[str] = []
+            refs: list[list[str]] = []
             examples: list[GeneratedExample] = []
 
             with torch.no_grad():
                 total = len(capped_dataset)
-                bs = max(1, self.batch_size)
+                if self.batch_size == "auto":
+                    self._auto_batch_sizes = {}
 
-                for start in range(0, total, bs):
+                start = 0
+                while start < total:
+                    bs, segment = self._resolve_batch_size(
+                        model,
+                        capped_dataset,
+                        start,
+                        total,
+                        fallback_template,
+                        device,
+                        model_ctx_limit,
+                        pad_id,
+                        eos_id,
+                    )
                     end = min(start + bs, total)
-                    batch_samples = [capped_dataset[i] for i in range(start, end)]
+                    batch_samples = [
+                        cast(dict[str, Any], capped_dataset[i])
+                        for i in range(start, end)
+                    ]
 
-                    prompt_messages_list: list[list[dict[str, str]]] = []
-                    reference_lists: list[list[str]] = []
-                    prompt_texts: list[str] = []
-
-                    for sample in batch_samples:
-                        messages: list[dict[str, str]] = sample["messages"]
-                        system_message = sample.get("system_message")
-                        if not messages:
-                            prompt_messages_list.append([])
-                            reference_lists.append([""])
-                            prompt_texts.append("")
-                            continue
-                        prompt_messages = messages[:-1]
-                        reference_texts = self._prepare_references(
-                            messages[-1]["content"]
-                        )
-                        template_kwargs: dict[str, str] = {}
-                        if isinstance(system_message, str) and system_message.strip():
-                            template_kwargs["system_message"] = system_message
-                            template_kwargs["system_prompt"] = system_message
-                        prompt_text = self.tokenizer.apply_chat_template(
-                            prompt_messages,
-                            tokenize=False,
-                            add_generation_prompt=True,
-                            chat_template=fallback_template,
-                            **template_kwargs,
-                        )
-                        prompt_messages_list.append(prompt_messages)
-                        reference_lists.append(reference_texts)
-                        prompt_texts.append(prompt_text)
-
-                    if not any(prompt_texts):
+                    prepared = self._prepare_generation_batch(
+                        batch_samples,
+                        fallback_template,
+                        device,
+                        model_ctx_limit,
+                        pad_id,
+                        eos_id,
+                    )
+                    if prepared is None:
+                        start = end
                         continue
 
-                    tokenized = self.tokenizer(
+                    (
+                        prompt_messages_list,
+                        reference_lists,
                         prompt_texts,
-                        return_tensors="pt",
-                        padding=True,
-                    ).to(device)
+                        input_ids,
+                        attn,
+                        generate_kwargs,
+                    ) = prepared
 
-                    input_ids = tokenized["input_ids"]
-                    attn = tokenized.get("attention_mask")
-                    if attn is None:
-                        attn = (input_ids != pad_id).long()
-                    input_lengths = attn.sum(dim=1)
-
-                    max_input_len = int(input_lengths.max().item())
-                    window_len = max(1, model_ctx_limit - 1)
-                    if max_input_len >= window_len:
-                        input_ids = input_ids[:, -window_len:]
-                        attn = (input_ids != pad_id).long()
-                        input_lengths = attn.sum(dim=1)
-                        logger.warning(
-                            "Input truncated to last %d tokens "
-                            "to respect context limit %d.",
-                            window_len,
-                            model_ctx_limit,
+                    try:
+                        outputs = cast(Any, model).generate(
+                            input_ids=input_ids,
+                            attention_mask=attn,
+                            **generate_kwargs,
                         )
-
-                    avail_for_gen = max(
-                        1, model_ctx_limit - int(input_lengths.max().item()) - 1
-                    )
-                    eff_max_new = min(self.max_new_tokens, avail_for_gen)
-
-                    generate_kwargs = self.decoding_config.to_generate_kwargs()
-                    generate_kwargs["max_new_tokens"] = eff_max_new
-                    generate_kwargs["pad_token_id"] = pad_id
-                    generate_kwargs["eos_token_id"] = eos_id
-                    generate_kwargs.setdefault("use_cache", True)
-
-                    outputs = model.generate(
-                        input_ids=input_ids,
-                        attention_mask=attn,
-                        **generate_kwargs,
-                    )
+                    except RuntimeError as exc:
+                        if (
+                            self.batch_size == "auto"
+                            and bs > 1
+                            and self._is_oom_error(exc)
+                        ):
+                            fallback_bs = max(1, bs // 2)
+                            if segment is not None:
+                                self._auto_batch_sizes[segment] = fallback_bs
+                            logger.warning(
+                                "Generation OOM at batch size %d; retrying with %d.",
+                                bs,
+                                fallback_bs,
+                            )
+                            self._clear_cuda_cache()
+                            continue
+                        raise
 
                     for b_idx in range(outputs.shape[0]):
                         # Left-padding: generated tokens start after input
@@ -257,15 +548,29 @@ class GenerationEvaluator:
                         preds.append(cleaned_prediction)
                         refs.append(reference_lists[b_idx])
 
-                        if collect_examples:
+                        if collect_examples and (
+                            example_limit_per_lang is None
+                            or len(examples) < example_limit_per_lang
+                        ):
+                            reference = (
+                                reference_lists[b_idx][0]
+                                if reference_lists[b_idx]
+                                else ""
+                            )
                             examples.append(
                                 GeneratedExample(
                                     prompt_messages=prompt_messages_list[b_idx],
                                     prompt_text=prompt_texts[b_idx],
                                     prediction=cleaned_prediction,
                                     reference=" | ".join(reference_lists[b_idx]),
+                                    raw_prediction=generated_text,
+                                    debug=self._build_example_debug(
+                                        reference=reference,
+                                        prediction=cleaned_prediction,
+                                    ),
                                 )
                             )
+                    start = end
 
             lang_metrics = self._compute_metrics(preds, refs)
             metric_entries = {
@@ -273,34 +578,31 @@ class GenerationEvaluator:
                 for name, value in lang_metrics.items()
             }
             metrics.update(metric_entries)
+            for name, value in lang_metrics.items():
+                aggregate_metrics[name].append(value)
             per_language[lang_key] = LanguageEvalResult(
                 key=lang_key,
                 metrics=metric_entries,
                 examples=examples,
             )
 
-        if len(per_language) > 0:
-            all_bleu: list[float] = []
-            all_chrf: list[float] = []
-            all_rougeL: list[float] = []
-            for lang_result in per_language.values():
-                for key, val in lang_result.metrics.items():
-                    if key.endswith("_bleu"):
-                        all_bleu.append(val)
-                    elif key.endswith("_chrf"):
-                        all_chrf.append(val)
-                    elif key.endswith("_rougeL"):
-                        all_rougeL.append(val)
-            if all_bleu:
-                metrics[f"{metric_prefix}/all_bleu"] = sum(all_bleu) / len(all_bleu)
-            if all_chrf:
-                metrics[f"{metric_prefix}/all_chrf"] = sum(all_chrf) / len(all_chrf)
-            if all_rougeL:
-                metrics[f"{metric_prefix}/all_rougeL"] = sum(all_rougeL) / len(
-                    all_rougeL
-                )
+        for name, values in aggregate_metrics.items():
+            if values:
+                metrics[f"{metric_prefix}/all_{name}"] = sum(values) / len(values)
 
         return GenerationEvalResult(metrics=metrics, per_language=per_language)
+
+    def _build_example_debug(
+        self, reference: str, prediction: str
+    ) -> dict[str, object]:
+        if self.task_type == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
+            return build_ner_debug_record(reference, prediction)
+        if self.task_type == FinetuneTaskType.POS_TAGGING:
+            return build_pos_debug_record(reference, prediction)
+        return {
+            "empty_prediction": not bool(prediction.strip()),
+            "exact_match": prediction.strip() == reference.strip(),
+        }
 
     def _cap_dataset(
         self,
@@ -367,14 +669,22 @@ class GenerationEvaluator:
                 bleu_metrics = self._bleu.compute(
                     predictions=predictions, references=cleaned_refs
                 )
-                bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
+                bleu_score = (
+                    bleu_metrics.get("bleu") if isinstance(bleu_metrics, dict) else None
+                )
+                if bleu_score is None and isinstance(bleu_metrics, dict):
+                    bleu_score = bleu_metrics.get("score")
             except ZeroDivisionError:
                 logger.warning("BLEU computation failed (empty predictions), skipping.")
 
         chrf_metrics = self._chrf.compute(
             predictions=predictions, references=normalised_refs
         )
-        chrf_score = chrf_metrics.get("score") or chrf_metrics.get("chrf")
+        chrf_score = (
+            chrf_metrics.get("score") if isinstance(chrf_metrics, dict) else None
+        )
+        if chrf_score is None and isinstance(chrf_metrics, dict):
+            chrf_score = chrf_metrics.get("chrf")
 
         out: dict[str, float] = {}
         if rouge_metrics.get("rouge1") is not None:
@@ -387,6 +697,16 @@ class GenerationEvaluator:
             out["bleu"] = float(bleu_score)
         if chrf_score is not None:
             out["chrf"] = float(chrf_score)
+        if self.task_type == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
+            out["f1"] = compute_ner_span_f1(
+                references=[refs[0] if refs else "" for refs in cleaned_refs],
+                predictions=predictions,
+            )
+        elif self.task_type == FinetuneTaskType.POS_TAGGING:
+            out["token_accuracy"] = compute_pos_token_accuracy(
+                references=[refs[0] if refs else "" for refs in cleaned_refs],
+                predictions=predictions,
+            )
         return out
 
     def _prepare_references(self, text: str) -> list[str]:

@@ -45,31 +45,19 @@ gpu = [
     "kernels>=0.11.0",  # pure Python, can be in lockfile
 ]
 dev = [
-    "mypy>=1.16.1",
     "pytest>=8.4.1",
     "types-pyyaml>=6.0.12.20250516",
     "ruff>=0.5.0",
     "pre-commit>=3.8.0",
-    "black>=25.1.0",
     "jupyter-core>=5.8.1",
     "yamllint>=1.37.1",
     "types-requests>=2.32.0.20240907",
     "types-tabulate>=0.9.0.20240106",
+    "ty>=0.0.32",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/main/sallm"]
-
-[tool.black]
-line-length = 88
-target-version = ['py312']
-
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-ignore_missing_imports = true
-disallow_untyped_defs = true
-exclude = ["trash"]
 
 [tool.ruff]
 line-length = 88
@@ -81,6 +69,14 @@ exclude = ["build", "dist", "trash", "__pycache__"]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["E203"]
 per-file-ignores = {"__init__.py" = ["F401"]}
+
+[tool.ty.environment]
+python-version = "3.12"
+root = ["src/main"]
+
+[tool.ty.src]
+include = ["src/main/sallm"]
+exclude = ["trash"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

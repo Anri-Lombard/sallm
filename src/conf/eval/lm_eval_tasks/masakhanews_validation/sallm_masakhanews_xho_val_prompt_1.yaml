@@ -1,0 +1,6 @@
+include: _masakhanews_val_common.yaml
+dataset_name: xho
+doc_to_text: |
+  Given the categories technology, business, politics, sports, health,
+  entertainment, or religion; what category does the text: '{{headline}} {{text}}' belong to:
+task: sallm_masakhanews_xho_val_prompt_1

@@ -1,0 +1,18 @@
+tasks:
+  - sallm_masakhapos_tsn_prompt_1
+  - sallm_masakhapos_tsn_prompt_2
+  - sallm_masakhapos_tsn_prompt_3
+  - sallm_masakhapos_tsn_prompt_4
+  - sallm_masakhapos_xho_prompt_1
+  - sallm_masakhapos_xho_prompt_2
+  - sallm_masakhapos_xho_prompt_3
+  - sallm_masakhapos_xho_prompt_4
+  - sallm_masakhapos_zul_prompt_1
+  - sallm_masakhapos_zul_prompt_2
+  - sallm_masakhapos_zul_prompt_3
+  - sallm_masakhapos_zul_prompt_4
+fewshot: 0
+batch_size: "auto:4"
+apply_chat_template: true
+lm_eval_kwargs:
+  max_batch_size: 64

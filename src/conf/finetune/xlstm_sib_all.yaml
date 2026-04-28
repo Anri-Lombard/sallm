@@ -1,49 +1,64 @@
 mode: FINETUNE
-
-wandb: {project: "sallm-ft", name: "xlstm-125m-sib-all"}
-
+wandb:
+  project: sallm-ft
+  name: xlstm-125m-sib-all
 model:
-  architecture: "xlstm"
-  init_checkpoint: "anrilombard/sallm-xlstm-125m"
-
+  architecture: xlstm
+  init_checkpoint: anrilombard/sallm-xlstm-125m
 peft:
-  method: "lora"
+  method: lora
   kwargs:
     r: 256
     lora_alpha: 512
     lora_dropout: 0.05
-    target_modules: ["q", "k", "v", "out_proj", "embeddings"]
-
+    target_modules:
+      - q
+      - k
+      - v
+      - out_proj
+      - embeddings
 dataset:
-  hf_name: "Davlan/sib200"
+  hf_name: Davlan/sib200
   subset: null
-  languages: ["afr_Latn", "eng_Latn", "nso_Latn", "sot_Latn", "xho_Latn", "zul_Latn"]
+  languages:
+    - afr_Latn
+    - eng_Latn
+    - nso_Latn
+    - sot_Latn
+    - xho_Latn
+    - zul_Latn
   task: CLASSIFICATION
-  splits: {train: "train", val: "validation"}
+  splits:
+    train: train
+    val: validation
   templates:
-    - {id: "sib_topic_classification/lm_eval_p1", weight: 1.0}
-    - {id: "sib_topic_classification/lm_eval_p2", weight: 1.0}
-    - {id: "sib_topic_classification/lm_eval_p3", weight: 1.0}
-    - {id: "sib_topic_classification/lm_eval_p4", weight: 1.0}
-    - {id: "sib_topic_classification/lm_eval_p5", weight: 1.0}
+    - id: sib_topic_classification/lm_eval_p1
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p2
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p3
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p4
+      weight: 1.0
+    - id: sib_topic_classification/lm_eval_p5
+      weight: 1.0
   template_choice: CYCLE
-  label_column: "category"
+  label_column: category
   packing: false
   assistant_only_loss: true
   max_seq_length: 1024
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sib_all"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sib_all"
-  run_name: "xlstm-125m-sib-lora-all"
-  learning_rate: 1.0e-4
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sib_all
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sib_all
+  run_name: xlstm-125m-sib-lora-all
+  learning_rate: 0.0001
   weight_decay: 0.1
   adam_beta2: 0.95
   max_grad_norm: 1.0
   gradient_accumulation_steps: 4
-  lr_scheduler_type: "cosine"
+  lr_scheduler_type: cosine
   warmup_ratio: 0.1
   per_device_train_batch_size: 16
   per_device_eval_batch_size: 4
@@ -52,12 +67,11 @@ training:
   bf16: false
   gradient_checkpointing: true
   logging_steps: 10
-  eval_strategy: "epoch"
-  save_strategy: "no"
-  dataloader_num_workers: 8
-  report_to: "wandb"
+  eval_strategy: epoch
+  save_strategy: 'no'
+  dataloader_num_workers: 4
+  report_to: wandb
   ddp_find_unused_parameters: true
-
 hub:
   enabled: true
   organization: anrilombard

@@ -1,0 +1,12 @@
+include: _sib_val_common.yaml
+dataset_name: sot_Latn
+doc_to_text: |
+  You are an assistant able to classify topics in texts.
+
+  Given the categories science/technology, travel, politics, sports, health,
+  entertainment, or geography; what is the topic of the statement below?
+  Return only the category.
+
+  text: {{text}}
+  category:
+task: sallm_sib_sot_val_prompt_3

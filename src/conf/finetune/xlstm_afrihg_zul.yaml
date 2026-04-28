@@ -1,15 +1,12 @@
 mode: FINETUNE
-
 wandb:
-  project: "sallm-ft"
-  name: "xlstm-125m-afrihg-zul"
-
+  project: sallm-ft
+  name: xlstm-125m-afrihg-zul
 model:
-  architecture: "xlstm"
-  init_checkpoint: "anrilombard/sallm-xlstm-125m"
-
+  architecture: xlstm
+  init_checkpoint: anrilombard/sallm-xlstm-125m
 peft:
-  method: "lora"
+  method: lora
   kwargs:
     r: 256
     lora_alpha: 512
@@ -20,29 +17,30 @@ peft:
       - v
       - out_proj
       - embeddings
-
 dataset:
-  hf_name: "github:dadelani/AfriHG"
-  subset: "zul"
-  splits: {train: "train", val: "validation"}
+  hf_name: github:dadelani/AfriHG
+  subset: zul
+  splits:
+    train: train
+    val: validation
   task: INSTRUCTION
   templates:
-    - {id: "afrihg_headline/v1", weight: 1}
+    - id: afrihg_headline/v1
+      weight: 1
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 1024
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_afrihg_zul"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_afrihg_zul"
-  run_name: "xlstm-125m-afrihg-zul"
-  learning_rate: 1.0e-4
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_afrihg_zul
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_afrihg_zul
+  run_name: xlstm-125m-afrihg-zul
+  learning_rate: 0.0001
   weight_decay: 0.1
   adam_beta2: 0.95
-  lr_scheduler_type: "cosine"
+  lr_scheduler_type: cosine
   warmup_ratio: 0.1
   per_device_train_batch_size: 16
   per_device_eval_batch_size: 4
@@ -53,13 +51,14 @@ training:
   gradient_checkpointing: true
   logging_steps: 10
   logging_first_step: true
-  eval_strategy: "epoch"
-  save_strategy: "no"
-  dataloader_num_workers: 8
+  eval_strategy: epoch
+  save_strategy: 'no'
+  metric_for_best_model: eval_all_chrf
+  greater_is_better: true
+  dataloader_num_workers: 4
   eval_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: true
-
 hub:
   enabled: true
   organization: anrilombard

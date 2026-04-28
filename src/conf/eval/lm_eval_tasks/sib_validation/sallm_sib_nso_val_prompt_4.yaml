@@ -1,0 +1,9 @@
+include: _sib_val_common.yaml
+dataset_name: nso_Latn
+doc_to_text: |
+  Label the following text as science/technology, travel, politics, sports, health,
+  entertainment, or geography. Provide only the category as your response.
+
+  text: {{text}}
+  category:
+task: sallm_sib_nso_val_prompt_4

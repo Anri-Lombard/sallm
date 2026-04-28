@@ -4,9 +4,7 @@ import json
 import logging
 from pathlib import Path
 
-from omegaconf import OmegaConf
-
-from sallm.config import ExperimentConfig, ModelEvalConfig
+from sallm.config import ExperimentConfig, ModelEvalConfig, to_resolved_dict
 from sallm.evaluation.harness import load_model_and_tokenizer, run_generation_task
 from sallm.evaluation.lm_eval_runner import run_task_pack_evaluations
 
@@ -16,16 +14,14 @@ logger = logging.getLogger(__name__)
 def _resolve_model_config(eval_model_cfg: ModelEvalConfig | dict) -> ModelEvalConfig:
     if isinstance(eval_model_cfg, ModelEvalConfig):
         return eval_model_cfg
-    cfg_dict = OmegaConf.to_container(eval_model_cfg, resolve=True)
-    if not isinstance(cfg_dict, dict):
-        raise TypeError("eval_model configuration must resolve to a mapping")
+    cfg_dict = to_resolved_dict(eval_model_cfg, name="eval_model")
     return ModelEvalConfig(**cfg_dict)
 
 
 def run(config: ExperimentConfig) -> None:
-    assert (
-        config.evaluation and config.eval_model
-    ), "`evaluation` and `eval_model` blocks required."
+    assert config.evaluation and config.eval_model, (
+        "`evaluation` and `eval_model` blocks required."
+    )
 
     eval_cfg = config.evaluation
     model_cfg = _resolve_model_config(config.eval_model)
@@ -67,9 +63,7 @@ def run(config: ExperimentConfig) -> None:
     if has_task_packs:
         overrides = eval_cfg.overrides
         if overrides:
-            overrides = OmegaConf.to_container(overrides, resolve=True)
-            if not isinstance(overrides, dict):
-                raise TypeError("evaluation.overrides must resolve to a mapping")
+            overrides = to_resolved_dict(overrides, name="evaluation.overrides")
         pack_summaries = run_task_pack_evaluations(
             list(eval_cfg.task_packs),
             model_cfg,

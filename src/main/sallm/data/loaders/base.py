@@ -13,14 +13,12 @@ def load_split_with_fallback(
         return load_dataset(hf_name, name=name, split=split, revision=revision)
     except Exception as err:
         s = split.lower()
-        if s in VALIDATION_ALIASES or s == "test":
-            candidates = (
-                VALIDATION_ALIASES + ["test"]
-                if s != "test"
-                else ["test"] + VALIDATION_ALIASES
-            )
+        if s in VALIDATION_ALIASES:
+            candidates = VALIDATION_ALIASES
+        elif s == "test":
+            candidates = ["test"]
         else:
-            candidates = VALIDATION_ALIASES + ["test"]
+            candidates = [split]
 
         last_err = err
         for alt in candidates:

@@ -31,30 +31,30 @@ def format_classification(
     user_prompt = safe_format_prompt(template_spec.prompt, ex)
     raw_label = ex[label_column]
 
+    label_mapping = template_spec.label_mapping
     numeric_keys = isinstance(next(iter(template_spec.label_mapping.keys())), int)
     if numeric_keys:
         if isinstance(raw_label, str):
             try:
-                key_to_use = int(raw_label)
+                numeric_key = int(raw_label)
             except ValueError as err:
                 str_to_int_key_map = {
-                    str(v).lower(): k for k, v in template_spec.label_mapping.items()
+                    str(v).lower(): int(k) for k, v in label_mapping.items()
                 }
-                key_to_use = str_to_int_key_map.get(raw_label.lower())
-                if key_to_use is None:
+                mapped_key = str_to_int_key_map.get(raw_label.lower())
+                if mapped_key is None:
                     raise ValueError("Cannot map label to integer key") from err
+                numeric_key = mapped_key
         else:
-            key_to_use = int(raw_label)
+            numeric_key = int(raw_label)
 
-        if (
-            key_to_use not in template_spec.label_mapping
-            and (key_to_use - 1) in template_spec.label_mapping
-        ):
-            key_to_use -= 1
+        if numeric_key not in label_mapping and (numeric_key - 1) in label_mapping:
+            numeric_key -= 1
+        assistant_response = label_mapping[numeric_key]
     else:
-        key_to_use = str(raw_label)
+        string_key = str(raw_label)
+        assistant_response = label_mapping[string_key]
 
-    assistant_response = template_spec.label_mapping[key_to_use]
     return [
         {"role": "user", "content": user_prompt},
         {"role": "assistant", "content": assistant_response},

@@ -1,48 +1,45 @@
 mode: FINETUNE
-
 wandb:
-  project: "sallm-ft"
-  name: "llama-125m-afrihg-all"
-
+  project: sallm-ft
+  name: llama-125m-afrihg-all
 model:
-  architecture: "llama"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
-
+  architecture: llama
+  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
 peft:
-  method: "lora"
+  method: lora
   kwargs:
     r: 16
     lora_alpha: 32
     lora_dropout: 0.05
-
 dataset:
-  hf_name: "github:dadelani/AfriHG"
+  hf_name: github:dadelani/AfriHG
   subset: null
-  splits: {train: "train", val: "validation"}
+  splits:
+    train: train
+    val: validation
   task: INSTRUCTION
   templates:
-    - {id: "afrihg_headline/v1", weight: 1}
+    - id: afrihg_headline/v1
+      weight: 1
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
   max_seq_length: 2048
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 generation_decoding:
-  strategy: "beam"
+  strategy: beam
   num_beams: 5
   length_penalty: 0.7
   early_stopping: true
-
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_all"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_all"
-  run_name: "llama-125m-afrihg-all"
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_all
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_all
+  run_name: llama-125m-afrihg-all
   learning_rate: 4.338264569149352e-05
   weight_decay: 0.031028218096256
   adam_beta2: 0.95
-  lr_scheduler_type: "constant_with_warmup"
+  lr_scheduler_type: constant_with_warmup
   warmup_ratio: 0.1
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
@@ -54,13 +51,14 @@ training:
   label_smoothing_factor: 0.05
   logging_steps: 10
   logging_first_step: true
-  eval_strategy: "epoch"
-  save_strategy: "no"
-  dataloader_num_workers: 8
+  eval_strategy: epoch
+  save_strategy: 'no'
+  metric_for_best_model: eval_all_chrf
+  greater_is_better: true
+  dataloader_num_workers: 4
   eval_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: false
-
 hub:
   enabled: true
   organization: anrilombard

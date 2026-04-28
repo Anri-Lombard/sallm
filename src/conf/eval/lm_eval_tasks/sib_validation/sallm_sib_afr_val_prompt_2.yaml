@@ -1,0 +1,7 @@
+include: _sib_val_common.yaml
+dataset_name: afr_Latn
+doc_to_text: |
+  Does this topic; '{{text}}' belong to one of the following categories:
+  science/technology, travel, politics, sports, health, entertainment, or geography?
+  category only
+task: sallm_sib_afr_val_prompt_2

@@ -7,7 +7,8 @@ dataset:
     train: train
     val: validation
   subset: null
-  languages: ["tsn"]
+  languages:
+    - tsn
   task: NAMED_ENTITY_RECOGNITION
   template_choice: CYCLE
   templates:
@@ -31,7 +32,7 @@ hub:
 mode: FINETUNE
 model:
   architecture: xlstm
-  init_checkpoint: "anrilombard/sallm-xlstm-125m"
+  init_checkpoint: anrilombard/sallm-xlstm-125m
 peft:
   kwargs:
     lora_alpha: 32
@@ -48,7 +49,7 @@ tokenizer:
 training:
   adam_beta2: 0.95
   bf16: false
-  dataloader_num_workers: 8
+  dataloader_num_workers: 4
   ddp_find_unused_parameters: true
   eval_accumulation_steps: 1
   eval_strategy: epoch

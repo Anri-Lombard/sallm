@@ -7,7 +7,7 @@ from typing import Any
 import wandb
 from omegaconf import DictConfig, OmegaConf, open_dict
 
-from sallm.config import ExperimentConfig
+from sallm.config import ExperimentConfig, to_resolved_dict
 from sallm.fine_tune.run import run as run_finetune
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -38,7 +38,10 @@ def load_base_config(base_config: str) -> DictConfig:
         if path.is_file():
             cfg = OmegaConf.load(path)
             schema = OmegaConf.structured(ExperimentConfig)
-            return OmegaConf.merge(schema, cfg)
+            merged = OmegaConf.merge(schema, cfg)
+            if not isinstance(merged, DictConfig):
+                raise TypeError("Base config must resolve to a mapping.")
+            return merged
     raise FileNotFoundError(base_config)
 
 
@@ -121,9 +124,11 @@ def run_trial(base_config: str) -> None:
     sweep_values = dict(wandb.config)
     run_id = run.id if run else None
     prepared = _apply_updates(cfg, sweep_values, run_id)
-    resolved = OmegaConf.to_container(prepared, resolve=True)
+    resolved = to_resolved_dict(prepared, name="prepared config")
     clean_cfg = OmegaConf.create(resolved)
     structured = OmegaConf.merge(OmegaConf.structured(ExperimentConfig), clean_cfg)
+    if not isinstance(structured, DictConfig):
+        raise TypeError("Structured sweep config must resolve to a mapping.")
     config_obj = _to_experiment_config(structured)
     if run:
         run.config.update(resolved)
