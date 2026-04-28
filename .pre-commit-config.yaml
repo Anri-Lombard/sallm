@@ -23,3 +23,4 @@ repos:
         entry: uv run ty check src/main/sallm --output-format github
         language: system
         pass_filenames: false
+        always_run: true
