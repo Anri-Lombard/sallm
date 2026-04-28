@@ -235,27 +235,13 @@ class ClassificationEvaluator:
             system_message=system_message,
         )
         pad_token_id = self._resolve_pad_id(pad_id, eos_id)
-        prompt_ids = self.tokenizer(prompt_text, return_tensors="pt")["input_ids"][0]
-        prompt_len = int(prompt_ids.shape[-1])
 
-        encoded_choices = self.tokenizer(
-            [prompt_text + choice for choice in label_choices],
-            return_tensors="pt",
-            padding=True,
-        )
-        input_ids = encoded_choices["input_ids"].to(device)
-        attn = encoded_choices.get("attention_mask")
-        if attn is None:
-            attn = (input_ids != pad_token_id).long()
-        else:
-            attn = attn.to(device)
-
-        input_ids, attn, choice_starts = self._trim_choice_inputs(
-            input_ids=input_ids,
-            attention_mask=attn,
-            prompt_len=prompt_len,
+        input_ids, attn, choice_starts = self._build_choice_inputs(
+            prompt_text=prompt_text,
+            label_choices=label_choices,
             model_ctx_limit=self._get_model_ctx_limit(model),
             pad_token_id=pad_token_id,
+            device=device,
         )
 
         outputs = model(
@@ -419,10 +405,12 @@ class ClassificationEvaluator:
         pred_total: dict[str, int] = defaultdict(int)
 
         for gold_label, pred_label in zip(gold_labels, pred_labels, strict=False):
-            class_total[gold_label] += 1
-            pred_total[pred_label] += 1
+            gold_key = self._label_key(gold_label)
+            pred_key = self._label_key(pred_label)
+            class_total[gold_key] += 1
+            pred_total[pred_key] += 1
             if self._labels_match(pred_label, gold_label):
-                class_correct[gold_label] += 1
+                class_correct[gold_key] += 1
 
         labels = list(class_total.keys())
         per_class_acc: list[float] = []
@@ -475,31 +463,31 @@ class ClassificationEvaluator:
         indices = list(range(self.max_samples_per_lang))
         return dataset.select(indices)
 
-    def _trim_choice_inputs(
+    def _build_choice_inputs(
         self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor,
-        prompt_len: int,
+        prompt_text: str,
+        label_choices: list[str],
         model_ctx_limit: int,
         pad_token_id: int,
+        device: torch.device,
     ) -> tuple[torch.Tensor, torch.Tensor, list[int]]:
-        max_seq_len = int(attention_mask.sum(dim=1).max().item())
-        if max_seq_len <= model_ctx_limit:
-            return input_ids, attention_mask, [prompt_len] * input_ids.shape[0]
-
-        trimmed_sequences: list[torch.Tensor] = []
+        sequences: list[torch.Tensor] = []
         choice_starts: list[int] = []
         label_truncated = False
-        for row_ids, row_mask in zip(input_ids, attention_mask, strict=False):
-            seq_len = int(row_mask.sum().item())
-            seq = row_ids[:seq_len]
+
+        for choice in label_choices:
+            context_ids, continuation_ids = self._encode_choice_pair(
+                prompt_text, choice
+            )
+            seq_ids = context_ids + continuation_ids
+            seq_len = len(seq_ids)
             removed = max(0, seq_len - model_ctx_limit)
             if removed:
-                seq = seq[-model_ctx_limit:]
-            choice_start = max(0, prompt_len - removed)
-            if removed > prompt_len:
+                seq_ids = seq_ids[-model_ctx_limit:]
+            choice_start = max(0, len(context_ids) - removed)
+            if removed > len(context_ids):
                 label_truncated = True
-            trimmed_sequences.append(seq)
+            sequences.append(torch.tensor(seq_ids, dtype=torch.long))
             choice_starts.append(choice_start)
 
         if label_truncated:
@@ -510,14 +498,34 @@ class ClassificationEvaluator:
             )
 
         padded = pad_sequence(
-            trimmed_sequences,
+            sequences,
             batch_first=True,
             padding_value=pad_token_id,
-        ).to(input_ids.device)
-        trimmed_mask = torch.zeros_like(padded, dtype=attention_mask.dtype)
-        for idx, seq in enumerate(trimmed_sequences):
+        ).to(device)
+        trimmed_mask = torch.zeros_like(padded, dtype=torch.long)
+        for idx, seq in enumerate(sequences):
             trimmed_mask[idx, : seq.shape[0]] = 1
         return padded, trimmed_mask, choice_starts
+
+    def _encode_choice_pair(
+        self,
+        context: str,
+        continuation: str,
+    ) -> tuple[list[int], list[int]]:
+        trailing_spaces = len(context) - len(context.rstrip())
+        if trailing_spaces:
+            continuation = context[-trailing_spaces:] + continuation
+            context = context[:-trailing_spaces]
+
+        whole_ids = self.tokenizer.encode(context + continuation)
+        context_ids = self.tokenizer.encode(context)
+        continuation_ids = whole_ids[len(context_ids) :]
+        if not continuation_ids:
+            continuation_ids = self.tokenizer.encode(
+                continuation,
+                add_special_tokens=False,
+            )
+        return context_ids, continuation_ids
 
     def _resolve_pad_id(self, pad_id: int | None, eos_id: int | None) -> int:
         if pad_id is not None:
@@ -535,6 +543,10 @@ class ClassificationEvaluator:
         if isinstance(value, str):
             return value.isdigit()
         return False
+
+    @staticmethod
+    def _label_key(label: str) -> str:
+        return label.strip().lower()
 
     def _get_model_ctx_limit(self, model: PreTrainedModel) -> int:
         if hasattr(model, "config"):
