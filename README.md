@@ -157,6 +157,15 @@ Known good public entrypoints are indexed in `recipes/registry.yaml`. Each
 recipe points to existing Hydra configs; the config files remain the source of
 truth for hyperparameters.
 
+Use the minimal CLI to inspect and launch those recipes:
+
+```bash
+sallm recipes list
+sallm recipe show llama_t2x_xho
+sallm finetune llama_t2x_xho --dry-run
+sallm evaluate llama_t2x_xho --dry-run
+```
+
 All workflows route through Hydra:
 
 ```bash
