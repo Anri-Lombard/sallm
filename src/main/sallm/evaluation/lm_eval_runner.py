@@ -21,7 +21,11 @@ from transformers import AutoTokenizer
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
 from sallm.evaluation.harness import load_model_and_tokenizer
-from sallm.evaluation.registry import load_task_pack
+from sallm.evaluation.registry import (
+    RERANK_LM_EVAL_TASK_DIR,
+    load_rerank_task_pack,
+    load_task_pack,
+)
 
 logger = logging.getLogger(__name__)
 LM_EVAL_TASKS_ROOT = (
@@ -82,6 +86,9 @@ def _prepare_include_paths(include_path: str | list[str]) -> list[str]:
         prepared_paths.append(str(link_path))
 
     return prepared_paths
+
+
+TASK_PACK_SCOPES = {"eval", "rerank"}
 
 
 def _format_model_args(
@@ -298,6 +305,18 @@ def _prepare_tokenizer_for_lm_eval(
         return None
 
 
+def _load_pack(pack_name: str, task_pack_scope: str) -> TaskPack:
+    if task_pack_scope == "eval":
+        return load_task_pack(pack_name)
+    if task_pack_scope == "rerank":
+        return load_rerank_task_pack(pack_name)
+    supported = ", ".join(sorted(TASK_PACK_SCOPES))
+    raise ValueError(
+        f"Unsupported task_pack_scope '{task_pack_scope}'. "
+        f"Supported scopes: {supported}."
+    )
+
+
 def _run_pack(
     pack_name: str,
     model_cfg: ModelEvalConfig,
@@ -306,8 +325,9 @@ def _run_pack(
     pack_overrides: dict[str, Any] | None,
     pretrained_path: str,
     peft_adapter: str | None,
+    task_pack_scope: str,
 ) -> dict[str, Any]:
-    pack: TaskPack = load_task_pack(pack_name)
+    pack: TaskPack = _load_pack(pack_name, task_pack_scope)
     pack_out = output_dir / pack_name
     pack_out.mkdir(parents=True, exist_ok=True)
 
@@ -346,6 +366,13 @@ def _run_pack(
             include_defaults = bool(override_kwargs.pop("include_defaults"))
         eval_kwargs.update(override_kwargs)
 
+    if task_pack_scope == "rerank":
+        include_paths = include_path if isinstance(include_path, list) else []
+        if include_path and not isinstance(include_path, list):
+            include_paths = [include_path]
+        include_paths.append(str(RERANK_LM_EVAL_TASK_DIR))
+        include_path = include_paths
+
     if include_path:
         resolved_paths = _prepare_include_paths(include_path)
         task_manager = TaskManager(
@@ -355,8 +382,9 @@ def _run_pack(
         eval_kwargs["task_manager"] = task_manager
 
     logger.info(
-        "Running lm-eval task pack '%s' with tasks=%s, fewshot=%s, batch_size=%s, "
+        "Running lm-eval %s task pack '%s' with tasks=%s, fewshot=%s, batch_size=%s, "
         "apply_chat_template=%s",
+        task_pack_scope,
         pack_name,
         ",".join(pack.tasks),
         pack.fewshot,
@@ -383,6 +411,7 @@ def _run_pack(
     return {
         "type": "lm_eval",
         "task_pack": pack_name,
+        "task_pack_scope": task_pack_scope,
         "tasks": pack.tasks,
         "fewshot": pack.fewshot,
         "batch_size": pack.batch_size,
@@ -398,9 +427,16 @@ def run_task_pack_evaluations(
     model_cfg: ModelEvalConfig,
     output_dir: Path,
     overrides: dict[str, Any] | None = None,
+    task_pack_scope: str = "eval",
 ) -> list[dict[str, Any]]:
     if not pack_names:
         return []
+    if task_pack_scope not in TASK_PACK_SCOPES:
+        supported = ", ".join(sorted(TASK_PACK_SCOPES))
+        raise ValueError(
+            f"Unsupported task_pack_scope '{task_pack_scope}'. "
+            f"Supported scopes: {supported}."
+        )
 
     temp_root_parent = _resolve_ephemeral_eval_root()
     with tempfile.TemporaryDirectory(
@@ -433,6 +469,7 @@ def run_task_pack_evaluations(
                     pack_overrides,
                     pretrained_path,
                     peft_adapter,
+                    task_pack_scope,
                 )
                 summaries.append(summary)
             return summaries

@@ -41,6 +41,7 @@ class WandbConfig:
 @dataclass
 class EvaluationConfig:
     task_packs: list[str] = field(default_factory=list)
+    task_pack_scope: str = "eval"
     output_dir: str = MISSING
     overrides: dict[str, Any] = field(default_factory=dict)
     wandb: WandbConfig | None = MISSING

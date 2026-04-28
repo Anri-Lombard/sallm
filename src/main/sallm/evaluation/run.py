@@ -69,6 +69,7 @@ def run(config: ExperimentConfig) -> None:
             model_cfg,
             out_root,
             overrides or None,
+            eval_cfg.task_pack_scope,
         )
         summaries.extend(pack_summaries)
 
