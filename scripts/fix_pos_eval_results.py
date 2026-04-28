@@ -64,7 +64,7 @@ def fix_results_file(path: Path, *, dry_run: bool) -> dict[str, float]:
         result_row["token_accuracy,flexible-extract"] = mean_score
         result_row["token_accuracy_stderr,flexible-extract"] = stderr
 
-        for sample, score in zip(samples, sample_scores):
+        for sample, score in zip(samples, sample_scores, strict=False):
             sample["token_accuracy"] = score
 
         updated[task_name] = mean_score

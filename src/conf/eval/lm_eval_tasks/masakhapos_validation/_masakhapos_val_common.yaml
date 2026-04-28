@@ -10,7 +10,6 @@ generation_kwargs:
   until:
     - "</s>"
     - "<|im_end|>"
-process_docs: |
 process_docs: !function utils.process_pos_docs
 doc_to_target: !function utils.doc_to_target
 filter_list:
