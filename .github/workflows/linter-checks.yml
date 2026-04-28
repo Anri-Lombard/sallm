@@ -44,8 +44,8 @@ jobs:
           uv run pre-commit install --install-hooks
           uv run pre-commit run --all-files --show-diff-on-failure
 
-      - name: Run ty type check (advisory)
-        run: uv run ty check src/main/sallm --output-format github --exit-zero
+      - name: Run ty type check
+        run: uv run ty check src/main/sallm --output-format github
 
   security-scan:
     name: Grype vulnerability scan
