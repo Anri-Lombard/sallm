@@ -1,11 +1,11 @@
 #!/bin/bash
-##SBATCH --account=your-slurm-account
+#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
-#SBATCH --gres=gpu:l40s:1
+#SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
-##SBATCH --mail-user=you@example.com
+#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 CONFIG_NAME="$1"
@@ -14,16 +14,6 @@ if [ -z "$CONFIG_NAME" ]; then
 fi
 shift || true
 EXTRA_ARGS=("$@")
-
-SUBMIT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-$(pwd)}}"
-LIB_DIR="${SUBMIT_ROOT%/}/scripts/lib"
-if [[ ! -f "$LIB_DIR/cluster_env.sh" || ! -f "$LIB_DIR/auth.sh" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  LIB_DIR="$SCRIPT_DIR/lib"
-fi
-source "$LIB_DIR/cluster_env.sh"
-source "$LIB_DIR/auth.sh"
-setup_sallm_cluster_env
 
 if [[ "$CONFIG_NAME" != */* ]]; then
     CONFIG_NAME="eval/$CONFIG_NAME"
@@ -35,17 +25,21 @@ JOB_NAME="${JOB_NAME#llama_}"
 
 export HYDRA_FULL_ERROR=1
 
-export JOB_LOG_DIR="${JOB_LOG_DIR:-$PROJECT_ROOT/logs/jobs}"
+export SCRATCH="/scratch/lmbanr001"
+export HOME="/home/lmbanr001"
+export JOB_LOG_DIR="$SCRATCH/masters/sallm/logs/jobs"
 # Note: Don't prepend scratch to PYTHONPATH - venv has patched transformers for xLSTM
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 export XDG_CACHE_HOME="$SCRATCH/.cache"
-load_hf_token || true
+export HF_TOKEN=$(cat "$HOME/.huggingface/token" 2>/dev/null || echo "")
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_METRICS_CACHE="$HF_HOME/metrics"
 export TRANSFORMERS_CACHE="$HF_HOME/hub"
 export HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
-export WANDB_DIR="${WANDB_DIR:-$SCRATCH/sallm/wandb}"
+export WANDB_DIR="$SCRATCH/masters/sallm/wandb"
 export WANDB_CACHE_DIR="$SCRATCH/.cache/wandb"
 export WANDB_CONFIG_DIR="$SCRATCH/.config/wandb"
 mkdir -p "$TRITON_CACHE_DIR" "$JOB_LOG_DIR"
@@ -57,7 +51,7 @@ if [[ -n "${SLURM_JOB_ID:-}" ]]; then
 fi
 
 echo "--- Storage Usage ---"
-df -h "$HOME" "$SCRATCH" 2>/dev/null || true
+df -h /home /scratch 2>/dev/null || true
 echo "-------------------------------"
 
 module load python/miniconda3-py3.12
@@ -68,7 +62,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$PROJECT_ROOT"
+cd "$HOME/masters/sallm"
 uv sync --frozen --inexact
 source .venv/bin/activate
 

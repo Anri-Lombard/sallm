@@ -1,18 +1,18 @@
 #!/bin/bash
-##SBATCH --account=your-slurm-account
+#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
 #SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name=hpo-ner_all-resume
-##SBATCH --mail-user=you@example.com
+#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
 
 SWEEP_PATH="${1:-}"
-COUNT="${2:-20}"
+COUNT="${2:-43}"
 
 if [[ -z "$SWEEP_PATH" ]]; then
   echo "Usage: sbatch $0 <sweep_path> [count]" >&2
@@ -24,42 +24,19 @@ SWEEP_ID="${SWEEP_PATH##*/}"
 mkdir -p logs
 exec > >(tee -a "logs/hpo-resume-${SWEEP_ID}-${SLURM_JOB_ID}.out") 2>&1
 
-resolve_repo_root() {
-  local candidate=""
-  for candidate in \
-    "${PROJECT_ROOT:-}" \
-    "${SLURM_SUBMIT_DIR:-}" \
-    "$(pwd)" \
-    "$HOME/masters/sallm"
-  do
-    [[ -n "$candidate" ]] || continue
-    if [[ -f "$candidate/scripts/lib/cluster_env.sh" && -f "$candidate/scripts/lib/auth.sh" ]]; then
-      printf '%s\n' "${candidate%/}"
-      return 0
-    fi
-  done
-  return 1
-}
-
-PROJECT_ROOT="$(resolve_repo_root)" || {
-  echo "Could not resolve project root for cluster scripts" >&2
-  exit 1
-}
-export PROJECT_ROOT
-LIB_DIR="$PROJECT_ROOT/scripts/lib"
-source "$LIB_DIR/cluster_env.sh"
-source "$LIB_DIR/auth.sh"
-setup_sallm_cluster_env
-
+export SCRATCH="/scratch/lmbanr001"
+export HOME="/home/lmbanr001"
 # Note: Don't set PYTHONPATH - venv has patched transformers
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
 mkdir -p "$TRITON_CACHE_DIR"
 export TOKENIZERS_PARALLELISM="true"
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
-load_hf_token || true
+export HF_TOKEN=$(cat ~/.huggingface/token)
 export TORCH_DISTRIBUTED_TIMEOUT=7200
 export HYDRA_FULL_ERROR=1
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 module load python/miniconda3-py3.12
 set +u
@@ -68,7 +45,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$PROJECT_ROOT"
+cd "$HOME/masters/sallm"
 uv sync --frozen --inexact
 source .venv/bin/activate
 

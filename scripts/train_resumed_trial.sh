@@ -1,12 +1,12 @@
 #!/bin/bash
-##SBATCH --account=your-slurm-account
+#SBATCH --account=l40sfree
 #SBATCH --partition=l40s
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-gpu=8
 #SBATCH --job-name="sallm-resume"
-##SBATCH --mail-user=you@example.com
+#SBATCH --mail-user=LMBANR001@myuct.ac.za
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
@@ -15,9 +15,7 @@ CONFIG_NAME="$1"
 WANDB_RUN_ID="$2"
 RESUME_CHECKPOINT="${3:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/cluster_env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
-setup_sallm_cluster_env
 
 if [[ -z "$CONFIG_NAME" || -z "$WANDB_RUN_ID" ]]; then
     echo "Error: Missing arguments."
@@ -31,7 +29,11 @@ if [[ -n "${SLURM_JOB_ID:-}" ]]; then
   exec > >(tee -a "logs/resume-${WANDB_RUN_ID}-${SLURM_JOB_ID}.out") 2>&1
 fi
 
+export SCRATCH="/scratch/lmbanr001"
+export HOME="/home/lmbanr001"
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
+export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 load_hf_token || true
 
 echo "Setting up environment for resumed run ${WANDB_RUN_ID}..."
@@ -43,7 +45,7 @@ conda activate sallm-uv
 set -u
 
 export PATH="$HOME/.local/bin:$PATH"
-cd "$PROJECT_ROOT"
+cd "$HOME/masters/sallm"
 uv sync --frozen
 source .venv/bin/activate
 

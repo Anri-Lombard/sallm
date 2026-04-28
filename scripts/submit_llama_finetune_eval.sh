@@ -4,10 +4,9 @@
 set -u
 set -o pipefail
 
-PROJECT_ROOT="${PROJECT_ROOT:-$HOME/masters/sallm}"
-cd "$PROJECT_ROOT"
+cd ~/masters/sallm
 
-SCRATCH_ROOT="${SCRATCH:-${PROJECT_SCRATCH:-$HOME/scratch}}"
+SCRATCH_ROOT="${SCRATCH:-/scratch/lmbanr001}"
 
 # Mapping of finetune task names to eval task names.
 declare -A TASK_MAP=(

@@ -46,6 +46,3 @@ dist/
 .github/chatmodes
 .bmad-core
 *.csv
-tmp/spreadsheets/chrome-profile/
-.playwright-cli/
-output/

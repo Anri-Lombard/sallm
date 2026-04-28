@@ -3,6 +3,8 @@ from __future__ import annotations
 from datasets import Dataset
 
 
+# Work around broken MasakhaPOS handling in lm-eval-harness.
+# Remove this once the upstream task can parse the validation docs directly.
 def process_pos_docs(split: Dataset) -> Dataset:
     docs: list[dict[str, object]] = []
     tokens: list[str] = []

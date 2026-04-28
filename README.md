@@ -160,13 +160,13 @@ Please cite the paper:
 
 ```bibtex
 @misc{lombard2026mzansitextmzansilmopencorpus,
-      title={MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages},
+      title={MzansiText and MzansiLM: An Open Corpus and Decoder-Only Language Model for South African Languages}, 
       author={Anri Lombard and Simbarashe Mawere and Temi Aina and Ethan Wolff and Sbonelo Gumede and Elan Novick and Francois Meyer and Jan Buys},
       year={2026},
       eprint={2603.20732},
       archivePrefix={arXiv},
       primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2603.20732},
+      url={https://arxiv.org/abs/2603.20732}, 
 }
 ```
 
