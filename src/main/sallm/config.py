@@ -9,6 +9,20 @@ from peft import PeftConfig as HFPEFTConfig
 from sallm.utils import RunMode
 
 
+def to_resolved_dict(value: Any, *, name: str = "config") -> dict[str, Any]:
+    """Resolve an OmegaConf or plain mapping into a string-keyed dict."""
+    if isinstance(value, DictConfig):
+        resolved = OmegaConf.to_container(value, resolve=True)
+    elif isinstance(value, dict):
+        resolved = value
+    else:
+        raise TypeError(f"{name} must be a mapping, got {type(value)!r}.")
+
+    if not isinstance(resolved, dict):
+        raise TypeError(f"{name} must resolve to a mapping.")
+    return {str(key): item for key, item in resolved.items()}
+
+
 @dataclass
 class ParamRangeConfig:
     min_params_m: float = MISSING
@@ -154,7 +168,7 @@ class ModelEvalConfig:
             )
             has_full_model = any(path.exists() for path in full_model_weights)
             if has_adapter and not has_full_model:
-                peft_config = HFPEFTConfig.from_pretrained(checkpoint_path)
+                peft_config = HFPEFTConfig.from_pretrained(str(checkpoint_path))
                 base_model = peft_config.base_model_name_or_path
                 if not base_model:
                     raise ValueError(
@@ -420,17 +434,7 @@ class DecodingConfig:
             return cls()
         if isinstance(value, cls):
             return value
-        if isinstance(value, DictConfig):
-            data = OmegaConf.to_container(value, resolve=True)
-        elif isinstance(value, dict):
-            data = value
-        else:
-            raise TypeError(
-                f"Unsupported decoding config type {type(value)!r}; "
-                "expected mapping or DecodingConfig."
-            )
-        if not isinstance(data, dict):
-            raise TypeError("DecodingConfig expects a mapping after resolution.")
+        data = to_resolved_dict(value, name="decoding config")
         return cls(**data)
 
     def to_generate_kwargs(self) -> dict[str, Any]:

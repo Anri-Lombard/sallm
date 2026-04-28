@@ -40,6 +40,12 @@ def _format_example(
     return formatter(ex, template_id, label_column, upos_class_names)
 
 
+def _require_task(ds_cfg: FinetuneDatasetConfig) -> FinetuneTaskType:
+    if ds_cfg.task is None:
+        raise ValueError("A `dataset.task` must be specified for fine-tuning.")
+    return ds_cfg.task
+
+
 def _validate_templates(ds_cfg: FinetuneDatasetConfig, raw_ds: Dataset) -> None:
     """Validate templates for the given task type."""
     template_ids = [t.id for t in ds_cfg.templates]
@@ -80,6 +86,7 @@ def _add_lang_to_output(
 
 def apply_all_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Dataset:
     """Expand each example across all templates."""
+    task = _require_task(ds_cfg)
     if not ds_cfg.templates:
         raise ValueError(
             "dataset.template_choice is 'ALL' but no templates were provided."
@@ -87,9 +94,7 @@ def apply_all_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Datas
 
     _validate_templates(ds_cfg, raw_ds)
     upos_class_names = (
-        get_upos_class_names(raw_ds)
-        if ds_cfg.task == FinetuneTaskType.POS_TAGGING
-        else None
+        get_upos_class_names(raw_ds) if task == FinetuneTaskType.POS_TAGGING else None
     )
 
     def _expand_batch(batch: dict[str, list[Any]]) -> dict[str, list[Any]]:
@@ -105,7 +110,7 @@ def apply_all_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Datas
                 t_id = tref.id
                 w = max(int(tref.weight) if isfinite(tref.weight) else 1, 1)
                 msgs = _format_example(
-                    ex, ds_cfg.task, t_id, ds_cfg.label_column, upos_class_names
+                    ex, task, t_id, ds_cfg.label_column, upos_class_names
                 )
 
                 for _ in range(w):
@@ -142,6 +147,7 @@ def apply_all_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Datas
 
 def apply_cycle_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Dataset:
     """Assign templates in round-robin fashion."""
+    task = _require_task(ds_cfg)
     if not ds_cfg.templates:
         raise ValueError(
             "dataset.template_choice is 'CYCLE' but no templates were provided."
@@ -150,16 +156,12 @@ def apply_cycle_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Dat
     _validate_templates(ds_cfg, raw_ds)
     template_ids = [t.id for t in ds_cfg.templates]
     upos_class_names = (
-        get_upos_class_names(raw_ds)
-        if ds_cfg.task == FinetuneTaskType.POS_TAGGING
-        else None
+        get_upos_class_names(raw_ds) if task == FinetuneTaskType.POS_TAGGING else None
     )
 
     def _cycle_map(ex: dict[str, Any], idx: int) -> dict[str, Any]:
         t_id = template_ids[idx % len(template_ids)]
-        msgs = _format_example(
-            ex, ds_cfg.task, t_id, ds_cfg.label_column, upos_class_names
-        )
+        msgs = _format_example(ex, task, t_id, ds_cfg.label_column, upos_class_names)
         out: dict[str, Any] = {"messages": msgs, "template_id": t_id}
         _add_lang_to_output(out, ex, ds_cfg)
         return out
@@ -169,7 +171,7 @@ def apply_cycle_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Dat
         batched=False,
         with_indices=True,
         remove_columns=raw_ds.column_names,
-        desc=f"Cycling {ds_cfg.task.value} templates",
+        desc=f"Cycling {task.value} templates",
     )
 
 
@@ -178,8 +180,7 @@ def apply_templates(raw_ds: Dataset, ds_cfg: FinetuneDatasetConfig) -> Dataset:
     if "messages" in raw_ds.column_names:
         return raw_ds
 
-    if ds_cfg.task is None:
-        raise ValueError("A `dataset.task` must be specified for fine-tuning.")
+    _require_task(ds_cfg)
 
     if ds_cfg.template_choice == TemplateChoice.ALL:
         return apply_all_templates(raw_ds, ds_cfg)

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import is_dataclass, replace
+from typing import Protocol
 
 from datasets import Dataset
-from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import Dataset as TorchDataset
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from sallm.config import (
     ExperimentConfig,
@@ -22,6 +22,10 @@ from sallm.data.loaders.mix import load_mix_dataset
 from sallm.data.transforms.template_strategies import apply_templates
 
 logger = logging.getLogger(__name__)
+
+
+class HasDatasetConfig(Protocol):
+    dataset: FinetuneDatasetConfig | None
 
 
 def resolve_eval_template_choice(ds_cfg: FinetuneDatasetConfig) -> TemplateChoice:
@@ -45,18 +49,13 @@ def _dataset_config_with_template_choice(
         return ds_cfg
     if is_dataclass(ds_cfg):
         return replace(ds_cfg, template_choice=template_choice)
-    if isinstance(ds_cfg, DictConfig):
-        cloned_cfg = OmegaConf.create(OmegaConf.to_container(ds_cfg, resolve=False))
-        cloned_cfg.template_choice = template_choice
-        return cloned_cfg
     raise TypeError(
-        "Expected dataset config to be a dataclass or DictConfig, got "
-        f"{type(ds_cfg).__name__}"
+        f"Expected dataset config to be a dataclass, got {type(ds_cfg).__name__}"
     )
 
 
 def build_datasets(
-    config: ExperimentConfig, tokenizer: AutoTokenizer, is_hpo: bool
+    config: ExperimentConfig, tokenizer: PreTrainedTokenizerBase, is_hpo: bool
 ) -> tuple[Dataset | TorchDataset, Dataset, Dataset | None]:
     """Build train, validation, and optional test datasets.
 
@@ -111,7 +110,7 @@ def _build_finetune_datasets(
 
 def build_conversation_dataset(
     raw_ds: Dataset,
-    cfg: ExperimentConfig,
+    cfg: HasDatasetConfig,
     template_choice_override: TemplateChoice | None = None,
 ) -> Dataset:
     """Format a raw dataset into conversation format with messages.
@@ -125,6 +124,8 @@ def build_conversation_dataset(
         Dataset with 'messages' column
     """
     ds_cfg = cfg.dataset
+    if ds_cfg is None:
+        raise ValueError("Fine-tuning dataset config is required.")
     if template_choice_override is not None:
         ds_cfg = _dataset_config_with_template_choice(ds_cfg, template_choice_override)
     return apply_templates(raw_ds, ds_cfg)

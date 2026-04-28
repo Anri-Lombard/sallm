@@ -1,20 +1,20 @@
 import inspect
 import logging
+from typing import Any, cast
 
 from datasets import Dataset
-from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import Dataset as TorchDataset
 from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
     EarlyStoppingCallback,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
     TrainerCallback,
     TrainerControl,
     TrainerState,
 )
 from trl import SFTConfig
 
-from sallm.config import ExperimentConfig, FinetuneTaskType, RunMode
+from sallm.config import ExperimentConfig, FinetuneTaskType, RunMode, to_resolved_dict
 from sallm.training.callbacks import (
     ClassificationMetricsCallback,
     EnsureStaticGraphCallback,
@@ -56,18 +56,16 @@ class _DatasetEpochCallback(TrainerCallback):
 
 def build_trainer(
     config: ExperimentConfig,
-    model: AutoModelForCausalLM,
-    tokenizer: AutoTokenizer,
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerBase,
     train_dataset: Dataset | TorchDataset,
     eval_dataset: Dataset | TorchDataset,
 ) -> CustomSFTTrainer:
-    training_raw = config.training or {}
-    if isinstance(training_raw, DictConfig):
-        training_args_dict = OmegaConf.to_container(training_raw, resolve=True)
-    elif isinstance(training_raw, dict):
-        training_args_dict = dict(training_raw)
-    else:
-        raise TypeError(f"Unsupported type for training config: {type(training_raw)!r}")
+    training_args_dict = (
+        {}
+        if config.training is None
+        else to_resolved_dict(config.training, name="training config")
+    )
 
     early_stopping_patience = training_args_dict.pop("early_stopping_patience", None)
     early_stopping_threshold = training_args_dict.pop("early_stopping_threshold", None)
@@ -163,8 +161,13 @@ def build_trainer(
 
     callbacks = []
     if config.mode == RunMode.FINETUNE:
+        if not isinstance(eval_dataset, Dataset):
+            raise TypeError(
+                "Fine-tuning evaluation callbacks require a HuggingFace Dataset."
+            )
+        eval_hf_dataset = eval_dataset
         completions_callback = ShowCompletionsCallback(
-            eval_dataset=eval_dataset,
+            eval_dataset=eval_hf_dataset,
             tokenizer=tokenizer,
             num_samples=5,
             decoding=config.generation_decoding,
@@ -174,7 +177,7 @@ def build_trainer(
         if task_type == FinetuneTaskType.CLASSIFICATION:
             callbacks.append(
                 ClassificationMetricsCallback(
-                    eval_dataset=eval_dataset,
+                    eval_dataset=eval_hf_dataset,
                     tokenizer=tokenizer,
                     max_new_tokens=32,
                     max_samples_per_lang=None,
@@ -188,7 +191,7 @@ def build_trainer(
         ):
             callbacks.append(
                 GenerationMetricsCallback(
-                    eval_dataset=eval_dataset,
+                    eval_dataset=eval_hf_dataset,
                     tokenizer=tokenizer,
                     max_new_tokens=64,
                     max_samples_per_lang=None,
@@ -219,8 +222,8 @@ def build_trainer(
     trainer = CustomSFTTrainer(
         model=model,
         args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        train_dataset=cast(Any, train_dataset),
+        eval_dataset=cast(Any, eval_dataset),
         callbacks=callbacks,
         processing_class=tokenizer,
     )

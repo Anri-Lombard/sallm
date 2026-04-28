@@ -1,8 +1,13 @@
 import logging
+from typing import cast
 
 import torch
 from tokenizers.decoders import ByteLevel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 
 from sallm.config import ExperimentConfig, ModelConfig, TokenizerConfig
 from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY
@@ -31,12 +36,17 @@ def _get_torch_dtype(config: ExperimentConfig) -> torch.dtype:
     return torch.float32
 
 
-def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
+def build_tokenizer(config: ExperimentConfig) -> PreTrainedTokenizerBase:
     tokenizer_conf: TokenizerConfig | None = config.tokenizer
     if tokenizer_conf is None:
         raise ValueError("ExperimentConfig.tokenizer is required")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_conf.path)
-    tokenizer.backend_tokenizer.decoder = ByteLevel()
+    tokenizer = cast(
+        PreTrainedTokenizerBase,
+        AutoTokenizer.from_pretrained(tokenizer_conf.path),
+    )
+    backend_tokenizer = getattr(tokenizer, "backend_tokenizer", None)
+    if backend_tokenizer is not None:
+        backend_tokenizer.decoder = ByteLevel()
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -49,8 +59,8 @@ def build_tokenizer(config: ExperimentConfig) -> AutoTokenizer:
 
 
 def build_model(
-    config: ExperimentConfig, tokenizer: AutoTokenizer
-) -> AutoModelForCausalLM:
+    config: ExperimentConfig, tokenizer: PreTrainedTokenizerBase
+) -> PreTrainedModel:
     model_conf: ModelConfig | None = config.model
     if model_conf is None:
         raise ValueError("ExperimentConfig.model is required")
@@ -68,10 +78,13 @@ def build_model(
         attn_impl = getattr(config.model, "attn_implementation", None)
         torch_dtype = _get_torch_dtype(config)
         logger.info(f"Loading model with torch_dtype={torch_dtype}")
-        model = model_class.from_pretrained(
-            model_conf.init_checkpoint,
-            attn_implementation=attn_impl,
-            torch_dtype=torch_dtype,
+        model = cast(
+            PreTrainedModel,
+            model_class.from_pretrained(
+                model_conf.init_checkpoint,
+                attn_implementation=attn_impl,
+                torch_dtype=torch_dtype,
+            ),
         )
         return model
 
@@ -82,11 +95,11 @@ def build_model(
         )
 
     model_config_obj = config_class(**model_conf.config)
-    model_config_obj.vocab_size = tokenizer.vocab_size
+    model_config_obj.vocab_size = len(tokenizer)
 
     torch_dtype = _get_torch_dtype(config)
     logger.info(f"Creating model with torch_dtype={torch_dtype}")
-    model = model_class(model_config_obj).to(torch_dtype)
+    model = cast(PreTrainedModel, model_class(model_config_obj).to(torch_dtype))
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

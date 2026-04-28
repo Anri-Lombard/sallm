@@ -177,6 +177,8 @@ def load_mix_dataset(
         Tuple of (WeightedMultiTaskDataset, concatenated_val_ds, None)
     """
     ds_cfg = config.dataset
+    if ds_cfg is None:
+        raise ValueError("Mixture datasets require a `dataset` config block.")
     mix_name = ds_cfg.hf_name[len("mix:") :].strip().lower()
 
     mix_config = load_mix_config(mix_name)

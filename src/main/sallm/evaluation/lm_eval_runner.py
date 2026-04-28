@@ -10,7 +10,7 @@ from copy import deepcopy
 from datetime import date, datetime
 from hashlib import sha1
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -146,7 +146,7 @@ def _materialize_model_for_lm_eval(
     model, tokenizer = load_model_and_tokenizer(cfg_copy)
 
     try:
-        model = model.to("cpu")
+        model = cast(Any, model).to("cpu")
     except Exception:
         pass
 

@@ -4,11 +4,12 @@ import logging
 import textwrap
 from collections import defaultdict
 from enum import Enum
+from typing import Any, cast
 
 import torch
 from datasets import Dataset
 from torch.nn.utils.rnn import pad_sequence
-from transformers import AutoTokenizer, PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from sallm.config import DecodingConfig
 from sallm.templates import registry as tmpl
@@ -26,7 +27,7 @@ class ClassificationEvaluator:
 
     def __init__(
         self,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         max_new_tokens: int = 32,
         max_samples_per_lang: int | None = 256,
         decoding: DecodingConfig | None = None,
@@ -67,7 +68,9 @@ class ClassificationEvaluator:
         if lang_column_present:
             raw_langs = set(dataset["lang"])
             str_langs = sorted({x for x in raw_langs if isinstance(x, str) and x})
-            unique_languages = str_langs if str_langs else [None]
+            unique_languages = cast(
+                list[str | None], str_langs if str_langs else [None]
+            )
         else:
             unique_languages = [None]
 
@@ -336,7 +339,7 @@ class ClassificationEvaluator:
         generate_kwargs["eos_token_id"] = eos_id
         generate_kwargs.setdefault("use_cache", True)
 
-        outputs = model.generate(
+        outputs = cast(Any, model).generate(
             input_ids=input_ids,
             attention_mask=attn,
             **generate_kwargs,
@@ -362,12 +365,15 @@ class ClassificationEvaluator:
         if isinstance(system_message, str) and system_message.strip():
             template_kwargs["system_message"] = system_message
             template_kwargs["system_prompt"] = system_message
-        return self.tokenizer.apply_chat_template(
-            prompt_messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            chat_template=fallback_template,
-            **template_kwargs,
+        return cast(
+            str,
+            cast(Any, self.tokenizer).apply_chat_template(
+                prompt_messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                chat_template=fallback_template,
+                **template_kwargs,
+            ),
         )
 
     def _extract_label(self, text: str) -> str:

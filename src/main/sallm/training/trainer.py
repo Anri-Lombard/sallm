@@ -3,16 +3,14 @@ import math
 import time
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, cast
 
+import datasets
 import torch
 import wandb
 from torch.utils.data import DataLoader
 from transformers import Trainer
-from transformers.utils import is_datasets_available
 from trl import SFTTrainer
-
-if is_datasets_available():
-    import datasets
 
 logger = logging.getLogger(__name__)
 
@@ -57,17 +55,31 @@ class CustomTrainer(Trainer):
 
     def evaluate(
         self,
-        eval_dataset: datasets.Dataset | None = None,
+        eval_dataset: Any = None,
         ignore_keys: list[str] | None = None,
         metric_key_prefix: str = "eval",
-    ) -> dict[str, float]:
-        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-        if eval_dataset is None:
+    ) -> dict[str, Any]:
+        resolved_eval_dataset: Any = (
+            eval_dataset if eval_dataset is not None else self.eval_dataset
+        )
+        if resolved_eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")
+
+        if not isinstance(resolved_eval_dataset, datasets.Dataset):
+            return super().evaluate(
+                eval_dataset=resolved_eval_dataset,
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
+        eval_dataset = resolved_eval_dataset
 
         if "lang" not in eval_dataset.features:
             logger.warning("Custom `evaluate` is exiting: 'lang' column not found.")
-            return super().evaluate(eval_dataset, ignore_keys, metric_key_prefix)
+            return super().evaluate(
+                eval_dataset=cast(Any, eval_dataset),
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
 
         start_time = time.time()
 
@@ -81,7 +93,10 @@ class CustomTrainer(Trainer):
 
         # Use the prepared model directly (same as super().evaluate())
         model = self.model
-        model.eval()
+        if model is None:
+            raise ValueError("Trainer: evaluation requires a model.")
+        model_for_eval = cast(Any, model)
+        model_for_eval.eval()
 
         if self._signature_columns is None:
             raise RuntimeError("Could not find model signature columns.")
@@ -94,7 +109,7 @@ class CustomTrainer(Trainer):
             if len(lang_dataset) == 0:
                 continue
 
-            dataloader: DataLoader = self.get_eval_dataloader(lang_dataset)
+            dataloader: DataLoader = self.get_eval_dataloader(cast(Any, lang_dataset))
             total_loss, num_samples = 0.0, 0
             nan_count = 0
 
@@ -118,7 +133,7 @@ class CustomTrainer(Trainer):
 
                     model_inputs = {k: v for k, v in batch.items() if k in model_args}
                     model_inputs["use_cache"] = False  # Prevent Mamba2Cache in outputs
-                    outputs = model(**model_inputs)
+                    outputs = model_for_eval(**model_inputs)
                     loss = outputs.loss
                     loss_val = loss.item()
                     batch_size = batch["input_ids"].size(0)
@@ -209,10 +224,10 @@ class CustomTrainer(Trainer):
         return metrics_to_return
 
     def save_model(self, output_dir=None, _internal_call=False):
-        out = output_dir or self.args.output_dir
+        out = str(output_dir or self.args.output_dir)
         Path(out).mkdir(parents=True, exist_ok=True)
 
-        self.model.save_pretrained(out, safe_serialization=False)
+        cast(Any, self.model).save_pretrained(out, safe_serialization=False)
 
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(out)
@@ -227,17 +242,31 @@ class CustomSFTTrainer(SFTTrainer):
 
     def evaluate(
         self,
-        eval_dataset: datasets.Dataset | None = None,
+        eval_dataset: Any = None,
         ignore_keys: list[str] | None = None,
         metric_key_prefix: str = "eval",
-    ) -> dict[str, float]:
-        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-        if eval_dataset is None:
+    ) -> dict[str, Any]:
+        resolved_eval_dataset: Any = (
+            eval_dataset if eval_dataset is not None else self.eval_dataset
+        )
+        if resolved_eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")
+
+        if not isinstance(resolved_eval_dataset, datasets.Dataset):
+            return super().evaluate(
+                eval_dataset=resolved_eval_dataset,
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
+        eval_dataset = resolved_eval_dataset
 
         if "lang" not in eval_dataset.features:
             logger.warning("Custom `evaluate` is exiting: 'lang' column not found.")
-            return super().evaluate(eval_dataset, ignore_keys, metric_key_prefix)
+            return super().evaluate(
+                eval_dataset=cast(Any, eval_dataset),
+                ignore_keys=ignore_keys,
+                metric_key_prefix=metric_key_prefix,
+            )
 
         start_time = time.time()
 
@@ -250,7 +279,10 @@ class CustomSFTTrainer(SFTTrainer):
 
         # Use the prepared model directly (same as super().evaluate())
         model = self.model
-        model.eval()
+        if model is None:
+            raise ValueError("Trainer: evaluation requires a model.")
+        model_for_eval = cast(Any, model)
+        model_for_eval.eval()
 
         if self._signature_columns is None:
             raise RuntimeError("Could not find model signature columns.")
@@ -263,7 +295,7 @@ class CustomSFTTrainer(SFTTrainer):
             if len(lang_dataset) == 0:
                 continue
 
-            dataloader: DataLoader = self.get_eval_dataloader(lang_dataset)
+            dataloader: DataLoader = self.get_eval_dataloader(cast(Any, lang_dataset))
             total_loss, num_samples = 0.0, 0
             nan_count = 0
 
@@ -287,7 +319,7 @@ class CustomSFTTrainer(SFTTrainer):
 
                     model_inputs = {k: v for k, v in batch.items() if k in model_args}
                     model_inputs["use_cache"] = False  # Prevent Mamba2Cache in outputs
-                    outputs = model(**model_inputs)
+                    outputs = model_for_eval(**model_inputs)
                     loss = outputs.loss
                     loss_val = loss.item()
                     batch_size = batch["input_ids"].size(0)
@@ -378,10 +410,10 @@ class CustomSFTTrainer(SFTTrainer):
         return metrics_to_return
 
     def save_model(self, output_dir=None, _internal_call=False):
-        out = output_dir or self.args.output_dir
+        out = str(output_dir or self.args.output_dir)
         Path(out).mkdir(parents=True, exist_ok=True)
 
-        self.model.save_pretrained(out, safe_serialization=False)
+        cast(Any, self.model).save_pretrained(out, safe_serialization=False)
 
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(out)

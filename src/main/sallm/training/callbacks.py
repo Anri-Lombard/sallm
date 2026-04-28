@@ -3,13 +3,14 @@ import logging
 import os
 import random
 from pathlib import Path
+from typing import Any, cast
 
 import torch
 import wandb
 from datasets import Dataset
 from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
     TrainerCallback,
     TrainerControl,
     TrainerState,
@@ -63,7 +64,7 @@ class ShowCompletionsCallback(TrainerCallback):
     def __init__(
         self,
         eval_dataset: Dataset,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         num_samples: int = 5,
         max_new_tokens: int = 100,
         decoding: DecodingConfig | None = None,
@@ -91,7 +92,7 @@ class ShowCompletionsCallback(TrainerCallback):
         if not state.is_world_process_zero:
             return
 
-        model: AutoModelForCausalLM | None = kwargs.get("model")
+        model = cast(PreTrainedModel | None, kwargs.get("model"))
         if model is None:
             logger.warning(
                 "ShowCompletionsCallback: `model` not found in kwargs. Skipping."
@@ -108,12 +109,12 @@ class ShowCompletionsCallback(TrainerCallback):
 
         logger.info(
             f"\n--- Showing {len(indices)} Generated Examples "
-            f"after Epoch {int(state.epoch):d} ---"
+            f"after Epoch {int(state.epoch or 0):d} ---"
         )
 
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
-        device = model.device
+        device = getattr(model, "device", torch.device("cpu"))
 
         for i, sample in enumerate(samples, start=1):
             messages: list[dict[str, str]] = sample["messages"]
@@ -121,11 +122,15 @@ class ShowCompletionsCallback(TrainerCallback):
             prompt_messages = messages[:-1]
             gold_completion = messages[-1]["content"].lstrip()
 
-            inputs = self.tokenizer.apply_chat_template(
-                prompt_messages,
-                add_generation_prompt=True,
-                return_tensors="pt",
-            ).to(device)
+            inputs = (
+                cast(Any, self.tokenizer)
+                .apply_chat_template(
+                    prompt_messages,
+                    add_generation_prompt=True,
+                    return_tensors="pt",
+                )
+                .to(device)
+            )
 
             with torch.no_grad():
                 generate_kwargs = self.decoding_config.to_generate_kwargs()
@@ -133,7 +138,7 @@ class ShowCompletionsCallback(TrainerCallback):
                 generate_kwargs["pad_token_id"] = pad_id
                 generate_kwargs["eos_token_id"] = eos_id
                 generate_kwargs.setdefault("use_cache", False)
-                gen_ids = model.generate(
+                gen_ids = cast(Any, model).generate(
                     inputs,
                     **generate_kwargs,
                 )
@@ -191,7 +196,7 @@ class GenerationMetricsCallback(TrainerCallback):
     def __init__(
         self,
         eval_dataset: Dataset,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         max_new_tokens: int = 64,
         max_samples_per_lang: int | None = 64,
         decoding: DecodingConfig | None = None,
@@ -229,7 +234,7 @@ class GenerationMetricsCallback(TrainerCallback):
     ):
         trainer_metrics: dict[str, float] = {}
         wandb_metrics: dict[str, float] = {}
-        model = kwargs.get("model")
+        model = cast(PreTrainedModel | None, kwargs.get("model"))
         if model is None:
             logger.warning(
                 "GenerationMetricsCallback: `model` not found in kwargs. Skipping."
@@ -300,7 +305,7 @@ class GenerationMetricsCallback(TrainerCallback):
             run_id = getattr(wandb.run, "id", None)
         run_name = run_id or getattr(args, "run_name", None) or "run"
         out_dir = (
-            Path(args.output_dir)
+            Path(str(args.output_dir))
             / "debug_generation_examples"
             / _safe_path_component(str(run_name))
         )
@@ -324,7 +329,7 @@ class ClassificationMetricsCallback(TrainerCallback):
     def __init__(
         self,
         eval_dataset: Dataset,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         max_new_tokens: int = 32,
         max_samples_per_lang: int | None = 256,
         decoding: DecodingConfig | None = None,
@@ -348,7 +353,7 @@ class ClassificationMetricsCallback(TrainerCallback):
     ):
         trainer_metrics: dict[str, float] = {}
         wandb_metrics: dict[str, float] = {}
-        model = kwargs.get("model")
+        model = cast(PreTrainedModel | None, kwargs.get("model"))
         if model is None:
             logger.warning(
                 "ClassificationMetricsCallback: `model` not found in kwargs. Skipping."

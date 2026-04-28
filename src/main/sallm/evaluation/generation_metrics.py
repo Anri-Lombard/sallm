@@ -7,12 +7,13 @@ import random
 import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any, cast
 
 import torch
 from datasets import Dataset
 from evaluate import load as eval_load
 from rouge_score import rouge_scorer
-from transformers import AutoTokenizer, PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from sallm.config import (
     DecodingConfig,
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def _temporary_padding_side(
-    tokenizer: AutoTokenizer, padding_side: str
+    tokenizer: PreTrainedTokenizerBase, padding_side: str
 ) -> Iterator[None]:
     original = getattr(tokenizer, "padding_side", None)
     tokenizer.padding_side = padding_side
@@ -47,7 +48,7 @@ def _temporary_padding_side(
 class GenerationEvaluator:
     def __init__(
         self,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         max_new_tokens: int = 64,
         max_samples_per_lang: int | None = 64,
         sample_seed: int | None = None,
@@ -109,8 +110,8 @@ class GenerationEvaluator:
         self.batch_size = resolved_bs
 
         # Lazily initialise evaluation metrics once
-        self._bleu = eval_load("bleu")
-        self._chrf = eval_load("chrf")
+        self._bleu: Any = eval_load("bleu")
+        self._chrf: Any = eval_load("chrf")
         self._rouge_scorer = rouge_scorer.RougeScorer(
             ["rouge1", "rouge2", "rougeL"], use_stemmer=True
         )
@@ -180,7 +181,7 @@ class GenerationEvaluator:
 
     def _prepare_generation_batch(
         self,
-        batch_samples: list[dict[str, object]],
+        batch_samples: list[dict[str, Any]],
         fallback_template: str | None,
         device: torch.device,
         model_ctx_limit: int,
@@ -193,7 +194,7 @@ class GenerationEvaluator:
             list[str],
             torch.Tensor,
             torch.Tensor,
-            dict[str, object],
+            dict[str, Any],
         ]
         | None
     ):
@@ -202,7 +203,7 @@ class GenerationEvaluator:
         prompt_texts: list[str] = []
 
         for sample in batch_samples:
-            messages: list[dict[str, str]] = sample["messages"]  # type: ignore[index]
+            messages = cast(list[dict[str, str]], sample["messages"])
             system_message = sample.get("system_message")
             if not messages:
                 prompt_messages_list.append([])
@@ -215,12 +216,15 @@ class GenerationEvaluator:
             if isinstance(system_message, str) and system_message.strip():
                 template_kwargs["system_message"] = system_message
                 template_kwargs["system_prompt"] = system_message
-            prompt_text = self.tokenizer.apply_chat_template(
-                prompt_messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                chat_template=fallback_template,
-                **template_kwargs,
+            prompt_text = cast(
+                str,
+                cast(Any, self.tokenizer).apply_chat_template(
+                    prompt_messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    chat_template=fallback_template,
+                    **template_kwargs,
+                ),
             )
             prompt_messages_list.append(prompt_messages)
             reference_lists.append(reference_texts)
@@ -301,7 +305,7 @@ class GenerationEvaluator:
                 return 1
             _, _, _, input_ids, attn, generate_kwargs = prepared
             try:
-                outputs = model.generate(
+                outputs = cast(Any, model).generate(
                     input_ids=input_ids,
                     attention_mask=attn,
                     **generate_kwargs,
@@ -408,7 +412,9 @@ class GenerationEvaluator:
         if lang_column_present:
             raw_langs = set(dataset["lang"])  # type: ignore[index]
             str_langs = sorted({x for x in raw_langs if isinstance(x, str) and x})
-            unique_languages = str_langs if str_langs else [None]
+            unique_languages = cast(
+                list[str | None], str_langs if str_langs else [None]
+            )
         else:
             unique_languages = [None]
 
@@ -479,7 +485,10 @@ class GenerationEvaluator:
                         eos_id,
                     )
                     end = min(start + bs, total)
-                    batch_samples = [capped_dataset[i] for i in range(start, end)]
+                    batch_samples = [
+                        cast(dict[str, Any], capped_dataset[i])
+                        for i in range(start, end)
+                    ]
 
                     prepared = self._prepare_generation_batch(
                         batch_samples,
@@ -503,7 +512,7 @@ class GenerationEvaluator:
                     ) = prepared
 
                     try:
-                        outputs = model.generate(
+                        outputs = cast(Any, model).generate(
                             input_ids=input_ids,
                             attention_mask=attn,
                             **generate_kwargs,
@@ -660,14 +669,22 @@ class GenerationEvaluator:
                 bleu_metrics = self._bleu.compute(
                     predictions=predictions, references=cleaned_refs
                 )
-                bleu_score = bleu_metrics.get("bleu") or bleu_metrics.get("score")
+                bleu_score = (
+                    bleu_metrics.get("bleu") if isinstance(bleu_metrics, dict) else None
+                )
+                if bleu_score is None and isinstance(bleu_metrics, dict):
+                    bleu_score = bleu_metrics.get("score")
             except ZeroDivisionError:
                 logger.warning("BLEU computation failed (empty predictions), skipping.")
 
         chrf_metrics = self._chrf.compute(
             predictions=predictions, references=normalised_refs
         )
-        chrf_score = chrf_metrics.get("score") or chrf_metrics.get("chrf")
+        chrf_score = (
+            chrf_metrics.get("score") if isinstance(chrf_metrics, dict) else None
+        )
+        if chrf_score is None and isinstance(chrf_metrics, dict):
+            chrf_score = chrf_metrics.get("chrf")
 
         out: dict[str, float] = {}
         if rouge_metrics.get("rouge1") is not None:
