@@ -15,3 +15,11 @@ repos:
     hooks:
       - id: yamllint
         args: [--strict, -c=.yamllint]
+
+  - repo: local
+    hooks:
+      - id: ty-check
+        name: ty type check
+        entry: uv run ty check src/main/sallm --output-format github
+        language: system
+        pass_filenames: false
