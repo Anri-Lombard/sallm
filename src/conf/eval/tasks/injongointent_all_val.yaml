@@ -1,9 +1,4 @@
 tasks:
-  - sallm_injongointent_eng_val_prompt_1
-  - sallm_injongointent_eng_val_prompt_2
-  - sallm_injongointent_eng_val_prompt_3
-  - sallm_injongointent_eng_val_prompt_4
-  - sallm_injongointent_eng_val_prompt_5
   - sallm_injongointent_sot_val_prompt_1
   - sallm_injongointent_sot_val_prompt_2
   - sallm_injongointent_sot_val_prompt_3
