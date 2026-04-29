@@ -3,6 +3,26 @@ from __future__ import annotations
 import collections
 import re
 
+UPOS_TAGS = {
+    "ADJ",
+    "ADP",
+    "ADV",
+    "AUX",
+    "CCONJ",
+    "DET",
+    "INTJ",
+    "NOUN",
+    "NUM",
+    "PART",
+    "PRON",
+    "PROPN",
+    "PUNCT",
+    "SCONJ",
+    "SYM",
+    "VERB",
+    "X",
+}
+
 
 def compute_ner_span_f1(
     references: list[str],
@@ -13,6 +33,64 @@ def compute_ner_span_f1(
         for reference, prediction in zip(references, predictions, strict=False)
     ]
     return _span_f1_agg(items)
+
+
+def compute_ner_quality_metrics(
+    references: list[str],
+    predictions: list[str],
+) -> dict[str, float]:
+    if not references or not predictions:
+        return {
+            "parse_rate": 0.0,
+            "empty_prediction_rate": 0.0,
+            "empty_normalized_prediction_rate": 0.0,
+            "nonempty_gold_prediction_rate": 0.0,
+            "repetition_rate": 0.0,
+        }
+
+    records = [
+        build_ner_debug_record(reference, prediction)
+        for reference, prediction in zip(references, predictions, strict=False)
+    ]
+    count = len(records)
+    if count == 0:
+        return {
+            "parse_rate": 0.0,
+            "empty_prediction_rate": 0.0,
+            "empty_normalized_prediction_rate": 0.0,
+            "nonempty_gold_prediction_rate": 0.0,
+            "repetition_rate": 0.0,
+        }
+
+    nonempty_gold_records = [record for record in records if bool(record["gold_spans"])]
+    nonempty_gold_prediction_rate = 0.0
+    if nonempty_gold_records:
+        nonempty_gold_prediction_rate = sum(
+            1 for record in nonempty_gold_records if bool(record["predicted_spans"])
+        ) / len(nonempty_gold_records)
+
+    return {
+        "parse_rate": sum(
+            1
+            for record in records
+            if (not record["empty_prediction"] and not record["parse_failed"])
+            or (record["empty_prediction"] and not record["gold_spans"])
+        )
+        / count,
+        "empty_prediction_rate": sum(
+            1 for record in records if record["empty_prediction"]
+        )
+        / count,
+        "empty_normalized_prediction_rate": sum(
+            1 for record in records if record["empty_normalized_prediction"]
+        )
+        / count,
+        "nonempty_gold_prediction_rate": nonempty_gold_prediction_rate,
+        "repetition_rate": sum(
+            1 for prediction in predictions if _has_repetitive_generation(prediction)
+        )
+        / count,
+    }
 
 
 def build_ner_debug_record(reference: str, prediction: str) -> dict[str, object]:
@@ -80,6 +158,51 @@ def compute_pos_token_accuracy(
         scores.append(correct / len(ref_tags))
 
     return sum(scores) / len(scores) if scores else 0.0
+
+
+def compute_pos_quality_metrics(
+    references: list[str],
+    predictions: list[str],
+) -> dict[str, float]:
+    if not references or not predictions:
+        return {
+            "valid_tag_rate": 0.0,
+            "length_match_rate": 0.0,
+            "empty_prediction_rate": 0.0,
+            "repetition_rate": 0.0,
+        }
+
+    records = [
+        build_pos_debug_record(reference, prediction)
+        for reference, prediction in zip(references, predictions, strict=False)
+    ]
+    count = len(records)
+    if count == 0:
+        return {
+            "valid_tag_rate": 0.0,
+            "length_match_rate": 0.0,
+            "empty_prediction_rate": 0.0,
+            "repetition_rate": 0.0,
+        }
+
+    return {
+        "valid_tag_rate": sum(1 for record in records if not record["parse_failed"])
+        / count,
+        "length_match_rate": sum(
+            1
+            for record in records
+            if record["prediction_tag_count"] == record["reference_tag_count"]
+        )
+        / count,
+        "empty_prediction_rate": sum(
+            1 for record in records if record["empty_prediction"]
+        )
+        / count,
+        "repetition_rate": sum(
+            1 for prediction in predictions if _has_repetitive_generation(prediction)
+        )
+        / count,
+    }
 
 
 def build_pos_debug_record(reference: str, prediction: str) -> dict[str, object]:
@@ -213,4 +336,33 @@ def _extract_pos_tags(text: str, fallback: list[str] | None = None) -> list[str]
     tags = [pos for _, pos in re.findall(r"\('([^']*)', '([^']*)'\)", text)]
     if tags:
         return tags
+
+    normalized = re.sub(r"[\[\](),;:'\"`]+", " ", text.upper())
+    sequence_tags = [token for token in normalized.split() if token in UPOS_TAGS]
+    if sequence_tags:
+        return sequence_tags
+
     return list(fallback or [])
+
+
+def _has_repetitive_generation(text: str) -> bool:
+    tokens = text.strip().split()
+    if len(tokens) < 6:
+        return False
+
+    run_length = 1
+    previous = tokens[0]
+    for token in tokens[1:]:
+        if token == previous:
+            run_length += 1
+            if run_length >= 5:
+                return True
+        else:
+            previous = token
+            run_length = 1
+
+    bigrams = list(zip(tokens, tokens[1:], strict=False))
+    if len(bigrams) < 6:
+        return False
+    repeated_bigrams = collections.Counter(bigrams)
+    return any(count >= 4 for count in repeated_bigrams.values())
