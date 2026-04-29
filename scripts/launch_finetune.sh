@@ -7,6 +7,9 @@
 #SBATCH --mail-type=FAIL,END
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" && -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/scripts/lib/env.sh" ]]; then
+  SCRIPT_DIR="$SLURM_SUBMIT_DIR/scripts"
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 
