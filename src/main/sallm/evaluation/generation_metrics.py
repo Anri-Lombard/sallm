@@ -25,7 +25,9 @@ from sallm.config import (
 from sallm.evaluation.task_metrics import (
     build_ner_debug_record,
     build_pos_debug_record,
+    compute_ner_quality_metrics,
     compute_ner_span_f1,
+    compute_pos_quality_metrics,
     compute_pos_token_accuracy,
 )
 
@@ -698,14 +700,28 @@ class GenerationEvaluator:
         if chrf_score is not None:
             out["chrf"] = float(chrf_score)
         if self.task_type == FinetuneTaskType.NAMED_ENTITY_RECOGNITION:
+            task_references = [refs[0] if refs else "" for refs in cleaned_refs]
             out["f1"] = compute_ner_span_f1(
-                references=[refs[0] if refs else "" for refs in cleaned_refs],
+                references=task_references,
                 predictions=predictions,
             )
+            out.update(
+                compute_ner_quality_metrics(
+                    references=task_references,
+                    predictions=predictions,
+                )
+            )
         elif self.task_type == FinetuneTaskType.POS_TAGGING:
+            task_references = [refs[0] if refs else "" for refs in cleaned_refs]
             out["token_accuracy"] = compute_pos_token_accuracy(
-                references=[refs[0] if refs else "" for refs in cleaned_refs],
+                references=task_references,
                 predictions=predictions,
+            )
+            out.update(
+                compute_pos_quality_metrics(
+                    references=task_references,
+                    predictions=predictions,
+                )
             )
         return out
 
