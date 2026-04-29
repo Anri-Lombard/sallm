@@ -7,8 +7,14 @@
 #SBATCH --mail-type=FAIL,END
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" && -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/scripts/lib/env.sh" ]]; then
+  SCRIPT_DIR="$SLURM_SUBMIT_DIR/scripts"
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
+if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/pyproject.toml" ]]; then
+  export SALLM_REPO_DIR="$SLURM_SUBMIT_DIR"
+fi
 
 CONFIG_NAME="$1"
 if [ -z "$CONFIG_NAME" ]; then
