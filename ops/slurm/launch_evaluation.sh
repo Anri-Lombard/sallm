@@ -7,9 +7,6 @@
 #SBATCH --mail-type=FAIL,END
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/lib/env.sh" && -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/scripts/lib/env.sh" ]]; then
-  SCRIPT_DIR="$SLURM_SUBMIT_DIR/scripts"
-fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/pyproject.toml" ]]; then
@@ -18,13 +15,14 @@ fi
 
 CONFIG_NAME="$1"
 if [ -z "$CONFIG_NAME" ]; then
-    echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1
+  echo "Usage: sbatch $0 <config_name_without_yaml>"
+  exit 1
 fi
 shift || true
 EXTRA_ARGS=("$@")
 
 if [[ "$CONFIG_NAME" != */* ]]; then
-    CONFIG_NAME="eval/$CONFIG_NAME"
+  CONFIG_NAME="eval/$CONFIG_NAME"
 fi
 
 CFG_NAME="${CONFIG_NAME##*/}"
@@ -80,33 +78,33 @@ IS_XLSTM=false
 [[ "$CONFIG_NAME" == *xlstm* ]] && IS_XLSTM=true
 
 if $IS_MAMBA; then
-    if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
-        echo "✓ Mamba fast path (CUDA kernels) available"
-    else
-        echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-        uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
-        uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
-        if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
-            echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl causes OOM)."
-            exit 1
-        fi
-        echo "✓ Mamba fast path (CUDA kernels) available"
+  if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
+    echo "✓ Mamba fast path (CUDA kernels) available"
+  else
+    echo "Mamba kernels missing or ABI mismatch, rebuilding..."
+    uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
+    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
+    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
+      echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl causes OOM)."
+      exit 1
     fi
-    export MAMBA_SCAN_IMPL="cuda"
+    echo "✓ Mamba fast path (CUDA kernels) available"
+  fi
+  export MAMBA_SCAN_IMPL="cuda"
 fi
 
 if $IS_XLSTM; then
+  if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
+    echo "✓ xLSTM fast path (NX-AI kernels) available"
+  else
+    echo "Installing xlstm package..."
+    uv pip install xlstm 2>&1 | tail -5 || true
     if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
-        echo "✓ xLSTM fast path (NX-AI kernels) available"
+      echo "✓ xLSTM fast path (NX-AI kernels) available"
     else
-        echo "Installing xlstm package..."
-        uv pip install xlstm 2>&1 | tail -5 || true
-        if python -c "from transformers.utils import is_xlstm_available; assert is_xlstm_available()" 2>/dev/null; then
-            echo "✓ xLSTM fast path (NX-AI kernels) available"
-        else
-            echo "ℹ Using xLSTM native implementation"
-        fi
+      echo "ℹ Using xLSTM native implementation"
     fi
+  fi
 fi
 echo "-------------------------------"
 

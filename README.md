@@ -57,7 +57,8 @@ The `main` branch is actively maintained and may differ from the paper snapshot.
 - `src/main/sallm`: Python package for training, fine-tuning, and evaluation.
 - `src/conf`: Hydra configs for model, data, fine-tuning, evaluation, and HPO.
 - `recipes/registry.yaml`: public recipe IDs mapped to known configs.
-- `scripts`: advanced SLURM and cluster compatibility workflows.
+- `ops/slurm`: advanced SLURM workflows for cluster execution.
+- `scripts`: local Python utilities.
 - `tokenizer`: tokenizer training and processing utilities.
 - `data`: dataset preparation and cleaning utilities.
 
