@@ -16,6 +16,12 @@ repos:
       - id: yamllint
         args: [--strict, -c=.yamllint]
 
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.18.1
+    hooks:
+      - id: markdownlint-cli2
+        exclude: ^docs/(hpo_mamba_sweeps_last_14_days|masakhaner-x-issue)\.md$
+
   - repo: local
     hooks:
       - id: ty-check
