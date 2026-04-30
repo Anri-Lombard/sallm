@@ -7,13 +7,17 @@
 #SBATCH --mail-type=FAIL,END
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/lib/env.sh" && -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/scripts/lib/env.sh" ]]; then
-  SCRIPT_DIR="$SLURM_SUBMIT_DIR/scripts"
-fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
+if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/pyproject.toml" ]]; then
+  export SALLM_REPO_DIR="$SLURM_SUBMIT_DIR"
+fi
 
-CFG="$1"; [[ -z "$CFG" ]] && { echo "Usage: sbatch $0 <config_name_without_yaml>"; exit 1; }
+CFG="$1"
+[[ -z "$CFG" ]] && {
+  echo "Usage: sbatch $0 <config_name_without_yaml>"
+  exit 1
+}
 shift || true
 EXTRA_ARGS=("$@")
 
@@ -69,16 +73,16 @@ source .venv/bin/activate
 # Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
 echo "--- Mamba CUDA kernel status ---"
 if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-    echo "✓ Mamba fast path (CUDA kernels) available"
+  echo "✓ Mamba fast path (CUDA kernels) available"
 else
-    echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-    uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
-    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
-    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-        echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl is too slow)."
-        exit 1
-    fi
-    echo "✓ Mamba fast path (CUDA kernels) available"
+  echo "Mamba kernels missing or ABI mismatch, rebuilding..."
+  uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
+  uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
+  if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+    echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl is too slow)."
+    exit 1
+  fi
+  echo "✓ Mamba fast path (CUDA kernels) available"
 fi
 export MAMBA_SCAN_IMPL="cuda"
 echo "-------------------------------"
@@ -92,11 +96,11 @@ echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICE
 # Determine number of processes to launch based on available GPUs
 NUM_PROCS="${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-}}"
 if [[ -z "$NUM_PROCS" || "$NUM_PROCS" -le 0 ]]; then
-	if command -v nvidia-smi >/dev/null 2>&1; then
-		NUM_PROCS=$(nvidia-smi -L | wc -l | tr -d ' ')
-	else
-		NUM_PROCS=1
-	fi
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    NUM_PROCS=$(nvidia-smi -L | wc -l | tr -d ' ')
+  else
+    NUM_PROCS=1
+  fi
 fi
 
 # Use dynamic port based on job ID to avoid conflicts when multiple jobs run on same node
@@ -104,9 +108,9 @@ MASTER_PORT=$((29500 + (${SLURM_JOB_ID:-0} % 1000)))
 
 # pass explicit accelerate options to avoid its default-warning messages
 accelerate launch \
-	--num_processes "$NUM_PROCS" \
-	--num_machines 1 \
-	--mixed_precision bf16 \
-	--dynamo_backend no \
-	--main_process_port "$MASTER_PORT" \
-	-m sallm.main --config-name "$CFG" "${EXTRA_ARGS[@]}"
+  --num_processes "$NUM_PROCS" \
+  --num_machines 1 \
+  --mixed_precision bf16 \
+  --dynamo_backend no \
+  --main_process_port "$MASTER_PORT" \
+  -m sallm.main --config-name "$CFG" "${EXTRA_ARGS[@]}"
