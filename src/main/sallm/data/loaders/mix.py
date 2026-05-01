@@ -8,7 +8,6 @@ from typing import Any
 import yaml
 from datasets import (
     Dataset,
-    DatasetDict,
     concatenate_datasets,
 )
 from torch.utils.data import Dataset as TorchDataset
@@ -20,10 +19,8 @@ from sallm.config import (
     TemplateChoice,
     TemplateRef,
 )
-from sallm.data.afrihg import load_afrihg_from_github
-from sallm.data.loaders.huggingface import apply_language_filters, load_hf_dataset
+from sallm.data.adapters.registry import load_raw_dataset
 from sallm.data.multitask import TaskComponent, WeightedMultiTaskDataset
-from sallm.data.t2x import load_t2x_from_github
 from sallm.data.transforms.template_strategies import apply_templates
 
 logger = logging.getLogger(__name__)
@@ -107,34 +104,7 @@ def _component_to_config(
 
 def _load_component_raw(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset]:
     """Load raw train/val datasets for a mix component."""
-    if isinstance(comp_cfg.hf_name, str) and comp_cfg.hf_name.startswith("github:"):
-        gh_ref = comp_cfg.hf_name[len("github:") :]
-        if "francois-meyer/t2x" in gh_ref or gh_ref.strip().endswith("/t2x"):
-            ds_from_github = load_t2x_from_github()
-        else:
-            ds_from_github = load_afrihg_from_github(languages=comp_cfg.languages)
-
-        if isinstance(ds_from_github, DatasetDict):
-            tr = (
-                ds_from_github["train"]
-                if "train" in ds_from_github
-                else ds_from_github[next(iter(ds_from_github.keys()))]
-            )
-            if "validation" in ds_from_github:
-                va = ds_from_github["validation"]
-            elif "dev" in ds_from_github:
-                va = ds_from_github["dev"]
-            elif "test" in ds_from_github:
-                va = ds_from_github["test"]
-            else:
-                va = tr
-        else:
-            tr = ds_from_github
-            va = ds_from_github
-        return tr, va
-
-    tr, va, needs_filter = load_hf_dataset(comp_cfg)
-    return apply_language_filters(tr, va, comp_cfg, needs_filter)
+    return load_raw_dataset(comp_cfg)
 
 
 class _CfgWrapper:
