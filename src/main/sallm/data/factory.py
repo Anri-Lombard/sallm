@@ -16,9 +16,8 @@ from sallm.config import (
     RunMode,
     TemplateChoice,
 )
+from sallm.data.adapters.registry import load_raw_dataset
 from sallm.data.loaders.disk import load_pretrain_datasets
-from sallm.data.loaders.github import load_from_github
-from sallm.data.loaders.huggingface import apply_language_filters, load_hf_dataset
 from sallm.data.loaders.mix import load_mix_dataset
 from sallm.data.transforms.template_strategies import apply_templates
 
@@ -89,22 +88,7 @@ def _build_finetune_datasets(
     if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("mix:"):
         return load_mix_dataset(config)
 
-    # Handle GitHub-sourced datasets
-    if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("github:"):
-        train_raw, val_raw = load_from_github(ds_cfg)
-        train_ds = build_conversation_dataset(train_raw, config)
-        val_ds = build_conversation_dataset(
-            val_raw,
-            config,
-            template_choice_override=resolve_eval_template_choice(ds_cfg),
-        )
-        return train_ds, val_ds, None
-
-    # Handle HuggingFace datasets
-    train_raw, val_raw, needs_filter = load_hf_dataset(ds_cfg)
-    train_raw, val_raw = apply_language_filters(
-        train_raw, val_raw, ds_cfg, needs_filter
-    )
+    train_raw, val_raw = load_raw_dataset(ds_cfg)
     train_ds = build_conversation_dataset(train_raw, config)
     val_ds = build_conversation_dataset(
         val_raw,
