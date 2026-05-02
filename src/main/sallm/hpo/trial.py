@@ -5,12 +5,15 @@ from pathlib import Path
 from typing import Any
 
 import wandb
+from hydra import compose, initialize_config_dir
+from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, OmegaConf, open_dict
 
 from sallm.config import ExperimentConfig, to_resolved_dict
 from sallm.fine_tune.run import run as run_finetune
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
+_CONF_ROOT = _REPO_ROOT / "src" / "conf"
 _TOKENIZER_SUBDIR = Path("tokenizer") / "sallm_bpe_tokenizer"
 
 
@@ -29,19 +32,70 @@ def _normalize_base_config_path(base_config: str) -> str:
 
 def _candidate_base_config_paths(base_config: str) -> list[Path]:
     normalized = _normalize_base_config_path(base_config)
-    return [Path(normalized), _REPO_ROOT / "src" / "conf" / normalized]
+    return [Path(normalized), _CONF_ROOT / normalized]
+
+
+def _config_target_from_conf_path(path: Path) -> str | None:
+    try:
+        relative_path = path.resolve().relative_to(_CONF_ROOT.resolve())
+    except ValueError:
+        return None
+    return str(relative_path.with_suffix(""))
+
+
+def _unwrap_config_group(cfg: DictConfig) -> DictConfig:
+    keys_in_cfg = list(cfg.keys())
+    if (
+        len(keys_in_cfg) == 1
+        and keys_in_cfg[0] not in ExperimentConfig.__dataclass_fields__
+    ):
+        unwrapped = cfg[keys_in_cfg[0]]
+        if not isinstance(unwrapped, DictConfig):
+            raise TypeError("Base config group must resolve to a mapping.")
+        return unwrapped
+    return cfg
+
+
+def _merge_experiment_config(cfg: DictConfig) -> DictConfig:
+    schema = OmegaConf.structured(ExperimentConfig)
+    merged = OmegaConf.merge(schema, _unwrap_config_group(cfg))
+    if not isinstance(merged, DictConfig):
+        raise TypeError("Base config must resolve to a mapping.")
+    return merged
+
+
+def _load_hydra_config_target(base_config: str) -> DictConfig | None:
+    config_target = None
+    for path in _candidate_base_config_paths(base_config):
+        if not path.is_file():
+            continue
+        config_target = _config_target_from_conf_path(path)
+        if config_target is not None:
+            break
+
+    if config_target is None:
+        return None
+
+    GlobalHydra.instance().clear()
+    with initialize_config_dir(config_dir=str(_CONF_ROOT), version_base=None):
+        cfg = compose(config_name=config_target)
+    if not isinstance(cfg, DictConfig):
+        raise TypeError("Base config must resolve to a mapping.")
+    return _merge_experiment_config(cfg)
 
 
 def load_base_config(base_config: str) -> DictConfig:
     _register_env_resolver()
+    hydra_cfg = _load_hydra_config_target(base_config)
+    if hydra_cfg is not None:
+        return hydra_cfg
+
     for path in _candidate_base_config_paths(base_config):
         if path.is_file():
             cfg = OmegaConf.load(path)
-            schema = OmegaConf.structured(ExperimentConfig)
-            merged = OmegaConf.merge(schema, cfg)
-            if not isinstance(merged, DictConfig):
+            if not isinstance(cfg, DictConfig):
                 raise TypeError("Base config must resolve to a mapping.")
-            return merged
+            return _merge_experiment_config(cfg)
     raise FileNotFoundError(base_config)
 
 

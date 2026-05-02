@@ -5,6 +5,7 @@ import sallm.configs as domain_config
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import OmegaConf
+from sallm.hpo.trial import load_base_config
 
 CONF_ROOT = Path(__file__).resolve().parents[1] / "src" / "conf"
 
@@ -160,3 +161,30 @@ def test_representative_eval_configs_share_run_defaults() -> None:
         assert merged.wandb.name == expected["wandb_name"]
         assert merged.training is None
         assert merged.dataset is None
+
+
+def test_hpo_base_config_loader_composes_hydra_defaults() -> None:
+    cfg = load_base_config("finetune/xlstm_sib_xho")
+
+    assert cfg.mode == domain_config.RunMode.FINETUNE
+    assert cfg.model.architecture == "xlstm"
+    assert cfg.dataset.hf_name == "Davlan/sib200"
+    assert cfg.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
+    assert cfg.dataset.subset == "xho_Latn"
+    assert cfg.dataset.max_seq_length == 1024
+    assert [template.id for template in cfg.dataset.templates] == [
+        "sib_topic_classification/lm_eval_p1",
+        "sib_topic_classification/lm_eval_p2",
+        "sib_topic_classification/lm_eval_p3",
+        "sib_topic_classification/lm_eval_p4",
+        "sib_topic_classification/lm_eval_p5",
+    ]
+
+
+def test_hpo_base_config_loader_accepts_conf_file_paths() -> None:
+    cfg = load_base_config("src/conf/finetune/xlstm_sib_xho.yaml")
+
+    assert cfg.mode == domain_config.RunMode.FINETUNE
+    assert cfg.model.architecture == "xlstm"
+    assert cfg.dataset.hf_name == "Davlan/sib200"
+    assert cfg.dataset.subset == "xho_Latn"
