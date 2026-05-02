@@ -1,0 +1,17 @@
+mode: EVALUATE
+
+eval_model:
+  adapter: hf
+  dtype: bfloat16
+  device: cuda:0
+
+wandb:
+  project: sallm-eval
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

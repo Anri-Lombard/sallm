@@ -72,6 +72,10 @@ Keep run behavior in the config files:
 - `src/conf/datasets`: dataset config.
 - `src/conf/tokenizers`: tokenizer config.
 
+Some config groups use Hydra defaults files for shared boilerplate. Leaf configs
+still own run-specific values such as checkpoints, task packs, output paths,
+recipe targets, and hyperparameters.
+
 ## Evaluation Task Packs
 
 Evaluation configs may use `evaluation.task_packs` to run `lm-eval` task

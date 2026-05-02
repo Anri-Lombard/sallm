@@ -1,10 +1,9 @@
-mode: EVALUATE
+defaults:
+  - defaults/run@_here_
+  - _self_
 
 eval_model:
   checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all/final_merged_model"
-  adapter: "hf"
-  dtype: "bfloat16"
-  device: "cuda:0"
   merge_lora: false
 
 evaluation:
@@ -12,13 +11,4 @@ evaluation:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_sib_xho"
 
 wandb:
-  project: "sallm-eval"
   name: "eval-ft-llama-125m-sib-xho"
-
-model: null
-data: null
-tokenizer: null
-training: null
-dataset: null
-peft: null
-template: null
