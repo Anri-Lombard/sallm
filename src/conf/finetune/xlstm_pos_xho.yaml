@@ -1,25 +1,9 @@
+defaults:
+  - defaults/datasets/masakhapos@_here_
+  - _self_
 dataset:
-  assistant_only_loss: true
-  hf_name: masakhane/masakhapos
   max_seq_length: 2048
-  packing: false
-  splits:
-    train: train
-    val: validation
   subset: xho
-  task: POS_TAGGING
-  template_choice: CYCLE
-  templates:
-    - id: masakhane_pos_tagging/lm_eval_p1
-      weight: 1.0
-    - id: masakhane_pos_tagging/lm_eval_p2
-      weight: 1.0
-    - id: masakhane_pos_tagging/lm_eval_p3
-      weight: 1.0
-    - id: masakhane_pos_tagging/lm_eval_p4
-      weight: 1.0
-    - id: masakhane_pos_tagging/lm_eval_p5
-      weight: 1.0
 hub:
   enabled: true
   organization: anrilombard
