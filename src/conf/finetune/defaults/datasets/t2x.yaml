@@ -1,0 +1,12 @@
+dataset:
+  hf_name: github:francois-meyer/t2x
+  task: INSTRUCTION
+  splits:
+    train: train
+    val: validation
+  templates:
+    - id: t2x_verbalisation/v1
+      weight: 1
+  template_choice: CYCLE
+  packing: false
+  assistant_only_loss: true

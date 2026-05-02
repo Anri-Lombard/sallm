@@ -1,3 +1,6 @@
+defaults:
+  - defaults/datasets/afrihg@_here_
+  - _self_
 mode: FINETUNE
 wandb:
   project: sallm-ft
@@ -18,18 +21,7 @@ peft:
       - out_proj
       - embeddings
 dataset:
-  hf_name: github:dadelani/AfriHG
   subset: zul
-  splits:
-    train: train
-    val: validation
-  task: INSTRUCTION
-  templates:
-    - id: afrihg_headline/v1
-      weight: 1
-  template_choice: CYCLE
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 1024
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer

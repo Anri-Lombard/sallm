@@ -1,3 +1,6 @@
+defaults:
+  - defaults/datasets/masakhanews@_here_
+  - _self_
 mode: FINETUNE
 wandb:
   project: sallm-ft
@@ -15,30 +18,10 @@ peft:
       - in_proj
       - x_proj
 dataset:
-  hf_name: masakhane/masakhanews
   subset: null
   languages:
     - eng
     - xho
-  splits:
-    train: train
-    val: validation
-  templates:
-    - id: masakhane_news_classification/lm_eval_p1
-      weight: 1.0
-    - id: masakhane_news_classification/lm_eval_p2
-      weight: 1.0
-    - id: masakhane_news_classification/lm_eval_p3
-      weight: 1.0
-    - id: masakhane_news_classification/lm_eval_p4
-      weight: 1.0
-    - id: masakhane_news_classification/lm_eval_p5
-      weight: 1.0
-  template_choice: CYCLE
-  label_column: category
-  task: CLASSIFICATION
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 2048
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer

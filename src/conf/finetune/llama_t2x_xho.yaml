@@ -1,3 +1,6 @@
+defaults:
+  - defaults/datasets/t2x@_here_
+  - _self_
 mode: FINETUNE
 wandb:
   project: sallm-ft
@@ -12,18 +15,7 @@ peft:
     lora_alpha: 32
     lora_dropout: 0.05
 dataset:
-  hf_name: github:francois-meyer/t2x
   subset: xho
-  splits:
-    train: train
-    val: validation
-  task: INSTRUCTION
-  templates:
-    - id: t2x_verbalisation/v1
-      weight: 1
-  template_choice: CYCLE
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 1024
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer

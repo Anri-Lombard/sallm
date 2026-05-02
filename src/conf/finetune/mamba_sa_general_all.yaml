@@ -1,3 +1,6 @@
+defaults:
+  - defaults/datasets/sa_general@_here_
+  - _self_
 mode: FINETUNE
 wandb:
   project: sallm-ft
@@ -15,17 +18,8 @@ peft:
       - in_proj
       - x_proj
 dataset:
-  hf_name: mix:sa_general
   subset: null
   languages: null
-  task: INSTRUCTION
-  splits:
-    train: train
-    val: validation
-  templates: []
-  template_choice: CYCLE
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 1024
   mix_weights:
     sib: 1.0

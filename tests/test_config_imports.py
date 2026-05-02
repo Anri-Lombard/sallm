@@ -2,6 +2,7 @@ from pathlib import Path
 
 import sallm.config as legacy_config
 import sallm.configs as domain_config
+import yaml
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import OmegaConf
@@ -247,6 +248,117 @@ def test_representative_masakhapos_finetune_configs_share_dataset_defaults() -> 
         assert merged.dataset.subset == expected["subset"]
         assert merged.dataset.languages == expected["languages"]
         assert merged.dataset.max_seq_length == expected["max_seq_length"]
+
+
+def test_representative_masakhanews_finetune_configs_share_dataset_defaults() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    expected_configs = {
+        "finetune/llama_news_xho": {
+            "architecture": "llama",
+            "subset": "xho",
+            "languages": None,
+            "max_seq_length": 2048,
+        },
+        "finetune/mamba_news_eng": {
+            "architecture": "mamba2",
+            "subset": "eng",
+            "languages": None,
+            "max_seq_length": 1024,
+        },
+        "finetune/xlstm_news_all": {
+            "architecture": "xlstm",
+            "subset": None,
+            "languages": ["eng", "xho"],
+            "max_seq_length": 1024,
+        },
+    }
+
+    for config_target, expected in expected_configs.items():
+        raw_cfg = compose_config_target(config_target)
+        merged = OmegaConf.merge(schema, raw_cfg)
+
+        assert merged.mode == domain_config.RunMode.FINETUNE
+        assert merged.model.architecture == expected["architecture"]
+        assert merged.dataset.hf_name == "masakhane/masakhanews"
+        assert merged.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
+        assert merged.dataset.splits == {"train": "train", "val": "validation"}
+        assert [template.id for template in merged.dataset.templates] == [
+            "masakhane_news_classification/lm_eval_p1",
+            "masakhane_news_classification/lm_eval_p2",
+            "masakhane_news_classification/lm_eval_p3",
+            "masakhane_news_classification/lm_eval_p4",
+            "masakhane_news_classification/lm_eval_p5",
+        ]
+        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
+        assert merged.dataset.label_column == "category"
+        assert merged.dataset.packing is False
+        assert merged.dataset.assistant_only_loss is True
+        assert merged.dataset.subset == expected["subset"]
+        assert merged.dataset.languages == expected["languages"]
+        assert merged.dataset.max_seq_length == expected["max_seq_length"]
+
+
+def test_representative_instruction_finetune_configs_share_dataset_defaults() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    expected_configs = {
+        "finetune/mamba_afrihg_xho": {
+            "architecture": "mamba2",
+            "hf_name": "github:dadelani/AfriHG",
+            "subset": "xho",
+            "max_seq_length": 1024,
+            "templates": ["afrihg_headline/v1"],
+        },
+        "finetune/mamba_t2x_xho": {
+            "architecture": "mamba2",
+            "hf_name": "github:francois-meyer/t2x",
+            "subset": "xho",
+            "max_seq_length": 2048,
+            "templates": ["t2x_verbalisation/v1"],
+        },
+        "finetune/llama_sa_general_all_v2": {
+            "architecture": "llama",
+            "hf_name": "mix:sa_general",
+            "subset": None,
+            "max_seq_length": 2048,
+            "templates": [],
+        },
+    }
+
+    for config_target, expected in expected_configs.items():
+        raw_cfg = compose_config_target(config_target)
+        merged = OmegaConf.merge(schema, raw_cfg)
+
+        assert merged.mode == domain_config.RunMode.FINETUNE
+        assert merged.model.architecture == expected["architecture"]
+        assert merged.dataset.hf_name == expected["hf_name"]
+        assert merged.dataset.task == domain_config.FinetuneTaskType.INSTRUCTION
+        assert merged.dataset.splits == {"train": "train", "val": "validation"}
+        assert [template.id for template in merged.dataset.templates] == expected[
+            "templates"
+        ]
+        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
+        assert merged.dataset.packing is False
+        assert merged.dataset.assistant_only_loss is True
+        assert merged.dataset.subset == expected["subset"]
+        assert merged.dataset.max_seq_length == expected["max_seq_length"]
+
+
+def test_sweep_base_configs_resolve() -> None:
+    checked = 0
+    for path in sorted((CONF_ROOT / "sweeps").glob("*.yaml")):
+        data = yaml.safe_load(path.read_text()) or {}
+        command = data.get("command") or []
+        if "--base-config" not in command:
+            continue
+
+        base_config = command[command.index("--base-config") + 1]
+        cfg = load_base_config(base_config)
+
+        assert cfg.mode == domain_config.RunMode.FINETUNE
+        assert cfg.dataset is not None
+        checked += 1
+
+    assert checked == 59
 
 
 def test_experiment_schema_merges_representative_eval_config() -> None:
