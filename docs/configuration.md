@@ -72,12 +72,30 @@ Keep run behavior in the config files:
 - `src/conf/datasets`: dataset config.
 - `src/conf/tokenizers`: tokenizer config.
 
+## Evaluation Task Packs
+
+Evaluation configs may use `evaluation.task_packs` to run `lm-eval` task
+groups. Final evaluation packs live under `src/conf/eval/tasks`. Validation
+packs used for reranking live under `src/conf/rerank/tasks`.
+
+Repo-controlled `lm-eval` task YAML directories live under
+`src/conf/eval/lm_eval_tasks` and `src/conf/rerank/lm_eval_tasks`. Task packs
+include those directories through `task_manager_kwargs.include_path`; existing
+packs that still use `lm_eval_kwargs.include_path` are treated the same way.
+Include paths are repo-relative and passed to `lm-eval` directly.
+
 ## Checking Config Changes
 
 For recipe-facing config changes, run:
 
 ```bash
 uv run pytest tests/test_cli.py tests/test_recipes.py
+```
+
+For evaluation task-pack changes, run a focused test pass:
+
+```bash
+uv run pytest tests/test_lm_eval_integration.py
 ```
 
 For a launch preview, prefer a recipe dry-run when the config is registered:

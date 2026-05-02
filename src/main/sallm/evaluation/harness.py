@@ -536,11 +536,13 @@ def run_generation_task(
                 }
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
+    summary_path = out_dir / "summary.json"
     summary = {
+        "type": "generation",
         "task": task_cfg.id,
         "metrics": result.metrics,
+        "result_path": str(summary_path),
     }
-    summary_path = out_dir / "summary.json"
     with summary_path.open("w") as handle:
         json.dump(summary, handle, indent=2)
 
