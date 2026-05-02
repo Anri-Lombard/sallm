@@ -1,0 +1,12 @@
+dataset:
+  hf_name: github:dadelani/AfriHG
+  task: INSTRUCTION
+  splits:
+    train: train
+    val: validation
+  templates:
+    - id: afrihg_headline/v1
+      weight: 1
+  template_choice: CYCLE
+  packing: false
+  assistant_only_loss: true

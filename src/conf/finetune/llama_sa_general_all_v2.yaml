@@ -1,25 +1,22 @@
+defaults:
+  - defaults/datasets/sa_general@_here_
+  - _self_
 mode: FINETUNE
-
-wandb: {project: "sallm-ft", name: "llama-125m-sa-general-all_v2"}
-
+wandb:
+  project: sallm-ft
+  name: llama-125m-sa-general-all_v2
 model:
-  architecture: "llama"
-  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
-
+  architecture: llama
+  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
 peft:
-  method: "lora"
-  kwargs: {r: 16, lora_alpha: 32, lora_dropout: 0.0}
-
+  method: lora
+  kwargs:
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0.0
 dataset:
-  hf_name: "mix:sa_general"
   subset: null
   languages: null
-  task: INSTRUCTION
-  splits: {train: "train", val: "validation"}
-  templates: []
-  template_choice: CYCLE
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 2048
   mix_weights:
     sib: 3.0
@@ -29,19 +26,18 @@ dataset:
     afrihg: 0.6
     t2x: 0.8
   mix_temperature: 0.3
-  mix_epoch_size: "sum"
+  mix_epoch_size: sum
   mix_min_prob: 0.02
   mix_max_prob: 0.6
-
-tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
-
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all_v2"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sa_general_all_v2"
-  run_name: "llama-125m-sa-general-all_v2"
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all_v2
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sa_general_all_v2
+  run_name: llama-125m-sa-general-all_v2
   learning_rate: 1.5685964815188856e-05
   adam_beta2: 0.95
-  lr_scheduler_type: "linear"
+  lr_scheduler_type: linear
   warmup_ratio: 0.0
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 2
@@ -52,13 +48,12 @@ training:
   bf16: true
   gradient_checkpointing: false
   logging_steps: 10
-  eval_strategy: "epoch"
-  save_strategy: "no"
+  eval_strategy: epoch
+  save_strategy: 'no'
   dataloader_num_workers: 8
   eval_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: wandb
   ddp_find_unused_parameters: false
-
 hub:
   enabled: true
   organization: anrilombard

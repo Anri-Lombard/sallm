@@ -1,0 +1,10 @@
+dataset:
+  hf_name: mix:sa_general
+  task: INSTRUCTION
+  splits:
+    train: train
+    val: validation
+  templates: []
+  template_choice: CYCLE
+  packing: false
+  assistant_only_loss: true

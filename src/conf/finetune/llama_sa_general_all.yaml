@@ -1,3 +1,6 @@
+defaults:
+  - defaults/datasets/sa_general@_here_
+  - _self_
 mode: FINETUNE
 wandb:
   project: sallm-ft
@@ -12,17 +15,8 @@ peft:
     lora_alpha: 32
     lora_dropout: 0
 dataset:
-  hf_name: mix:sa_general
   subset: null
   languages: null
-  task: INSTRUCTION
-  splits:
-    train: train
-    val: validation
-  templates: []
-  template_choice: CYCLE
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 2048
   mix_weights:
     sib: 1.0
