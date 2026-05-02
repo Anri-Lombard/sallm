@@ -1,26 +1,9 @@
+defaults:
+  - defaults/datasets/sib@_here_
+  - _self_
 dataset:
-  assistant_only_loss: true
-  hf_name: Davlan/sib200
-  label_column: category
   max_seq_length: 1024
-  packing: false
-  splits:
-    train: train
-    val: validation
   subset: eng_Latn
-  task: CLASSIFICATION
-  template_choice: CYCLE
-  templates:
-    - id: sib_topic_classification/lm_eval_p1
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p2
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p3
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p4
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p5
-      weight: 1.0
 hub:
   enabled: true
   organization: anrilombard
