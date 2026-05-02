@@ -155,6 +155,100 @@ def test_representative_injongointent_finetune_configs_share_dataset_defaults() 
         assert merged.dataset.max_seq_length == expected["max_seq_length"]
 
 
+def test_representative_masakhaner_finetune_configs_share_dataset_defaults() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    expected_configs = {
+        "finetune/llama_ner_xho": {
+            "architecture": "llama",
+            "subset": "xho",
+            "languages": None,
+        },
+        "finetune/mamba_ner_xho": {
+            "architecture": "mamba2",
+            "subset": None,
+            "languages": ["xho"],
+        },
+        "finetune/xlstm_ner_all": {
+            "architecture": "xlstm",
+            "subset": None,
+            "languages": ["tsn", "xho", "zul"],
+        },
+    }
+
+    for config_target, expected in expected_configs.items():
+        raw_cfg = compose_config_target(config_target)
+        merged = OmegaConf.merge(schema, raw_cfg)
+
+        assert merged.mode == domain_config.RunMode.FINETUNE
+        assert merged.model.architecture == expected["architecture"]
+        assert merged.dataset.hf_name == "masakhane/masakhaner2"
+        assert (
+            merged.dataset.task
+            == domain_config.FinetuneTaskType.NAMED_ENTITY_RECOGNITION
+        )
+        assert merged.dataset.splits == {"train": "train", "val": "validation"}
+        assert [template.id for template in merged.dataset.templates] == [
+            "masakhane_named_entity_recognition/lm_eval_p1",
+            "masakhane_named_entity_recognition/lm_eval_p2",
+            "masakhane_named_entity_recognition/lm_eval_p3",
+            "masakhane_named_entity_recognition/lm_eval_p4",
+            "masakhane_named_entity_recognition/lm_eval_p5",
+        ]
+        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
+        assert merged.dataset.packing is False
+        assert merged.dataset.assistant_only_loss is True
+        assert merged.dataset.subset == expected["subset"]
+        assert merged.dataset.languages == expected["languages"]
+        assert merged.dataset.max_seq_length == 2048
+
+
+def test_representative_masakhapos_finetune_configs_share_dataset_defaults() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    expected_configs = {
+        "finetune/llama_pos_xho": {
+            "architecture": "llama",
+            "subset": "xho",
+            "languages": None,
+            "max_seq_length": 2048,
+        },
+        "finetune/mamba_pos_xho": {
+            "architecture": "mamba2",
+            "subset": "xho",
+            "languages": None,
+            "max_seq_length": 1024,
+        },
+        "finetune/xlstm_pos_all": {
+            "architecture": "xlstm",
+            "subset": None,
+            "languages": ["tsn", "xho", "zul"],
+            "max_seq_length": 2048,
+        },
+    }
+
+    for config_target, expected in expected_configs.items():
+        raw_cfg = compose_config_target(config_target)
+        merged = OmegaConf.merge(schema, raw_cfg)
+
+        assert merged.mode == domain_config.RunMode.FINETUNE
+        assert merged.model.architecture == expected["architecture"]
+        assert merged.dataset.hf_name == "masakhane/masakhapos"
+        assert merged.dataset.task == domain_config.FinetuneTaskType.POS_TAGGING
+        assert merged.dataset.splits == {"train": "train", "val": "validation"}
+        assert [template.id for template in merged.dataset.templates] == [
+            "masakhane_pos_tagging/lm_eval_p1",
+            "masakhane_pos_tagging/lm_eval_p2",
+            "masakhane_pos_tagging/lm_eval_p3",
+            "masakhane_pos_tagging/lm_eval_p4",
+            "masakhane_pos_tagging/lm_eval_p5",
+        ]
+        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
+        assert merged.dataset.packing is False
+        assert merged.dataset.assistant_only_loss is True
+        assert merged.dataset.subset == expected["subset"]
+        assert merged.dataset.languages == expected["languages"]
+        assert merged.dataset.max_seq_length == expected["max_seq_length"]
+
+
 def test_experiment_schema_merges_representative_eval_config() -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
     raw_cfg = compose_config_target("eval/run_llama_t2x_xho")
