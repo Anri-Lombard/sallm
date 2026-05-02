@@ -41,7 +41,7 @@ def test_to_resolved_dict_available_from_both_import_paths() -> None:
 
 def test_experiment_schema_merges_representative_finetune_config() -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    raw_cfg = OmegaConf.load(CONF_ROOT / "finetune" / "llama_t2x_xho.yaml")
+    raw_cfg = compose_config_target("finetune/llama_t2x_xho")
 
     merged = OmegaConf.merge(schema, raw_cfg)
 
@@ -49,6 +49,61 @@ def test_experiment_schema_merges_representative_finetune_config() -> None:
     assert merged.model.architecture == "llama"
     assert merged.dataset.hf_name == "github:francois-meyer/t2x"
     assert merged.generation_decoding.strategy == "beam"
+
+
+def test_representative_sib_finetune_configs_share_dataset_defaults() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    expected_configs = {
+        "finetune/llama_sib_xho": {
+            "architecture": "llama",
+            "subset": "xho_Latn",
+            "languages": None,
+            "max_seq_length": 2048,
+        },
+        "finetune/mamba_sib_all": {
+            "architecture": "mamba2",
+            "subset": None,
+            "languages": [
+                "afr_Latn",
+                "eng_Latn",
+                "nso_Latn",
+                "sot_Latn",
+                "xho_Latn",
+                "zul_Latn",
+            ],
+            "max_seq_length": 1024,
+        },
+        "finetune/xlstm_sib_xho": {
+            "architecture": "xlstm",
+            "subset": "xho_Latn",
+            "languages": None,
+            "max_seq_length": 1024,
+        },
+    }
+
+    for config_target, expected in expected_configs.items():
+        raw_cfg = compose_config_target(config_target)
+        merged = OmegaConf.merge(schema, raw_cfg)
+
+        assert merged.mode == domain_config.RunMode.FINETUNE
+        assert merged.model.architecture == expected["architecture"]
+        assert merged.dataset.hf_name == "Davlan/sib200"
+        assert merged.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
+        assert merged.dataset.splits == {"train": "train", "val": "validation"}
+        assert [template.id for template in merged.dataset.templates] == [
+            "sib_topic_classification/lm_eval_p1",
+            "sib_topic_classification/lm_eval_p2",
+            "sib_topic_classification/lm_eval_p3",
+            "sib_topic_classification/lm_eval_p4",
+            "sib_topic_classification/lm_eval_p5",
+        ]
+        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
+        assert merged.dataset.label_column == "category"
+        assert merged.dataset.packing is False
+        assert merged.dataset.assistant_only_loss is True
+        assert merged.dataset.subset == expected["subset"]
+        assert merged.dataset.languages == expected["languages"]
+        assert merged.dataset.max_seq_length == expected["max_seq_length"]
 
 
 def test_experiment_schema_merges_representative_eval_config() -> None:

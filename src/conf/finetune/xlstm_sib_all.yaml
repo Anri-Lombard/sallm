@@ -1,3 +1,6 @@
+defaults:
+  - defaults/datasets/sib@_here_
+  - _self_
 mode: FINETUNE
 wandb:
   project: sallm-ft
@@ -18,7 +21,6 @@ peft:
       - out_proj
       - embeddings
 dataset:
-  hf_name: Davlan/sib200
   subset: null
   languages:
     - afr_Latn
@@ -27,25 +29,6 @@ dataset:
     - sot_Latn
     - xho_Latn
     - zul_Latn
-  task: CLASSIFICATION
-  splits:
-    train: train
-    val: validation
-  templates:
-    - id: sib_topic_classification/lm_eval_p1
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p2
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p3
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p4
-      weight: 1.0
-    - id: sib_topic_classification/lm_eval_p5
-      weight: 1.0
-  template_choice: CYCLE
-  label_column: category
-  packing: false
-  assistant_only_loss: true
   max_seq_length: 1024
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
