@@ -8,7 +8,6 @@ import tempfile
 import textwrap
 from copy import deepcopy
 from datetime import date, datetime
-from hashlib import sha1
 from pathlib import Path
 from typing import Any, cast
 
@@ -19,73 +18,69 @@ from lm_eval.tasks import TaskManager
 from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
-from sallm.evaluation.config import TaskPack
+from sallm.evaluation.config import TASK_MANAGER_KWARG_KEYS, TaskPack
 from sallm.evaluation.harness import load_model_and_tokenizer
 from sallm.evaluation.registry import (
+    CONF_DIR,
     RERANK_LM_EVAL_TASK_DIR,
     load_rerank_task_pack,
     load_task_pack,
 )
 
 logger = logging.getLogger(__name__)
-LM_EVAL_TASKS_ROOT = (
-    Path(__file__).resolve().parents[4]
-    / ".venv"
-    / "lib"
-    / "python3.12"
-    / "site-packages"
-    / "lm_eval"
-    / "tasks"
-)
+PROJECT_ROOT = CONF_DIR.parent.parent
 
 
-def _prepare_include_paths(include_path: str | list[str]) -> list[str]:
-    raw_paths = include_path if isinstance(include_path, list) else [include_path]
-    prepared_paths: list[str] = []
+def _resolve_include_path(raw_path: str | Path) -> Path:
+    path = Path(str(raw_path)).expanduser()
+    if path.is_absolute():
+        candidates = [path]
+    else:
+        candidates = [Path.cwd() / path, PROJECT_ROOT / path]
 
-    for raw_path in raw_paths:
-        path = Path(str(raw_path))
-        if not path.is_absolute():
-            path = (Path.cwd() / path).resolve()
-        else:
-            path = path.resolve()
-
-        try:
-            path.relative_to(LM_EVAL_TASKS_ROOT)
-            prepared_paths.append(str(path))
+    seen: set[Path] = set()
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate in seen:
             continue
-        except ValueError:
-            pass
-
-        link_root = LM_EVAL_TASKS_ROOT / "_sallm_repo_overrides"
-        link_root.mkdir(parents=True, exist_ok=True)
-        link_name = f"{path.name}-{sha1(str(path).encode('utf-8')).hexdigest()[:8]}"
-        link_path = link_root / link_name
-
-        if link_path.exists() or link_path.is_symlink():
-            if link_path.is_symlink() and link_path.resolve() == path:
-                prepared_paths.append(str(link_path))
-                continue
-            if link_path.is_dir() and link_path.resolve() == path:
-                prepared_paths.append(str(link_path))
-                continue
-            if link_path.is_dir() and not link_path.is_symlink():
-                raise FileExistsError(
-                    "lm-eval include-path shim already exists and is not a "
-                    f"symlink: {link_path}"
+        seen.add(candidate)
+        if candidate.exists():
+            if not candidate.is_dir():
+                raise NotADirectoryError(
+                    f"lm-eval include path is not a directory: {candidate}"
                 )
-            link_path.unlink()
+            return candidate
 
-        try:
-            link_path.symlink_to(path, target_is_directory=True)
-        except FileExistsError:
-            if not link_path.exists() and not link_path.is_symlink():
-                raise
-            if link_path.resolve() != path:
-                raise
-        prepared_paths.append(str(link_path))
+    attempted = ", ".join(str(candidate.resolve()) for candidate in candidates)
+    raise FileNotFoundError(
+        f"lm-eval include path '{raw_path}' was not found. Tried: {attempted}"
+    )
 
-    return prepared_paths
+
+def _resolve_include_paths(include_path: str | Path | list[str | Path]) -> list[str]:
+    raw_paths = include_path if isinstance(include_path, list) else [include_path]
+    return [str(_resolve_include_path(raw_path)) for raw_path in raw_paths]
+
+
+def _append_include_path(
+    include_path: str | Path | list[str | Path] | None,
+    extra_path: str | Path,
+) -> list[str | Path]:
+    include_paths = include_path if isinstance(include_path, list) else []
+    if include_path and not isinstance(include_path, list):
+        include_paths = [include_path]
+    return [*include_paths, extra_path]
+
+
+def _split_task_manager_kwargs(
+    kwargs: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    evaluator_kwargs = dict(kwargs)
+    task_manager_kwargs: dict[str, Any] = {}
+    for key in TASK_MANAGER_KWARG_KEYS:
+        if key in evaluator_kwargs:
+            task_manager_kwargs[key] = evaluator_kwargs.pop(key)
+    return evaluator_kwargs, task_manager_kwargs
 
 
 TASK_PACK_SCOPES = {"eval", "rerank"}
@@ -351,34 +346,34 @@ def _run_pack(
         "device": model_cfg.device,
     }
 
-    pack_kwargs = pack.to_lm_eval_kwargs()
+    pack_kwargs = pack.to_evaluator_kwargs()
+    task_manager_kwargs = pack.to_task_manager_kwargs()
     task_manager: TaskManager | None = None
-    include_path = pack_kwargs.pop("include_path", None)
-    include_defaults = bool(pack_kwargs.pop("include_defaults", True))
     eval_kwargs.update(pack_kwargs)
     eval_kwargs["apply_chat_template"] = pack.apply_chat_template
 
     if pack_overrides:
-        override_kwargs = dict(pack_overrides)
-        if "include_path" in override_kwargs:
-            include_path = override_kwargs.pop("include_path")
-        if "include_defaults" in override_kwargs:
-            include_defaults = bool(override_kwargs.pop("include_defaults"))
-        eval_kwargs.update(override_kwargs)
+        evaluator_overrides, task_manager_overrides = _split_task_manager_kwargs(
+            pack_overrides
+        )
+        task_manager_kwargs.update(task_manager_overrides)
+        eval_kwargs.update(evaluator_overrides)
 
     if task_pack_scope == "rerank":
-        include_paths = include_path if isinstance(include_path, list) else []
-        if include_path and not isinstance(include_path, list):
-            include_paths = [include_path]
-        include_paths.append(str(RERANK_LM_EVAL_TASK_DIR))
-        include_path = include_paths
-
-    if include_path:
-        resolved_paths = _prepare_include_paths(include_path)
-        task_manager = TaskManager(
-            include_path=resolved_paths,
-            include_defaults=include_defaults,
+        task_manager_kwargs["include_path"] = _append_include_path(
+            task_manager_kwargs.get("include_path"),
+            RERANK_LM_EVAL_TASK_DIR,
         )
+
+    if task_manager_kwargs:
+        include_path = task_manager_kwargs.get("include_path")
+        if include_path:
+            task_manager_kwargs["include_path"] = _resolve_include_paths(include_path)
+        if "include_defaults" in task_manager_kwargs:
+            task_manager_kwargs["include_defaults"] = bool(
+                task_manager_kwargs["include_defaults"]
+            )
+        task_manager = TaskManager(**task_manager_kwargs)
         eval_kwargs["task_manager"] = task_manager
 
     logger.info(
