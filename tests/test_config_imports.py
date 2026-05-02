@@ -107,6 +107,54 @@ def test_representative_sib_finetune_configs_share_dataset_defaults() -> None:
         assert merged.dataset.max_seq_length == expected["max_seq_length"]
 
 
+def test_representative_injongointent_finetune_configs_share_dataset_defaults() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    expected_configs = {
+        "finetune/llama_injongointent_xho": {
+            "architecture": "llama",
+            "subset": "xho",
+            "languages": None,
+            "max_seq_length": 2048,
+        },
+        "finetune/mamba_injongointent_xho": {
+            "architecture": "mamba2",
+            "subset": "xho",
+            "languages": None,
+            "max_seq_length": 1024,
+        },
+        "finetune/xlstm_injongointent_all": {
+            "architecture": "xlstm",
+            "subset": None,
+            "languages": ["eng", "sot", "xho", "zul"],
+            "max_seq_length": 2048,
+        },
+    }
+
+    for config_target, expected in expected_configs.items():
+        raw_cfg = compose_config_target(config_target)
+        merged = OmegaConf.merge(schema, raw_cfg)
+
+        assert merged.mode == domain_config.RunMode.FINETUNE
+        assert merged.model.architecture == expected["architecture"]
+        assert merged.dataset.hf_name == "masakhane/InjongoIntent"
+        assert merged.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
+        assert merged.dataset.splits == {"train": "train", "val": "validation"}
+        assert [template.id for template in merged.dataset.templates] == [
+            "injongointent_intent_classification/lm_eval_p1",
+            "injongointent_intent_classification/lm_eval_p2",
+            "injongointent_intent_classification/lm_eval_p3",
+            "injongointent_intent_classification/lm_eval_p4",
+            "injongointent_intent_classification/lm_eval_p5",
+        ]
+        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
+        assert merged.dataset.label_column == "intent"
+        assert merged.dataset.packing is False
+        assert merged.dataset.assistant_only_loss is True
+        assert merged.dataset.subset == expected["subset"]
+        assert merged.dataset.languages == expected["languages"]
+        assert merged.dataset.max_seq_length == expected["max_seq_length"]
+
+
 def test_experiment_schema_merges_representative_eval_config() -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
     raw_cfg = compose_config_target("eval/run_llama_t2x_xho")
