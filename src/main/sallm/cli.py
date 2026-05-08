@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
+import os
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 import yaml
+from hydra import compose, initialize
+from omegaconf import DictConfig
 
+from sallm.main import run_experiment
 from sallm.recipes import Recipe, get_recipe, load_recipes
 
 
@@ -88,6 +92,9 @@ def _show_recipe(recipe_id: str) -> int:
     return 0
 
 
+CONF_PATH = Path(__file__).resolve().parents[2] / "conf"
+
+
 def _run_recipe(command: str, recipe_id: str, dry_run: bool) -> int:
     recipe = _load_recipe(recipe_id)
     if recipe is None:
@@ -101,13 +108,15 @@ def _run_recipe(command: str, recipe_id: str, dry_run: bool) -> int:
         )
         return 2
 
-    hydra_command = [sys.executable, "-m", "sallm.main", "--config-name", config_target]
+    hydra_command = ["hydra", "compose", "--config-name", config_target]
     _print_resolved_run(recipe, command, config_target, hydra_command)
     if dry_run:
         return 0
 
-    completed = subprocess.run(hydra_command, check=False)
-    return completed.returncode
+    with initialize(version_base=None, config_path=str(CONF_PATH)):
+        cfg = compose(config_name=config_target)
+        run_experiment(cfg)
+    return 0
 
 
 def _load_recipe(recipe_id: str) -> Recipe | None:
