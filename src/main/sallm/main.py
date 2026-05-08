@@ -64,8 +64,7 @@ def setup_logging(config: DictConfig) -> None:
         os.environ.setdefault("TQDM_DISABLE", "1")
 
 
-@hydra.main(config_path="../../conf", config_name="config", version_base=None)
-def main(cfg: DictConfig) -> None:
+def run_experiment(cfg: DictConfig) -> None:
     unwrapped_cfg = cfg
 
     keys_in_cfg = list(cfg.keys())
@@ -106,6 +105,11 @@ def main(cfg: DictConfig) -> None:
         run_eval(cast(ExperimentConfig, config))
     else:
         raise ValueError(f"Unsupported mode {config.mode!r}")
+
+
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
+def main(cfg: DictConfig) -> None:
+    run_experiment(cfg)
 
 
 if __name__ == "__main__":
