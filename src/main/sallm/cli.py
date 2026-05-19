@@ -7,8 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import yaml
-from hydra import compose, initialize
-from omegaconf import DictConfig
+from hydra import compose, initialize_config_dir
 
 from sallm.main import run_experiment
 from sallm.recipes import Recipe, get_recipe, load_recipes
@@ -113,7 +112,7 @@ def _run_recipe(command: str, recipe_id: str, dry_run: bool) -> int:
     if dry_run:
         return 0
 
-    with initialize(version_base=None, config_path=str(CONF_PATH)):
+    with initialize_config_dir(version_base=None, config_dir=str(CONF_PATH)):
         cfg = compose(config_name=config_target)
         run_experiment(cfg)
     return 0
