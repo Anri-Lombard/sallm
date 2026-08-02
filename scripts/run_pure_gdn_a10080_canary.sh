@@ -13,6 +13,9 @@ set -euo pipefail
 
 CONFIG="base/gated_deltanet_125m_pure_canary.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" || ! -f "$SCRIPT_DIR/lib/auth.sh" ]]; then
+  SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$HOME/masters/sallm}/scripts"
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
 set_sallm_cluster_env
