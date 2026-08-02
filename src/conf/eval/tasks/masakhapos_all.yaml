@@ -16,3 +16,5 @@ batch_size: 1
 apply_chat_template: true
 lm_eval_kwargs:
   max_batch_size: 1
+  include_path:
+    - src/conf/eval/lm_eval_tasks/masakhapos_test

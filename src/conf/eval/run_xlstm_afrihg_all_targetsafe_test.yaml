@@ -1,0 +1,60 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "anrilombard/sallm-xlstm-125m-native-3epoch-20260531"
+  peft_adapter: "${oc.env:SCRATCH}/masters/sallm/checkpoints/xlstm_afrihg_targetsafe_20260729_r2/checkpoint-1158"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_afrihg_targetsafe_20260730_test"
+  generation_tasks:
+    - id: "afrihg_xho"
+      split: "test"
+      max_new_tokens: 64
+      max_samples_per_lang: null
+      decoding:
+        strategy: "greedy"
+        batch_size: "auto:4"
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "xho"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates:
+          - {id: "afrihg_headline/v1", weight: 1}
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 2048
+    - id: "afrihg_zul"
+      split: "test"
+      max_new_tokens: 64
+      max_samples_per_lang: null
+      decoding:
+        strategy: "greedy"
+        batch_size: "auto:4"
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "zul"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates:
+          - {id: "afrihg_headline/v1", weight: 1}
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 2048
+
+tokenizer: null
+model: null
+data: null
+training: null
+dataset: null
+peft: null
+template: null
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-xlstm-afrihg-targetsafe-test"
