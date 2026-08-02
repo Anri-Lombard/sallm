@@ -29,6 +29,7 @@ from sallm.data.afrihg import load_afrihg_from_github
 from sallm.data.factory import build_conversation_dataset
 from sallm.data.t2x import load_t2x_from_github
 from sallm.evaluation.generation_metrics import GenerationEvaluator
+from sallm.models.optional import register_fla_gated_deltanet
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,9 @@ def _load_tokenizer_and_pretrained(
 def load_model_and_tokenizer(
     model_cfg: ModelEvalConfig,
 ) -> tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+    # Registers FLA AutoConfig/AutoModel entries when the optional package exists.
+    # This is deliberately before every model-load/retry path below.
+    register_fla_gated_deltanet()
     tokenizer, pretrained_id = _load_tokenizer_and_pretrained(
         model_cfg.checkpoint,
         trust_remote_code=True,

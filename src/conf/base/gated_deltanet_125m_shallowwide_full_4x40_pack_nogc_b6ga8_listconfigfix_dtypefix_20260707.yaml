@@ -1,4 +1,4 @@
-# GDN–Attention Hybrid (Qwen3Next implementation): retained 20260707 checkpoint recipe, not pure FLA GDN.
+# GDN–Attention Hybrid (Qwen3Next implementation), not pure GDN.
 mode: TRAIN
 
 wandb:
@@ -6,7 +6,7 @@ wandb:
   name: "125m-shallowwide-4x40-pack-nogc-b6ga8-full-listconfigfix-dtypefix-20260707"
 
 model:
-  architecture: "gated_deltanet"
+  architecture: "qwen3next_gdn_hybrid"
   config:
     vocab_size: 65536
     hidden_size: 640

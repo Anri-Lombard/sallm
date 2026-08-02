@@ -1183,6 +1183,17 @@ Current open gate:
   forward/backward, FLA fast path, packed context, DDP, save/load, and
   generation, then run one A100-80GB canary before resumable full pretraining.
   Retain A100-80GB exclusivity and never tune on test.
+- The parameter-matched pure shape is now frozen from CPU-only HEX job
+  `1164029`: 21 all-GDN layers (`attn=None`), hidden size 512, intermediate
+  size 1536, four 128-wide heads, `expand_v=2`, tied 65,536-token embeddings,
+  and 2,048-token context, for exactly `127,425,448` parameters. This preserves
+  the tied-embedding convention of the other 125M baselines. It is a config
+  selection only until the required BF16/DDP/FLA-kernel/save-load/generation
+  A100-80GB canary passes.
+- Hybrid General equal-mixture control `1160839` completed cleanly `0:0` after
+  2,728 updates with final validation loss `0.2754413566702204`. Preserve it as
+  a **GDN--Attention Hybrid (Qwen3Next implementation)** control; do not use it
+  as evidence for the pure-GDN architecture.
 
 ## Update Rule
 

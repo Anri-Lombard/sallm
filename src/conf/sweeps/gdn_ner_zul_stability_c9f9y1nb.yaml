@@ -7,7 +7,7 @@ metric:
   goal: maximize
 parameters:
   model.architecture:
-    value: gated_deltanet
+    value: qwen3next_gdn_hybrid
   model.init_checkpoint:
     value: anrilombard/sallm-gated-deltanet-125m-shallowwide-4x40-20260707
   peft.kwargs.target_modules:

@@ -224,6 +224,8 @@ class CustomTrainer(Trainer):
         return metrics_to_return
 
     def save_model(self, output_dir=None, _internal_call=False):
+        if not self.args.should_save:
+            return
         out = str(output_dir or self.args.output_dir)
         Path(out).mkdir(parents=True, exist_ok=True)
 
@@ -410,6 +412,8 @@ class CustomSFTTrainer(SFTTrainer):
         return metrics_to_return
 
     def save_model(self, output_dir=None, _internal_call=False):
+        if not self.args.should_save:
+            return
         out = str(output_dir or self.args.output_dir)
         Path(out).mkdir(parents=True, exist_ok=True)
 

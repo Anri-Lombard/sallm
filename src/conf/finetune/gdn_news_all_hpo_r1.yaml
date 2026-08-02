@@ -3,7 +3,7 @@ mode: FINETUNE
 wandb: {project: "sallm-ft", name: "gdn-125m-news-hpo-r1"}
 
 model:
-  architecture: "gated_deltanet"
+  architecture: "qwen3next_gdn_hybrid"
   init_checkpoint: "anrilombard/sallm-gated-deltanet-125m-shallowwide-4x40-20260707"
 
 peft:

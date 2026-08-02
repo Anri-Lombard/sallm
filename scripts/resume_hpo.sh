@@ -15,13 +15,14 @@ COUNT="${3:-43}"
 
 if [[ -z "$SWEEP_PATH" || -z "$ARCHITECTURE" ]]; then
   echo "Usage: sbatch $0 <sweep_path> <architecture> [count]" >&2
-  echo "Architectures: gated_deltanet (gdn), mamba2 (mamba), xlstm, llama" >&2
+  echo "Architectures: gated_deltanet (pure FLA), qwen3next_gdn_hybrid (gdn), mamba2 (mamba), xlstm, llama" >&2
   echo "Example: sbatch $0 anri-lombard/sallm-ft/z0vyuasg gated_deltanet 43" >&2
   exit 1
 fi
 
 case "$ARCHITECTURE" in
-  gated_deltanet|gdn) ARCHITECTURE="gated_deltanet" ;;
+  gated_deltanet) ;;
+  gdn|qwen3next_gdn_hybrid) ARCHITECTURE="qwen3next_gdn_hybrid" ;;
   mamba2|mamba) ARCHITECTURE="mamba2" ;;
   xlstm|llama) ;;
   *)
@@ -83,14 +84,23 @@ fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
 cd "$SALLM_REPO_DIR"
-uv sync --frozen --inexact
+if [[ "$ARCHITECTURE" == "gated_deltanet" || "$ARCHITECTURE" == "qwen3next_gdn_hybrid" ]]; then
+  uv sync --extra pure-gdn --frozen --inexact
+else
+  uv sync --frozen --inexact
+fi
 source .venv/bin/activate
 
 case "$ARCHITECTURE" in
-  gated_deltanet)
+  gated_deltanet|qwen3next_gdn_hybrid)
+    if [[ "$ARCHITECTURE" == "gated_deltanet" ]]; then
+      KERNEL_LABEL="Pure FLA GatedDeltaNet"
+    else
+      KERNEL_LABEL="GDN–Attention Hybrid (Qwen3Next implementation)"
+    fi
     python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" \
-      || { echo "ERROR: GatedDeltaNet fast kernels are unavailable." >&2; exit 1; }
-    echo "✓ GatedDeltaNet fast path available"
+      || { echo "ERROR: $KERNEL_LABEL fast kernels are unavailable." >&2; exit 1; }
+    echo "✓ $KERNEL_LABEL FLA preflight available"
     ;;
   mamba2)
     # Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)

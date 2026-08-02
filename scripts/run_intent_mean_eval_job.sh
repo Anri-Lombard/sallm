@@ -39,7 +39,9 @@ export TRANSFORMERS_CACHE="$HF_HOME/hub"
 export HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"
 
 [[ "$ARCHITECTURE" == "mamba" ]] && export MAMBA_SCAN_IMPL=cuda
-[[ "$ARCHITECTURE" == "gated_deltanet" ]] && export FLA_DISABLE_BACKEND_DISPATCH=1
+case "$ARCHITECTURE" in
+  gated_deltanet|qwen3next_gdn_hybrid|gdn) export FLA_DISABLE_BACKEND_DISPATCH=1 ;;
+esac
 
 ARGS=(
   --config "$CONFIG"

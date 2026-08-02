@@ -30,6 +30,7 @@ from sallm.evaluation.registry import (
     load_rerank_task_pack,
     load_task_pack,
 )
+from sallm.models.optional import register_fla_gated_deltanet
 
 logger = logging.getLogger(__name__)
 LM_EVAL_TASKS_ROOT = (
@@ -152,6 +153,8 @@ def _to_serializable(value: Any) -> Any:
 def _materialize_model_for_lm_eval(
     model_cfg: ModelEvalConfig, cache_root: Path
 ) -> tuple[str, str | None]:
+    # This precedes the AutoConfig and every AutoModel retry/materialization below.
+    register_fla_gated_deltanet()
     if not model_cfg.peft_adapter:
         config = AutoConfig.from_pretrained(
             model_cfg.checkpoint,

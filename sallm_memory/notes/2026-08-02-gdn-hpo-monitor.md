@@ -587,3 +587,29 @@ bounded causal study rather than a speculative broad sweep.
   active GPU job remained hybrid General control `1160839` on one A100-80GB;
   no GPU-family rule was violated because the storage jobs used non-GPU
   `ada`. This was a bounded move, not broad storage cleanup.
+
+## Pure-GDN matched shape and hybrid-control completion — 2026-08-02
+
+- CPU-only HEX diagnostics `1163907`, `1163986`, `1164007`, and `1164029`
+  resolved the installed FLA 0.5.1 constructor and parameter allocation without
+  consuming a GPU. The first search was invalid for the 120--130M contract; its
+  candidates were 147--241M because the diagnostic did not apply the intended
+  tied-embedding convention. The corrected search used the same tied-embedding
+  convention as the LLaMA, Mamba, and xLSTM 125M baselines.
+- The frozen pure-GDN shape is `hidden_size=512`, `num_hidden_layers=21`,
+  `intermediate_size=1536`, `num_heads=4`, `head_dim=128`, `expand_v=2`,
+  `vocab_size=65536`, `max_position_embeddings=2048`, `attn_mode=chunk`,
+  `tie_word_embeddings=true`, and critically `attn=null`. Job `1164029`
+  instantiated exactly `127,425,448` parameters and completed `0:0`. This is a
+  parameter-matched pure FLA GatedDeltaNet candidate, not a Qwen3Next hybrid.
+- The preserved General equal-mixture control `1160839` completed `0:0` in
+  `06:02:56` after all `2728/2728` updates. It reported final validation loss
+  `0.2754413566702204`, saved 640 generation-debug examples, and saved its PEFT
+  adapter beneath
+  `/scratch/lmbanr001/masters/sallm/checkpoints/gdn_general_mixture_20260802/equal_task_r1`.
+  Its label remains **GDN--Attention Hybrid (Qwen3Next implementation)**; it is
+  a secondary mixture-control artifact and does not satisfy the pure-GDN arm.
+- Refreshed HEX accounting is `/home=3/10 GB`, `/scratch=89/100 GB` (`89.7%`).
+  The hybrid completion released its A100-80GB GPU. No pure-GDN GPU canary is
+  authorized until the integration diff, lockfile, local verification, and
+  fresh Sol final review pass.

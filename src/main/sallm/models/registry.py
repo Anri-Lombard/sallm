@@ -1,11 +1,20 @@
 from importlib import import_module
 
+type ModuleClassTarget = str | tuple[str, str]
+
+
+_PURE_GDN_INSTALL_MESSAGE = (
+    "Pure GatedDeltaNet (`gated_deltanet`) requires "
+    "`flash-linear-attention==0.5.1`. On Linux, install it with "
+    "`uv sync --extra pure-gdn --frozen --inexact`."
+)
+
 
 class LazyRegistry(dict):
-    """Dict that lazily imports classes from transformers on first access."""
+    """Dict that lazily imports configured classes on first access."""
 
-    def __init__(self, mappings: dict[str, str]):
-        """mappings: {architecture: class_name} where class_name is in transformers."""
+    def __init__(self, mappings: dict[str, ModuleClassTarget]):
+        """Map architecture keys to a class or explicit ``(module, class)`` target."""
         super().__init__()
         self._mappings = mappings
 
@@ -13,8 +22,16 @@ class LazyRegistry(dict):
         if key not in dict.keys(self):
             if key not in self._mappings:
                 raise KeyError(key)
-            class_name = self._mappings[key]
-            module = import_module("transformers")
+            target = self._mappings[key]
+            module_name, class_name = (
+                target if isinstance(target, tuple) else ("transformers", target)
+            )
+            try:
+                module = import_module(module_name)
+            except ModuleNotFoundError as exc:
+                if module_name.startswith("fla.") and exc.name == "fla":
+                    raise ModuleNotFoundError(_PURE_GDN_INSTALL_MESSAGE) from exc
+                raise
             dict.__setitem__(self, key, getattr(module, class_name))
         return dict.__getitem__(self, key)
 
@@ -30,7 +47,11 @@ class LazyRegistry(dict):
 MODEL_CONFIG_REGISTRY = LazyRegistry(
     {
         "llama": "LlamaConfig",
-        "gated_deltanet": "Qwen3NextConfig",
+        "gated_deltanet": (
+            "fla.models.gated_deltanet",
+            "GatedDeltaNetConfig",
+        ),
+        "qwen3next_gdn_hybrid": "Qwen3NextConfig",
         "mamba2": "Mamba2Config",
         "recurrent_gemma": "RecurrentGemmaConfig",
         "rwkv": "RwkvConfig",
@@ -41,7 +62,11 @@ MODEL_CONFIG_REGISTRY = LazyRegistry(
 MODEL_CLASS_REGISTRY = LazyRegistry(
     {
         "llama": "LlamaForCausalLM",
-        "gated_deltanet": "Qwen3NextForCausalLM",
+        "gated_deltanet": (
+            "fla.models.gated_deltanet",
+            "GatedDeltaNetForCausalLM",
+        ),
+        "qwen3next_gdn_hybrid": "Qwen3NextForCausalLM",
         "mamba2": "Mamba2ForCausalLM",
         "recurrent_gemma": "RecurrentGemmaForCausalLM",
         "rwkv": "RwkvForCausalLM",

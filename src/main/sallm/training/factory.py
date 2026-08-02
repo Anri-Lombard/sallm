@@ -98,7 +98,7 @@ def build_trainer(
                 "Please add `max_length` to your training config.",
                 max_length,
             )
-        packing = False
+        packing = bool(training_args_dict.get("packing", False))
         assistant_only_loss = False
 
     if use_early_stopping:

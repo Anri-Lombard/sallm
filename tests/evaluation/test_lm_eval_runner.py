@@ -193,6 +193,29 @@ def test_adapter_free_xlstm_materializes_eval_safe_checkpoint(
     assert saved_tokenizer_to == [expected]
 
 
+def test_lm_eval_materialization_registers_fla_before_auto_config(
+    tmp_path, monkeypatch
+) -> None:
+    events = []
+    monkeypatch.setattr(
+        lm_eval_runner,
+        "register_fla_gated_deltanet",
+        lambda: events.append("register") or True,
+    )
+    monkeypatch.setattr(
+        lm_eval_runner.AutoConfig,
+        "from_pretrained",
+        lambda *_args, **_kwargs: events.append("config")
+        or SimpleNamespace(model_type="llama"),
+    )
+    model_cfg = SimpleNamespace(checkpoint="owner/model", peft_adapter=None)
+
+    pretrained, adapter = _materialize_model_for_lm_eval(model_cfg, tmp_path)
+
+    assert (pretrained, adapter) == ("owner/model", None)
+    assert events == ["register", "config"]
+
+
 def test_lm_eval_preserves_unmerged_peft_adapter(tmp_path, monkeypatch) -> None:
     class Tokenizer:
         def __len__(self) -> int:
