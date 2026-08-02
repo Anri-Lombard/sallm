@@ -1301,3 +1301,9 @@ Current open gate:
   preserved as diagnostic provenance only. The corrected run must start from
   step zero under a fresh run ID so its cosine schedule is defined over all
   `67,498` steps. Selection remains validation-loss-only.
+- Corrected primary job `1167989` is running from step zero on two A100-80GB
+  GPUs, with sole `afterany` continuation `1167990`, under run ID
+  `a10080-3epoch-20260802`. Early gates reconfirmed exact `127,425,448`
+  parameters, real 2,048-token batches, the TileLang FLA backward path, and
+  ordinary step-10 loss `11.1935`. Expected completion is about 52--55 hours
+  across the two Slurm segments.

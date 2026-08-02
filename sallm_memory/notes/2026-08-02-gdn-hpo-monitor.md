@@ -805,3 +805,27 @@ bounded causal study rather than a speculative broad sweep.
   about `51.0` training hours plus validation/checkpoint overhead, so the run
   needs two linear A100-80GB Slurm segments. No A100-40GB or L40S job was
   active or schedulable when the superseded jobs were stopped.
+
+## 22:24--22:27 SAST — corrected three-epoch run started
+
+- Signed research-branch commit `1314b2f` records the corrected contract.
+  `main` remains untouched. Exact runtime-file SHA256 values matched on HEX:
+  launcher `f512784b59ccc8468c9e4328a13fe67dc70d14e70a092fbe82642275527d8acf`
+  and config
+  `a4cfb0bf6d1f8618980901419f6bfc7496bded4a9c6ad8b923e53d36a87ad98f`.
+- Submitted exactly two linear A100-80GB segments: primary `1167989` and sole
+  `afterany` continuation `1167990`. Run ID is
+  `a10080-3epoch-20260802`; output and log roots are the matching directories
+  beneath `/scratch/lmbanr001/masters/sallm/checkpoints/sallm-pure-gdn-125m/`
+  and `/scratch/lmbanr001/masters/sallm/logs/sallm-pure-gdn-125m/`.
+- `1167989` started on `srvrocgpu011` with two `ampere80` GPUs. Startup
+  reconfirmed BF16 preflight, exactly `127,425,448` parameters, two-rank
+  training, `max_steps=67,498`, `num_train_epochs=3`, a real 2,048-token
+  batch, and TileLang FLA backward. Step 10 reported ordinary loss `11.1935`;
+  no traceback, OOM, disk-full, or quota marker is present. `1167990` remains
+  dependency-pending, and no other owned GPU family is schedulable.
+- Scratch is `88/100 GB` (`88.7%`). At the measured steady rate plus periodic
+  validation/checkpoint overhead, ETA is approximately 52--55 hours, around
+  2026-08-05 02:30--05:30 SAST. First validation and checkpoint are due at
+  step 1,000. Selection remains validation-loss-only; held-out test is not
+  touched.
