@@ -1,4 +1,4 @@
-from datasets import IterableDataset, IterableDatasetDict
+from datasets import Features, IterableDataset, IterableDatasetDict, List, Value
 from sallm.config import (
     DataConfig,
     ExperimentConfig,
@@ -7,6 +7,17 @@ from sallm.config import (
 )
 from sallm.data.loaders import disk
 from sallm.utils import RunMode
+
+
+def test_features_from_dict_supports_hub_list_value_metadata() -> None:
+    metadata = {
+        "input_ids": {
+            "_type": "List",
+            "feature": {"_type": "Value", "dtype": "int64"},
+        }
+    }
+
+    assert Features.from_dict(metadata) == Features({"input_ids": List(Value("int64"))})
 
 
 def test_load_pretrain_datasets_streams_hub_dataset(monkeypatch) -> None:
