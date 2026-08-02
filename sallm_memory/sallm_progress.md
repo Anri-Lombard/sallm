@@ -1293,3 +1293,9 @@ Current open gate:
   and `126` files). CPU job `1166480` removed only those verified HEX roots
   plus the reproducible `655M` Triton cache; accepted canary `1165989` and all
   canonical winners remain untouched.
+- Full pure-GDN pretraining is now running as primary A100-80GB job `1166554`
+  (W&B `mj2zeime`) with one afterany fallback/final no-op `1166555`. Runtime
+  gates passed at exact `127.43M`, TileLang chunk backend, two ranks, and real
+  2,048-token batches. At step 53, losses are ordinary-scale and improving
+  from `11.1954` to `11.1906`; steady throughput is `~2.73 s/step`, projecting
+  completion on 2026-08-04. Selection remains validation-loss-only.

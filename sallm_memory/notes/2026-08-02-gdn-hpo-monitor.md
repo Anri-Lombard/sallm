@@ -728,3 +728,39 @@ bounded causal study rather than a speculative broad sweep.
   The job completed `0:0`; accepted canary and all canonical/active winners
   were untouched. Immediate quota refresh moved from `91.7%` to `91.0%`, with
   the larger directory deletions still subject to quota-reporting delay.
+
+## 20:54--21:11 SAST — full pure-GDN pretraining running healthy
+
+- Signed research-branch commit
+  `4913db6b0c68d8f7065847f2b45934c747fcbf99` froze the matched config,
+  streaming/budget tests, resumable A100-80GB launcher, and provenance notes.
+  `main` remains `c4a5fab369fe0dd7eb47656e8437c1fb8e7cce1b`; nothing was pushed.
+  Exact five-file HEX sync hashes matched and the checksum dry-run was empty.
+- Refreshed HEX quota after cleanup and sync is `87.7--88.0%`. The accepted
+  canary remains untouched. The owned GPU queue was empty before submission;
+  no A100-40GB or L40S family was active or schedulable.
+- Submitted a linear `afterany` chain `1166554--1166579` under run ID
+  `a10080-matched-20260802`. Early measured throughput proved the conservative
+  26-segment estimate unnecessary: after one-time compilation, steady rate is
+  about `2.72--2.73 s/step`, projecting `~36.7 h` for 48,403 steps inside the
+  first `47:30:00` segment. Exact pending tail `1166556--1166579` was therefore
+  cancelled; only `1166555` remains as the single afterany resume/final no-op.
+- Primary job `1166554` is `RUNNING` on `srvrocgpu011` with exactly two
+  `gpu:ampere80` A100-80GB GPUs. W&B run is `mj2zeime`; output root is
+  `/scratch/lmbanr001/masters/sallm/checkpoints/sallm-pure-gdn-125m/a10080-matched-20260802`
+  and the append-only run log is beneath the matching scratch logs root.
+- Hardware/runtime evidence is clean: BF16 forward/backward passed; direct
+  chunk-kernel layout passed; actual FLA backend reports TileLang; Accelerate
+  enabled multiple GPUs; model-size gate passed at `127.43M`; iterable
+  `dispatch_batches=False`; and the real wrapped training batch verified
+  exactly `2,048` tokens.
+- At step `53/48,403`, ordinary-scale losses at steps 10/20/30/40/50 were
+  `11.1954/11.1948/11.1942/11.1935/11.1906`. No traceback, CUDA OOM,
+  disk-full, or competing GPU-family work is present. First validation and
+  `checkpoint-1000` are pending, with an ETA around `21:55--22:10 SAST`;
+  overall completion ETA is approximately `2026-08-04 10:00--13:00 SAST`
+  allowing for validation/checkpoint overhead.
+- The existing hourly `gdn-hpo-workstream-monitor` heartbeat was retargeted to
+  jobs `1166554/1166555`, explicitly forbids duplicate submissions and Sol
+  Advisor, and must verify validation loss, checkpoint-1000, final_model,
+  AutoModel reload, exact state roundtrip, and deterministic generation.
