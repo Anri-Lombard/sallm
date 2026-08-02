@@ -51,7 +51,7 @@ cd "$SALLM_REPO_DIR"
 uv sync --extra pure-gdn --frozen --inexact
 source .venv/bin/activate
 
-RUN_ID="${SALLM_PURE_GDN_RUN_ID:-a10080-matched-20260802}"
+RUN_ID="${SALLM_PURE_GDN_RUN_ID:-a10080-3epoch-20260802}"
 OUTPUT_DIR="$SCRATCH/masters/sallm/checkpoints/sallm-pure-gdn-125m/$RUN_ID"
 LOG_DIR="$SCRATCH/masters/sallm/logs/sallm-pure-gdn-125m/$RUN_ID"
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR"

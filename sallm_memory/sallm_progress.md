@@ -1274,12 +1274,15 @@ Current open gate:
   and one matched token budget preregistered. Pretraining recipe selection is
   validation-only and held-out tests remain untouched.
 
-## Pure-GDN matched pretraining contract frozen — 2026-08-02
+## Pure-GDN three-epoch pretraining contract frozen — 2026-08-02
 
-- Full pure-GDN pretraining is authorized and frozen to `48,403` optimizer
-  steps at global sequence batch `48` and context `2,048`, exactly
-  `4,758,208,512` token slots matching the executed LLaMA/xLSTM anchor. Hub
-  streaming is mandatory. Tokenizer vocabulary is `65,536`; optimizer is LR
+- After recovering the corrected xLSTM training standard and explicit user
+  approval, full pure-GDN pretraining is frozen to `67,498` optimizer steps at
+  global sequence batch `48` and context `2,048`, exactly `6,635,323,392`
+  token slots. This is the corrected xLSTM-matched three-epoch-equivalent
+  contract; the earlier `48,403`-step LLaMA-matched run was stopped and must
+  not be reported as the final pure-GDN pretraining arm. Hub streaming is
+  mandatory. Tokenizer vocabulary is `65,536`; optimizer is LR
   `4e-4`, cosine, `2,000` warmup steps, weight decay `0.01`, Adam betas
   `0.9/0.95`, and max gradient norm `1.0`.
 - Model identity remains pure FLA `GatedDeltaNetForCausalLM`, `attn=None`,
@@ -1293,9 +1296,8 @@ Current open gate:
   and `126` files). CPU job `1166480` removed only those verified HEX roots
   plus the reproducible `655M` Triton cache; accepted canary `1165989` and all
   canonical winners remain untouched.
-- Full pure-GDN pretraining is now running as primary A100-80GB job `1166554`
-  (W&B `mj2zeime`) with one afterany fallback/final no-op `1166555`. Runtime
-  gates passed at exact `127.43M`, TileLang chunk backend, two ranks, and real
-  2,048-token batches. At step 53, losses are ordinary-scale and improving
-  from `11.1954` to `11.1906`; steady throughput is `~2.73 s/step`, projecting
-  completion on 2026-08-04. Selection remains validation-loss-only.
+- The superseded `48,403`-step jobs `1166554/1166555` were explicitly
+  cancelled after checkpoint `1000` and step `1599`; their artifacts are
+  preserved as diagnostic provenance only. The corrected run must start from
+  step zero under a fresh run ID so its cosine schedule is defined over all
+  `67,498` steps. Selection remains validation-loss-only.

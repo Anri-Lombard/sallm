@@ -51,9 +51,10 @@ training:
   per_device_train_batch_size: 2
   per_device_eval_batch_size: 2
   gradient_accumulation_steps: 12
-  num_train_epochs: 5
-  # 48,403 x 48 x 2,048 = 4,758,208,512 token slots (LLaMA/xLSTM anchor).
-  max_steps: 48403
+  num_train_epochs: 3
+  # Corrected xLSTM-matched three-epoch-equivalent contract:
+  # 67,498 x 48 x 2,048 = 6,635,323,392 token slots.
+  max_steps: 67498
   eval_strategy: "steps"
   eval_steps: 1000
   save_strategy: "steps"

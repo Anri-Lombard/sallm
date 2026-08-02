@@ -764,3 +764,44 @@ bounded causal study rather than a speculative broad sweep.
   jobs `1166554/1166555`, explicitly forbids duplicate submissions and Sol
   Advisor, and must verify validation loss, checkpoint-1000, final_model,
   AutoModel reload, exact state roundtrip, and deterministic generation.
+
+## 22:17 SAST — first validation/checkpoint accepted; epoch contract still open
+
+- Quota-first monitoring found primary job `1166554` healthy on two
+  `ampere80` GPUs at step `1520/48,403` (3.1%). Steady throughput remains
+  about `2.72 s/step`; recent training loss is `5.4362`, down from `11.1954`,
+  with no traceback, CUDA OOM, disk-full, quota, or kill marker. Fallback
+  `1166555` remains the sole dependency-pending A100-80GB job, and no owned
+  A100-40GB or L40S job is active or schedulable.
+- `checkpoint-1000` exists and occupies `735M`. Its `trainer_state.json`
+  records `global_step=1000` and the first validation result:
+  `eval_loss=6.63224458694458`, `eval_mean_token_accuracy=0.1386558908`, and
+  `eval_runtime=138.902s`. Selection remains validation-loss-only.
+- Scratch is `88/100 GB` (`88.7%`). The current run still targets the frozen
+  `48,403`-step / `4.758B` token-slot LLaMA anchor and is projected to finish
+  in roughly 35.5 training hours plus validation/checkpoint overhead.
+- Scientific comparability is not yet settled: xLSTM's later corrected
+  three-epoch-equivalent run used `67,498` steps, while the executed Mamba
+  lineage remains incomplete. Changing pure GDN to `67,498` requires an
+  explicit decision and a clean restart with a new scheduler/run ID; the
+  useful active job was not cancelled or duplicated during this pass.
+
+## 22:20 SAST — corrected three-epoch restart authorized
+
+- The user explicitly authorized changing pure-GDN pretraining to three
+  epochs and restarting. The corrected contract is `67,498` optimizer steps,
+  global sequence batch `48`, context `2,048`, and exactly `6,635,323,392`
+  token slots, matching the corrected xLSTM three-epoch-equivalent standard.
+  `num_train_epochs` is now explicitly `3`; `max_steps` remains the operative
+  stopping rule for streaming data.
+- Jobs `1166554` and `1166555` were cancelled after a quota-first state check.
+  The primary had reached step `1599` after `01:26:52`; checkpoint `1000` and
+  its validation result remain preserved under run ID
+  `a10080-matched-20260802` as diagnostic provenance. They will not be resumed
+  because their cosine schedule was defined over the superseded `48,403`
+  steps.
+- The corrected launcher defaults to fresh run ID
+  `a10080-3epoch-20260802`. At measured `~2.72 s/step`, `67,498` steps require
+  about `51.0` training hours plus validation/checkpoint overhead, so the run
+  needs two linear A100-80GB Slurm segments. No A100-40GB or L40S job was
+  active or schedulable when the superseded jobs were stopped.

@@ -103,7 +103,7 @@ def test_pure_configs_stream_training_data_only(config_name: str) -> None:
     assert data["test_split"] is None
 
 
-def test_full_pure_config_matches_the_llama_token_budget() -> None:
+def test_full_pure_config_matches_three_epoch_xlstm_token_budget() -> None:
     training = yaml.safe_load(
         (
             Path(__file__).parents[1] / "src/conf/base/gated_deltanet_125m_pure.yaml"
@@ -118,7 +118,8 @@ def test_full_pure_config_matches_the_llama_token_budget() -> None:
     token_slots = training["max_steps"] * global_batch * training["max_seq_length"]
 
     assert global_batch == 48
-    assert token_slots == 4_758_208_512
+    assert training["num_train_epochs"] == 3
+    assert token_slots == 6_635_323_392
 
 
 @pytest.mark.parametrize(
