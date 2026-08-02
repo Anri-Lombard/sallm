@@ -90,22 +90,35 @@ def test_chunk_kernel_probe_passes_fused_gate_inputs(monkeypatch) -> None:
     assert captured["kwargs"]["use_gate_in_kernel"] is True
 
 
-def test_pure_canary_streams_training_data_only() -> None:
+@pytest.mark.parametrize(
+    "config_name",
+    ["gated_deltanet_125m_pure.yaml", "gated_deltanet_125m_pure_canary.yaml"],
+)
+def test_pure_configs_stream_training_data_only(config_name: str) -> None:
     data = yaml.safe_load(
-        (
-            Path(__file__).parents[1]
-            / "src/conf/base/gated_deltanet_125m_pure_canary.yaml"
-        ).read_text()
+        (Path(__file__).parents[1] / "src/conf/base" / config_name).read_text()
     )["data"]
 
     assert data["streaming"] is True
     assert data["test_split"] is None
-    full_data = yaml.safe_load(
+
+
+def test_full_pure_config_matches_the_llama_token_budget() -> None:
+    training = yaml.safe_load(
         (
             Path(__file__).parents[1] / "src/conf/base/gated_deltanet_125m_pure.yaml"
         ).read_text()
-    )["data"]
-    assert full_data.get("streaming", False) is False
+    )["training"]
+
+    global_batch = (
+        2
+        * training["per_device_train_batch_size"]
+        * training["gradient_accumulation_steps"]
+    )
+    token_slots = training["max_steps"] * global_batch * training["max_seq_length"]
+
+    assert global_batch == 48
+    assert token_slots == 4_758_208_512
 
 
 @pytest.mark.parametrize(

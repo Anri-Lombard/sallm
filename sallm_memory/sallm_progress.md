@@ -1252,3 +1252,44 @@ Current open gate:
 - Runtime defects found and fixed on `research/pure-gdn-baseline-20260802`: Slurm submit-dir resolution (`8521c6ec...`), grouped Hydra overrides (`3b50f218...`), Hub `List` metadata compatibility (`581e95cf...`). A reviewed but currently uncommitted trainer fix marks only pure GDN `accepts_loss_kwargs=False` and defaults resolved iterable `dispatch_batches=False` when unset; affected suite `16` tests plus fresh Sol verdict `ship`.
 - Decisive two-step canary rerun is pending because the external-write approval service rejected both staging and HEX sync with `unknown_parameter: input[6].namespace`. Exact-file sync must be explicitly re-authorized; do not bypass the approval boundary.
 - Full pretraining remains gated after canary by storage (`~89.9/100 GB` used) and a preregistered matched token/update budget. Selection is validation loss/validation metrics only; never tune on held-out test.
+- Fresh-lane update: reviewed trainer/provenance changes are committed on `research/pure-gdn-baseline-20260802` as `6812806bb92928cb78a912eb8ce2c67f86317e77`. Exact HEX rsync was separately rejected as remote source export, so no decisive canary exists yet. Latest quota is `89/100 GB` (`90.0%`), owned queue is empty, and three A100-80GB GPUs are nominally free. The prior `input[n].namespace` approval failure is publicly tracked in open `openai/codex#31754`; do not conflate it with the later rsync policy rejection.
+
+## Pure-GDN hardware gate accepted — 2026-08-02
+
+- Decisive two-GPU A100-80GB canary `1165989` completed `0:0` in `00:08:01`
+  using pure FLA `GatedDeltaNetForCausalLM` with `attn=None`, exactly
+  `127,425,448` parameters, and no concurrent owned A100-40GB or L40S work.
+  Both wrapped 2,048-token optimizer steps completed with ordinary-scale
+  losses `11.1940/11.1951`; both iterable validation passes completed at
+  `eval_loss=11.1919603348`; the TileLang FLA backward path was exercised.
+- Both step checkpoints and `final_model` saved without rank collisions.
+  AutoModel reload, exact state-dict roundtrip, and deterministic greedy
+  generation passed. Accepted artifact root:
+  `/scratch/lmbanr001/masters/sallm/checkpoints/sallm-pure-gdn-125m-canary/a10080-1165989`
+  (`1.7G`; final config SHA256
+  `114fd68f5f522b3627aa10fc34d029e9e200adb5ebb228e8f826c64b93eddf5b`).
+- The implementation/hardware gate is complete. Full pure-GDN pretraining is
+  still not authorized to start: current scratch is `91/100 GB` (`91.6%`),
+  and the executed LLaMA/Mamba/xLSTM token/update histories must be recovered
+  and one matched token budget preregistered. Pretraining recipe selection is
+  validation-only and held-out tests remain untouched.
+
+## Pure-GDN matched pretraining contract frozen — 2026-08-02
+
+- Full pure-GDN pretraining is authorized and frozen to `48,403` optimizer
+  steps at global sequence batch `48` and context `2,048`, exactly
+  `4,758,208,512` token slots matching the executed LLaMA/xLSTM anchor. Hub
+  streaming is mandatory. Tokenizer vocabulary is `65,536`; optimizer is LR
+  `4e-4`, cosine, `2,000` warmup steps, weight decay `0.01`, Adam betas
+  `0.9/0.95`, and max gradient norm `1.0`.
+- Model identity remains pure FLA `GatedDeltaNetForCausalLM`, `attn=None`,
+  exactly `127,425,448` parameters. Historical Qwen3Next results remain
+  explicitly **GDN--Attention Hybrid**, never evidence for this pure arm.
+- Pretraining selection and monitoring use validation loss only. Downstream
+  recipe/checkpoint selection must also remain validation-only before any
+  one-time official held-out test.
+- Verified cold archives now preserve `gdn_afrihg_hpo_r1` and `news_hpo_r1`
+  on Kombuys with exact per-file SHA256 source/destination manifests (`119`
+  and `126` files). CPU job `1166480` removed only those verified HEX roots
+  plus the reproducible `655M` Triton cache; accepted canary `1165989` and all
+  canonical winners remain untouched.

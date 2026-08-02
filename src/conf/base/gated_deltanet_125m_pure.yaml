@@ -28,6 +28,7 @@ model:
 
 data:
   hf_name: "anrilombard/mzansi-text-tokenized"
+  streaming: true
   train_split: "train"
   eval_split: "validation"
   test_split: null
@@ -46,14 +47,17 @@ training:
   adam_beta1: 0.9
   adam_beta2: 0.95
   max_grad_norm: 1.0
-  per_device_train_batch_size: 6
-  per_device_eval_batch_size: 8
-  gradient_accumulation_steps: 8
+  # 2 GPUs x batch 2 x accumulation 12 = matched global batch 48.
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 12
   num_train_epochs: 5
+  # 48,403 x 48 x 2,048 = 4,758,208,512 token slots (LLaMA/xLSTM anchor).
+  max_steps: 48403
   eval_strategy: "steps"
-  eval_steps: 200
+  eval_steps: 1000
   save_strategy: "steps"
-  save_steps: 2500
+  save_steps: 1000
   save_total_limit: 2
   resume_from_checkpoint: null
   bf16: true
@@ -64,7 +68,7 @@ training:
   ddp_find_unused_parameters: false
   gradient_checkpointing: false
   torch_compile: false
-  dataloader_num_workers: 8
+  dataloader_num_workers: 2
   packing: true
   packing_strategy: "wrapped"
   padding_free: false

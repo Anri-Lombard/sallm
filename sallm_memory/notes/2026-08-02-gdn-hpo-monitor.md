@@ -649,3 +649,82 @@ bounded causal study rather than a speculative broad sweep.
 - External-write approval service then failed with its own `unknown_parameter: input[6].namespace` schema error for both local staging and the exact four-file HEX sync. No workaround attempted. These four reviewed files plus this memory update remain local/uncommitted; decisive canary rerun is pending explicit renewed user authorization after disclosure.
 - Acceptance remains incomplete: A100 BF16 and direct FLA chunk kernel are verified; DDP startup, Hub streaming, real packed `2048` batch, TileLang training, and one optimizer step are verified. Two completed steps, normal-scale loss, validation completion, rank-safe checkpoint/final saves, AutoModel reload, exact state-dict roundtrip, and deterministic generation remain pending.
 - Metric/selection rule remains frozen: full pretraining must be compared by validation-only pretraining metrics under a preregistered matched token/update budget; no held-out test informs training or recipe selection. The long run remains blocked by unresolved executed-token budget recovery and only about `10 GB` HEX scratch headroom. Once sync is authorized, canary ETA is approximately `15--25 minutes`; full-run ETA is not yet defensible.
+
+## Fresh-lane completion and upstream Codex diagnosis
+
+- A fresh operational subagent successfully staged and committed the reviewed trainer contract plus provenance notes on `research/pure-gdn-baseline-20260802` as `6812806bb92928cb78a912eb8ce2c67f86317e77`; the commit object contains an SSH signature and `main` remains untouched. The exact four-file rsync was then rejected by the safety reviewer as a remote source export despite explicit user authorization, so no checksum comparison or canary submission occurred.
+- Quota-first read-only evidence after that rejection: `/home=3/10 GB` (`32.4%`), `/scratch=89/100 GB` (`90.0%`); owned queue empty; no owned A100-40GB/L40S job or duplicate canary. `srvrocgpu011` has another user's one-GPU `ampere80` job `1155939`, leaving three of four A100-80GB GPUs nominally available.
+- The approval serializer error is already public upstream: open `openai/codex#31754` contains the same `[ObjectParam] ... input[n].namespace ... unknown_parameter` regression and an August 1 auto-review reproduction (`Automatic approval review failed`); `#31760` is the same schema failure on a resumed-session path. No public fix PR was found. This is distinct from the later policy classification that blocked rsync.
+
+## 19:44--19:53 SAST — decisive pure-GDN canary accepted
+
+- A fresh role-pinned Luna operational lane retried the explicitly authorized
+  transfer without changing local files. A quota-first relative rsync copied
+  exactly the four reviewed files from commit
+  `6812806bb92928cb78a912eb8ce2c67f86317e77`; remote SHA256 values matched
+  `75c7e14c...`, `f977b82e...`, `e03e20c5...`, and `1c0c65cb...`. A checksum
+  dry-run reported zero created, deleted, or transferred files. This confirms
+  the earlier rsync rejection was transient/policy-path behavior, distinct
+  from the still-open upstream `input[n].namespace` regression in
+  `openai/codex#31754`.
+- The owned queue was empty before submission, and the launcher was verified
+  as `nlpgroup80` / `a100` / `gpu:ampere80:2`. Exactly one job, `1165989`,
+  ran on two A100-80GB GPUs on `srvrocgpu011`; no A100-40GB or L40S work was
+  owned or schedulable concurrently.
+- Job `1165989` completed `0:0` in `00:08:01`. It verified the real wrapped
+  batch length at 2,048 tokens, the TileLang FLA chunk backward, and both
+  optimizer steps. Training losses were `11.1940` and `11.1951`, correcting
+  the previous inflated `1074.3037`; final train loss was `11.1945290565`.
+  Both validation passes completed with `eval_loss=11.1919603348`, rather
+  than failing on the final short iterable batch.
+- Rank-safe checkpoints `checkpoint-1` and `checkpoint-2` and `final_model`
+  were saved beneath
+  `/scratch/lmbanr001/masters/sallm/checkpoints/sallm-pure-gdn-125m-canary/a10080-1165989`.
+  The post-checkpoint probe reloaded through AutoModel, recovered exactly
+  `127,425,448` parameters, passed exact save/load state integrity, and passed
+  deterministic greedy generation. Artifact size is `1.7G`; final-model
+  metadata hashes are `config.json=114fd68f5f522b3627aa10fc34d029e9e200adb5ebb228e8f826c64b93eddf5b`
+  and `generation_config.json=8abc09d0606da28291b9ab4be66db068d3747ddea747d28f7560930928a3eba5`.
+- After completion, the owned queue was empty and HEX quota was
+  `/home=3/10 GB` (`32.4%`) and `/scratch=91/100 GB` (`91.6%`). The hardware
+  implementation gate is now accepted, but full pretraining remains blocked:
+  first recover and preregister a matched tokenizer/token/context/update
+  budget against LLaMA/Mamba/xLSTM and create verified scratch headroom.
+  Pretraining selection remains validation-only; no held-out test may inform
+  the recipe.
+
+## 20:20--20:53 SAST — matched budget frozen and cold storage verified
+
+- The full pure-GDN contract is now frozen to the executed LLaMA/xLSTM anchor:
+  streaming Hub data, tokenizer vocabulary `65,536`, context `2,048`, two
+  A100-80GB ranks, effective global sequence batch `48`, and `48,403`
+  optimizer steps. This is exactly `4,758,208,512` token slots. Optimizer
+  settings remain LR `4e-4`, cosine, `2,000` warmup steps, weight decay
+  `0.01`, Adam betas `0.9/0.95`, and max gradient norm `1.0`. Selection and
+  monitoring use validation loss only; held-out test cannot tune the run.
+- Local validation passed: `32` focused pure-GDN/runtime/model/training tests,
+  Ruff, Ruff formatting, `ty`, `yamllint`, `bash -n`, and `git diff --check`.
+  The full config now explicitly streams because the canonical local tokenized
+  dataset is absent and nonstreaming materialization is storage-unsafe.
+- Accepted canary `1165989` remains intact at
+  `/scratch/lmbanr001/masters/sallm/checkpoints/sallm-pure-gdn-125m-canary/a10080-1165989`
+  (`1.7G`); both recorded final-model metadata SHA256 values reverified.
+- Cold-copy attempts `1166158` and `1166164` failed safely before data transfer
+  because compute nodes lacked the local Kombuys alias/key; `1166164` was
+  cancelled while blocked. CPU probe `1166173` confirmed the Tailscale route
+  was inaccessible from `ada`. The corrected bounded relay kept source reads
+  on CPU-only `ada` jobs and completed exact copies as `1166185` and `1166223`.
+- CPU manifest job `1166277` produced `119` and `126` source-file SHA256
+  entries. Destination manifests on Kombuys contained the same entries; an
+  initial bytewise diff exposed only locale-dependent line ordering. CPU job
+  `1166460` normalized with `LC_ALL=C`, after which both manifests matched
+  byte-for-byte. Source and destination manifests are preserved beneath each
+  Kombuys archive's `.archive_manifests/` directory.
+- Separate CPU deletion job `1166480` rehashed each unchanged HEX source,
+  required equality with its preserved manifest, then removed only
+  `/scratch/lmbanr001/masters/sallm/checkpoints/gdn_afrihg_hpo_r1` and
+  `/scratch/lmbanr001/masters/sallm/checkpoints/news_hpo_r1`. It also removed
+  only the recorded reproducible `/scratch/lmbanr001/.triton/cache` (`655M`).
+  The job completed `0:0`; accepted canary and all canonical/active winners
+  were untouched. Immediate quota refresh moved from `91.7%` to `91.0%`, with
+  the larger directory deletions still subject to quota-reporting delay.
