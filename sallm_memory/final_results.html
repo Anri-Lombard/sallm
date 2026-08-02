@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SALLM Architecture Results</title>
+  <style>
+    :root {
+      --bg: #f7f7f4;
+      --ink: #20231f;
+      --muted: #626b5f;
+      --line: #d8d8d0;
+      --panel: #ffffff;
+      --mamba: #28666e;
+      --llama: #8f4f24;
+      --warn: #9a6b00;
+      --bad: #9b2c2c;
+      --good: #246b36;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+    h1, h2, h3 { line-height: 1.15; margin: 0; }
+    h1 { font-size: 34px; letter-spacing: 0; }
+    h2 { font-size: 22px; margin-top: 34px; }
+    h3 { font-size: 17px; margin-top: 22px; }
+    p { margin: 10px 0; }
+    a { color: var(--mamba); }
+    .lede {
+      color: var(--muted);
+      max-width: 900px;
+      font-size: 16px;
+      margin-top: 12px;
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0 10px;
+    }
+    .status {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .status strong {
+      display: block;
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+    .status span { color: var(--muted); font-size: 13px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 9px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+    th {
+      background: #ecece5;
+      font-weight: 650;
+    }
+    tr:last-child td { border-bottom: none; }
+    .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .mamba { color: var(--mamba); font-weight: 650; }
+    .llama { color: var(--llama); font-weight: 650; }
+    .good { color: var(--good); font-weight: 650; }
+    .bad { color: var(--bad); font-weight: 650; }
+    .warn { color: var(--warn); font-weight: 650; }
+    .note {
+      border-left: 4px solid var(--mamba);
+      background: #eef5f4;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+    .todo {
+      border-left-color: var(--warn);
+      background: #fff8e6;
+    }
+    ul { margin-top: 8px; }
+    li { margin: 6px 0; }
+    code {
+      background: #ecece5;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    @media (max-width: 820px) {
+      .status-grid { grid-template-columns: 1fr; }
+      th, td { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>SALLM Architecture Results</h1>
+  <p class="lede">
+    Working view for comparing decoder-only Transformer/LLaMA and Mamba results
+    in the low-resource SALLM setting. The Google Sheet remains the final
+    optimized-result registry; this file makes the current evidence and caveats
+    easier to inspect.
+  </p>
+  <p>
+    Final registry:
+    <a href="https://docs.google.com/spreadsheets/d/1Ph_zVcSuLZy0dUBnDPF4tkLqAfEVCwK9JVybB2_8x6U/edit?ouid=101226728847680131120&amp;usp=sheets_home&amp;ths=true">SALLM optimized results sheet</a>
+  </p>
+
+  <section class="status-grid" aria-label="Status summary">
+    <div class="status"><strong>News</strong><span>Mamba looks strong after eval-template fix.</span></div>
+    <div class="status"><strong>T2X</strong><span>Mamba recipe-sensitive, still far behind LLaMA.</span></div>
+    <div class="status"><strong>AfriHG</strong><span>Checkpoint selection helps; blind continuation regressed.</span></div>
+    <div class="status"><strong>POS/NER</strong><span>Output-shape failure remains unresolved.</span></div>
+  </section>
+
+  <h2>Current Best Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Task</th>
+        <th>Language</th>
+        <th>Metric</th>
+        <th>Mamba best</th>
+        <th>LLaMA / Transformer reference</th>
+        <th>Status</th>
+        <th>Evidence</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>MasakhaNews</td>
+        <td>Eng</td>
+        <td>best F1</td>
+        <td class="num mamba">0.773</td>
+        <td class="num warn">Needs same-sheet baseline consolidation</td>
+        <td class="good">Mamba strong</td>
+        <td><code>mamba_news_eng_on_all_chat</code></td>
+      </tr>
+      <tr>
+        <td>MasakhaNews</td>
+        <td>Xho</td>
+        <td>best F1</td>
+        <td class="num mamba">0.757</td>
+        <td class="num warn">Needs same-sheet baseline consolidation</td>
+        <td class="good">Mamba strong</td>
+        <td><code>mamba_news_xho_on_all_chat</code></td>
+      </tr>
+      <tr>
+        <td>T2X</td>
+        <td>Xho</td>
+        <td>chrF / BLEU / ROUGE-L</td>
+        <td class="num mamba">33.124 / 0.058 / 0.301</td>
+        <td class="num llama">53.976 / 0.217 / 0.511</td>
+        <td class="bad">Large Transformer lead</td>
+        <td><code>fullft/mamba_t2x_xho_ckpt244_continue2_nogenmetrics_20260518_l40s</code>; <code>ft_llama_125m_t2x_xho_opt_chrf_fix2_fullft</code></td>
+      </tr>
+      <tr>
+        <td>AfriHG</td>
+        <td>Xho</td>
+        <td>chrF / BLEU / ROUGE-L</td>
+        <td class="num mamba">11.534 / 0.004 / 0.047</td>
+        <td class="num llama">20.219 / 0.011 / 0.077</td>
+        <td class="bad">Transformer lead; continuation regressed</td>
+        <td><code>checkpoint_selected_20260518/mamba-afrihg-xho-ckpt656</code>; continuation chrF <code>10.347</code>; <code>llama_afrihg_xho_fullft</code></td>
+      </tr>
+      <tr>
+        <td>AfriHG</td>
+        <td>Zul</td>
+        <td>chrF / BLEU / ROUGE-L</td>
+        <td class="num mamba">13.573 / 0.008 / 0.064</td>
+        <td class="num llama">23.004 / 0.013 / 0.116</td>
+        <td class="bad">Transformer lead; continuation regressed</td>
+        <td><code>checkpoint_selected_20260518/mamba-afrihg-zul-ckpt892</code>; continuation chrF <code>12.655</code>; <code>llama_afrihg_zul_fullft</code></td>
+      </tr>
+      <tr>
+        <td>POS atomic tag sequence</td>
+        <td>Xho</td>
+        <td>token acc / strict token acc</td>
+        <td class="num mamba">0.192 / 0.158</td>
+        <td class="num llama">0.516 best token acc in remote JSON</td>
+        <td class="warn">Not final; output-shape unresolved</td>
+        <td><code>mamba-pos-atomic-lora-hpo2-lr2e4-e120</code>; <code>remote_llama_pos_json/llama_pos_xho</code></td>
+      </tr>
+      <tr>
+        <td>NER atomic BIO tag sequence</td>
+        <td>Xho</td>
+        <td>BIO F1 / token acc / strict</td>
+        <td class="num mamba">0.177 / 0.670 / 0.278</td>
+        <td class="num warn">Authoritative LLaMA benchmark value needed</td>
+        <td class="warn">Not final; output-shape unresolved</td>
+        <td><code>mamba-ner-atomic-lora-lr1e4-e60</code></td>
+      </tr>
+      <tr>
+        <td>InjongoIntent</td>
+        <td>Xho</td>
+        <td>best F1 / acc</td>
+        <td class="num mamba">0.0059 / 0.0406</td>
+        <td class="num llama">0.0012 / 0.025 in local remote JSON</td>
+        <td class="warn">Needs broader task consolidation</td>
+        <td><code>templatefix_2026-05-01/mamba_injongointent_xho</code></td>
+      </tr>
+      <tr>
+        <td>SIB</td>
+        <td>Xho</td>
+        <td>best F1 / acc</td>
+        <td class="num mamba">0.0933 / 0.1569</td>
+        <td class="num warn">Needs LLaMA baseline artifact</td>
+        <td class="warn">Needs consolidation</td>
+        <td><code>templatefix_2026-05-01/mamba_sib_xho</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Current read:</strong> We have enough evidence to say Mamba is not
+    globally broken. It performs strongly on corrected MasakhaNews and improves
+    substantially on T2X/AfriHG with recipe recovery and validation-metric
+    checkpoint selection. T2X improved again with a short continuation, but
+    AfriHG continuation from selected checkpoints regressed, mostly by making
+    outputs shorter. T2X and AfriHG still trail the transformer baseline by a
+    large margin, and POS/NER are not settled because their main failure is
+    output control.
+  </div>
+
+  <h2>Not-Yet-Closed Questions</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Question</th>
+        <th>Why it matters</th>
+        <th>Minimum experiment before closure</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Is Mamba's base model undertrained?</td>
+        <td>T2X/AfriHG gaps may reflect worse pretraining quality, not fine-tuning or architecture.</td>
+        <td>Compare base validation/perplexity by language, tokenizer fertility, and base zero/few-shot generation quality against LLaMA.</td>
+      </tr>
+      <tr>
+        <td>Is the gap from copy/retrieval/alignment limitations?</td>
+        <td>Translation, headlines, POS, and NER all need source-conditioned copying or exact ordered outputs.</td>
+        <td>Run copy/reorder/tag-copy diagnostics on both base and fine-tuned Mamba vs LLaMA.</td>
+      </tr>
+      <tr>
+        <td>Can POS/NER be fixed while staying decoder-only?</td>
+        <td>Teacher-forced learning exists, but free generation malformed the outputs.</td>
+        <td>Test constrained decoding, dynamic length control, per-token loglikelihood tagging, and matched LLaMA controls.</td>
+      </tr>
+      <tr>
+        <td>Can AfriHG/T2X improve with better checkpoint selection or longer training?</td>
+        <td>Mamba generation metrics during training were disabled due cache issues, so eval_loss may select the wrong checkpoint. T2X also improved after a short continuation.</td>
+        <td class="warn">Partly closed: checkpoint selection helped all three generation tasks and T2X continuation improved again, but AfriHG Xho/Zul continuation regressed. Further gains likely need output-length/control or base-quality diagnostics, not blind longer training.</td>
+      </tr>
+      <tr>
+        <td>Is Hugging Face Mamba generation a bottleneck?</td>
+        <td>We saw cache/generation friction and eval OOM fallback.</td>
+        <td>Run HF-vs-official mamba_ssm logits/generation parity probes on the same checkpoint and prompts.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Next Experiment Queue</h2>
+  <ol>
+    <li><strong>POS/NER output-control rescue:</strong> exact-label vocabulary constrained decoding, dynamic max-new-tokens by input token count, stop sequence hardening, and per-token decoder-only loglikelihood scoring.</li>
+    <li><strong>AfriHG generation rescue:</strong> blind continuation regressed Xho/Zul, so avoid promoting longer training unless paired with validation chrF/length checkpointing or an output-control diagnostic.</li>
+    <li><strong>Base-model adequacy audit:</strong> compare Mamba/LLaMA base losses, tokenizer fertility, and zero/few-shot raw outputs for the same languages and prompts.</li>
+    <li><strong>Implementation parity:</strong> run HF Mamba vs official Mamba kernels/logits/generation where possible.</li>
+    <li><strong>Only then:</strong> consider Mamba-2/hybrid attention-SSM/xLSTM architecture changes.</li>
+  </ol>
+
+  <p class="lede">
+    Last updated: 2026-05-18 23:18 SAST. This HTML is a local working view; keep final
+    optimized numbers in the Google Sheet and detailed evidence in daily notes.
+  </p>
+</main>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>SALLM Task-Head Root-Cause Read - 2026-06-29</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:32px;line-height:1.45;color:#17202a;max-width:1180px}h1,h2{color:#111827}.notice{border-left:4px solid #b7791f;background:#fffaf0;padding:12px 16px;margin:16px 0}.good{border-left:4px solid #2f855a;background:#f0fff4;padding:12px 16px;margin:16px 0}table{border-collapse:collapse;width:100%;margin:12px 0 24px;font-size:14px}th,td{border:1px solid #d0d7de;padding:8px;vertical-align:top}th{background:#f6f8fa;text-align:left}code{background:#f6f8fa;padding:1px 4px;border-radius:4px}li{margin:6px 0}</style></head>
+<body>
+<h1>SALLM Task-Head Root-Cause Read</h1>
+<p><strong>Updated:</strong> 2026-06-29 15:24 SAST. Diagnostic task-head results, not the decoder-only benchmark table.</p>
+<div class="notice"><strong>GDN:</strong> HEX job <code>965310 gdn33w-b6-full</code> is still pending on <code>AssocGrpGRES</code>; no GDN training evidence exists yet.</div>
+<div class="good"><strong>Mamba runtime caveat closed:</strong> all seed-13 Mamba SIB/NER rows have now been rerun after installing <code>mamba-ssm</code>/<code>causal-conv1d</code>. Scores did not improve; the fixed runtime is not rescuing Mamba.</div>
+<h2>Three-Seed Summary</h2>
+<table><thead><tr><th>Task</th><th>Split</th><th>Winner</th><th>xLSTM</th><th>Mamba</th><th>LLaMA</th></tr></thead><tbody><tr><td>ner</td><td>all</td><td>xlstm</td><td>xlstm 0.4032 +/- 0.0236</td><td>mamba 0.2491 +/- 0.0105</td><td>llama 0.3553 +/- 0.0397</td></tr><tr><td>ner</td><td>tsn</td><td>xlstm</td><td>xlstm 0.4592 +/- 0.0092</td><td>mamba 0.3210 +/- 0.0073</td><td>llama 0.4229 +/- 0.0210</td></tr><tr><td>ner</td><td>xho</td><td>xlstm</td><td>xlstm 0.3642 +/- 0.0154</td><td>mamba 0.2017 +/- 0.0253</td><td>llama 0.3214 +/- 0.0239</td></tr><tr><td>ner</td><td>zul</td><td>xlstm</td><td>xlstm 0.3568 +/- 0.0147</td><td>mamba 0.2038 +/- 0.0589</td><td>llama 0.3299 +/- 0.0295</td></tr><tr><td>sib</td><td>all</td><td>llama</td><td>xlstm 0.7030 +/- 0.0032</td><td>mamba 0.6205 +/- 0.0115</td><td>llama 0.7355 +/- 0.0149</td></tr></tbody></table>
+<h2>Mamba Seed-13 Old Runtime vs Fixed Runtime</h2>
+<table><thead><tr><th>Task</th><th>Split</th><th>Old</th><th>Fixed</th><th>Delta</th></tr></thead><tbody><tr><td>sib</td><td>all</td><td>0.6653</td><td>0.6334</td><td>-0.0319</td></tr><tr><td>ner</td><td>all</td><td>0.2839</td><td>0.2407</td><td>-0.0433</td></tr><tr><td>ner</td><td>tsn</td><td>0.3770</td><td>0.3268</td><td>-0.0502</td></tr><tr><td>ner</td><td>xho</td><td>0.2610</td><td>0.1776</td><td>-0.0833</td></tr><tr><td>ner</td><td>zul</td><td>0.3002</td><td>0.2496</td><td>-0.0505</td></tr></tbody></table>
+<h2>NER-All Error Shape</h2>
+<p>Seed-13 examples, with Mamba using the fixed-runtime rerun. xLSTM still has the strongest entity-token recall; Mamba predicts entity tokens but places/types them less accurately.</p>
+<table><thead><tr><th>Model</th><th>Entity token recall</th><th>Gold-entity examples missed</th><th>Predicted entity density</th><th>False-positive example rate</th><th>Bad I-tags on O</th><th>Top predicted labels</th></tr></thead><tbody><tr><td>xlstm</td><td>0.5512</td><td>0.0860</td><td>0.1335 vs gold 0.1372</td><td>0.0638</td><td>378</td><td>PER:1448, ORG:923, LOC:668, DATE:466</td></tr><tr><td>mamba</td><td>0.3525</td><td>0.1509</td><td>0.1199 vs gold 0.1372</td><td>0.0827</td><td>351</td><td>PER:1955, ORG:704, DATE:298, LOC:192</td></tr><tr><td>llama</td><td>0.4555</td><td>0.1242</td><td>0.1198 vs gold 0.1372</td><td>0.0560</td><td>182</td><td>PER:1836, ORG:618, LOC:419, DATE:272</td></tr></tbody></table>
+<h2>Root-Cause Read</h2>
+<ul>
+<li><strong>xLSTM:</strong> usable representations are present. Generative failures on NER/SIB should be framed as objective/formulation failure, not blanket representation failure.</li>
+<li><strong>Mamba:</strong> weak head results persist after the fixed-runtime cleanup. This is less likely to be a missing-kernel/Hugging Face fallback artifact.</li>
+<li><strong>LLaMA:</strong> remains the stronger SIB classifier and decoder-only baseline, so keep the Transformer comparison as the main control.</li>
+<li><strong>GDN:</strong> still a staged hypothesis test. Evaluate only after real training starts: base loss, clean conditional loss, T2X source preservation, then matched task heads.</li>
+</ul>
+
+<h2>Intent/POS Repeat Seeds Completed</h2>
+<div class="good"><strong>Result:</strong> The Kombuys repeat-seed matrix completed 54/54 rows after resuming from a Hugging Face read-timeout on <code>llama_intent_zul_seed34</code>. Combining seed 13 from the original HEX matrix with seeds 21 and 34 from Kombuys gives a 3-seed task-head diagnostic for Intent/POS.</div>
+<table>
+<thead><tr><th>Task</th><th>Lang</th><th>Winner</th><th>xLSTM macro-F1</th><th>Mamba macro-F1</th><th>LLaMA macro-F1</th><th>Read</th></tr></thead>
+<tbody>
+<tr><td>Intent</td><td>all</td><td>xLSTM</td><td>0.7171 +/- 0.0124</td><td>0.4533 +/- 0.0044</td><td>0.6981 +/- 0.0184</td><td>xLSTM edges LLaMA; Mamba far behind.</td></tr>
+<tr><td>Intent</td><td>eng</td><td>xLSTM</td><td>0.7456 +/- 0.0195</td><td>0.5931 +/- 0.0197</td><td>0.7155 +/- 0.0168</td><td>xLSTM lead is stable over seeds.</td></tr>
+<tr><td>Intent</td><td>sot</td><td>xLSTM</td><td>0.6884 +/- 0.0149</td><td>0.4257 +/- 0.0484</td><td>0.6396 +/- 0.0117</td><td>Largest xLSTM-LLaMA gap among Intent rows.</td></tr>
+<tr><td>Intent</td><td>xho</td><td>xLSTM</td><td>0.8530 +/- 0.0122</td><td>0.6467 +/- 0.0263</td><td>0.8257 +/- 0.0297</td><td>Both xLSTM and LLaMA strong; xLSTM still wins.</td></tr>
+<tr><td>Intent</td><td>zul</td><td>xLSTM</td><td>0.7218 +/- 0.0091</td><td>0.5149 +/- 0.0309</td><td>0.7094 +/- 0.0111</td><td>Close xLSTM-LLaMA result; Mamba still trails.</td></tr>
+<tr><td>POS</td><td>all</td><td>xLSTM</td><td>0.5453 +/- 0.0080</td><td>0.3812 +/- 0.0155</td><td>0.5161 +/- 0.0249</td><td>xLSTM wins macro-F1; token accuracy also slightly higher.</td></tr>
+<tr><td>POS</td><td>tsn</td><td>xLSTM</td><td>0.5046 +/- 0.0120</td><td>0.3604 +/- 0.0120</td><td>0.4863 +/- 0.0400</td><td>xLSTM wins, but LLaMA variance is larger.</td></tr>
+<tr><td>POS</td><td>xho</td><td>xLSTM</td><td>0.3689 +/- 0.0123</td><td>0.2843 +/- 0.0045</td><td>0.3628 +/- 0.0173</td><td>xLSTM-LLaMA nearly tied; both beat Mamba.</td></tr>
+<tr><td>POS</td><td>zul</td><td>xLSTM</td><td>0.4814 +/- 0.0109</td><td>0.3666 +/- 0.0075</td><td>0.4692 +/- 0.0076</td><td>xLSTM modestly ahead of LLaMA; Mamba gap persists.</td></tr>
+</tbody>
+</table>
+<div class="notice"><strong>Interpretation:</strong> This strengthens the formulation/objective story. xLSTM is not merely recovering on NER; with a task-specific head it is competitive or best across Intent and POS too. Mamba's weak task-head scores are now less plausibly a missing-kernel artifact because the fixed-runtime reruns and repeat seeds keep it behind.</div>
+
+
+<h2>Task-Head LR Sensitivity Sanity Sweep</h2>
+<div class="good"><strong>Result:</strong> The Kombuys 24-row sensitivity sweep completed cleanly. It used the held-out test split only as a robustness check around the already reported head setting, not as validation HPO for model selection.</div>
+<table>
+<thead><tr><th>Task</th><th>Baseline winner</th><th>Best nearby setting winner</th><th>What changed?</th></tr></thead>
+<tbody>
+<tr><td>SIB all</td><td>LLaMA 0.7352</td><td>LLaMA bbhi 0.7855</td><td>No winner change; both xLSTM and LLaMA improve, LLaMA remains ahead.</td></tr>
+<tr><td>NER all</td><td>xLSTM 0.4224</td><td>xLSTM bbhi 0.4936</td><td>No winner change; xLSTM lead strengthens, LLaMA also improves.</td></tr>
+<tr><td>Intent all</td><td>xLSTM 0.7229</td><td>xLSTM bbhi 0.7940</td><td>No best-per-architecture winner change; low-LR alone briefly favors LLaMA, but the stronger nearby setting restores xLSTM lead.</td></tr>
+<tr><td>POS all</td><td>xLSTM 0.5362</td><td>xLSTM bbhi 0.5707</td><td>Effectively tied with LLaMA bbhi 0.5702, but no material reversal.</td></tr>
+</tbody>
+</table>
+<div class="notice"><strong>Interpretation:</strong> This is sensitivity evidence, not HPO-selected test reporting. The main task-head read survives nearby LR/backbone-LR changes: LLaMA remains best on SIB; xLSTM remains best on NER and Intent; POS is a near tie between xLSTM and LLaMA. Mamba improves under the higher backbone LR but remains behind both controls on every representative task.</div>
+
+<h2>Next Experiments</h2>
+<ol>
+<li>Keep monitoring HEX GDN until it starts or misses its projected slot.</li>
+<li>Use heads for Intent/POS/SIB/NER diagnostic claims; avoid broad head HPO unless final reviewers need a small LR/backbone-LR check.</li>
+<li>Use token-level audits only for T2X entity/value preservation and NER boundary/type errors.</li>
+<li>When GDN checkpoint lands, run the same decoder-only and task-head gates before making any architectural claim.</li>
+</ol>
+
+<section id="frozen-task-head-control-2026-06-30">
+  <h2>Frozen Task-Head Control (2026-06-30)</h2>
+  <p><strong>Diagnostic only:</strong> NER uses entity F1; SIB, Intent, and POS use weighted F1. Frozen rows train only the task head; trainable rows use the matched <code>bbhi</code> setting from <code>task_head_hpo_sanity_20260629</code>.</p>
+  <table>
+    <thead><tr><th>Architecture</th><th>Task</th><th>Frozen</th><th>Trainable bbhi</th><th>Gain</th></tr></thead>
+    <tbody>
+      <tr><td>xLSTM</td><td>SIB</td><td>0.6491</td><td>0.7860</td><td>+0.1369</td></tr>
+      <tr><td>xLSTM</td><td>NER</td><td>0.3670</td><td>0.4936</td><td>+0.1266</td></tr>
+      <tr><td>xLSTM</td><td>Intent</td><td>0.6577</td><td>0.7959</td><td>+0.1381</td></tr>
+      <tr><td>xLSTM</td><td>POS</td><td>0.6440</td><td>0.7385</td><td>+0.0945</td></tr>
+      <tr><td>Mamba</td><td>SIB</td><td>0.6232</td><td>0.6819</td><td>+0.0587</td></tr>
+      <tr><td>Mamba</td><td>NER</td><td>0.2414</td><td>0.3092</td><td>+0.0678</td></tr>
+      <tr><td>Mamba</td><td>Intent</td><td>0.4835</td><td>0.5572</td><td>+0.0737</td></tr>
+      <tr><td>Mamba</td><td>POS</td><td>0.5844</td><td>0.6266</td><td>+0.0422</td></tr>
+      <tr><td>LLaMA</td><td>SIB</td><td>0.6876</td><td>0.7963</td><td>+0.1086</td></tr>
+      <tr><td>LLaMA</td><td>NER</td><td>0.2526</td><td>0.4309</td><td>+0.1783</td></tr>
+      <tr><td>LLaMA</td><td>Intent</td><td>0.4677</td><td>0.7641</td><td>+0.2964</td></tr>
+      <tr><td>LLaMA</td><td>POS</td><td>0.6210</td><td>0.7330</td><td>+0.1120</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Readout:</strong> the frozen winners match the trainable-backbone winners: LLaMA on SIB, xLSTM on NER, Intent, and POS. Backbone adaptation improves every architecture, but it does not flip the core winner pattern. Mamba remains behind in both settings, so its underperformance is not only a task-head optimization artifact.</p>
+</section>
+
+</body></html>

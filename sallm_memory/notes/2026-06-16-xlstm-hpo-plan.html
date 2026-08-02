@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>xLSTM HPO Plan</title>
+  <style>
+    :root {
+      --ink: #17212b;
+      --muted: #596875;
+      --line: #d8e0e7;
+      --soft: #f6f8fa;
+      --blue: #e7f1f7;
+      --green: #edf7ed;
+      --yellow: #fff8db;
+      --red: #fff1f1;
+      --purple: #f2edf8;
+      --accent: #31546d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(1220px, calc(100% - 44px));
+      margin: 0 auto;
+      padding: 32px 0 58px;
+    }
+
+    header {
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 18px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 30px;
+      line-height: 1.12;
+      margin: 0 0 8px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 30px 0 10px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h3 {
+      font-size: 15px;
+      margin: 18px 0 8px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    p { margin: 8px 0 12px; }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 960px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--soft);
+      padding: 14px;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .card p {
+      color: #2d3742;
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .decision {
+      border-left: 5px solid var(--accent);
+      background: var(--blue);
+      padding: 12px 14px;
+      margin: 14px 0 18px;
+    }
+
+    .warn {
+      border-left-color: #9a7322;
+      background: var(--yellow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin: 10px 0 20px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 9px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef2f5;
+      text-align: left;
+      font-weight: 800;
+    }
+
+    td.num, th.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mono { background: #fff7e9; }
+    .multi { background: #e9f4fa; }
+    .general { background: #edf6eb; }
+    .hold { background: #f7f7f7; color: #4f5b65; }
+    .risk { background: var(--red); }
+    .gate { background: var(--yellow); }
+    .ok { background: var(--green); }
+    .diag { background: var(--purple); }
+
+    .pill {
+      display: inline-block;
+      border: 1px solid #c9d3dc;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #fff;
+      margin: 1px 3px 1px 0;
+    }
+
+    code {
+      background: #f0f3f6;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    ul {
+      padding-left: 20px;
+      margin: 8px 0 14px;
+    }
+
+    li { margin: 5px 0; }
+
+    .small { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>xLSTM HPO plan for mono, multi, and general downstream adapters</h1>
+    <p class="subtitle">
+      Review plan before any new HPO submission. The goal is to improve xLSTM where tuning can plausibly help, without repeating the POS/NER evaluation mistakes or tuning directly on official test rows.
+    </p>
+  </header>
+
+  <section>
+    <h2>Short Answer</h2>
+    <div class="decision">
+      <strong>Do not run one giant cross-task sweep for everything.</strong>
+      Run task-specific HPO for mono and multi adapters, then run a separate general-adapter HPO where the objective is deliberately across tasks. In other words: mono/multi HPO is mostly within one task at a time; general HPO is across tasks by design.
+    </div>
+
+    <div class="grid">
+      <div class="card mono">
+        <strong>Mono</strong>
+        <p>One task, one language. Use this to find sharp task-language recipes and diagnose whether a language is the bottleneck.</p>
+      </div>
+      <div class="card multi">
+        <strong>Multi</strong>
+        <p>One task, multiple languages. Use this for the main benchmark recipe because it is closest to the multilingual comparison table.</p>
+      </div>
+      <div class="card general">
+        <strong>General</strong>
+        <p>Multiple tasks, multiple languages, one adapter. This is the only stage where HPO should be across tasks.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why This Shape</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Problem</th>
+          <th>What we learned</th>
+          <th>HPO implication</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>POS looked excellent before, then corrected evaluation lowered it.</td>
+          <td>Old lm-eval list-target setup inflated token accuracy. Correct constrained POS is real but lower: xLSTM about 0.69-0.73 by language.</td>
+          <td class="ok">POS is the best first HPO target, but selection must use constrained validation scoring.</td>
+        </tr>
+        <tr>
+          <td>NER remains very poor even after BIO tag-sequence reformulation.</td>
+          <td>All architectures collapse under legal closed-label BIO scoring. xLSTM macro entity F1 is only 0.0367.</td>
+          <td class="risk">Do not spend broad HPO budget on NER first. Use NER as a diagnostic gate, not the main objective.</td>
+        </tr>
+        <tr>
+          <td>T2X and AfriHG are weak for xLSTM.</td>
+          <td>Mixed-source rescue and decode sweeps did not produce a strong official test result.</td>
+          <td class="gate">Pure HPO may help a little, but source/structure interventions should be tested before a large sweep.</td>
+        </tr>
+        <tr>
+          <td>General adapter collapsed on structured tasks.</td>
+          <td>The single adapter is not just under-tuned; it may need mixture/task weighting and objective balancing.</td>
+          <td class="ok">General HPO should tune mixture and task balance, not only LR and LoRA settings.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Stage Plan</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 12%;">Stage</th>
+          <th style="width: 18%;">Scope</th>
+          <th style="width: 24%;">Runs</th>
+          <th style="width: 24%;">Selection metric</th>
+          <th style="width: 22%;">Promotion rule</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A</td>
+          <td>POS multi pilot</td>
+          <td>8-12 short runs</td>
+          <td>Constrained POS validation token accuracy, macro over tsn/xho/zul.</td>
+          <td>Promote only if every language improves or no language drops more than 1-2 points.</td>
+        </tr>
+        <tr>
+          <td>B</td>
+          <td>POS multi promotion</td>
+          <td>Top 3-4 full runs</td>
+          <td>Same constrained validation objective, with exact-sequence as tie-breaker.</td>
+          <td>One winner gets official constrained test eval.</td>
+        </tr>
+        <tr>
+          <td>C</td>
+          <td>POS mono follow-up</td>
+          <td>6-8 runs per weak language if needed</td>
+          <td>Constrained POS validation for one language.</td>
+          <td>Only run if multi HPO reveals a language-specific bottleneck.</td>
+        </tr>
+        <tr>
+          <td>D</td>
+          <td>SIB/Injongo closed-label sanity HPO</td>
+          <td>Small 6-10 run sweeps</td>
+          <td>Validation F1/accuracy, same protocol as final eval.</td>
+          <td>Run after POS if POS shows xLSTM can improve from tuning.</td>
+        </tr>
+        <tr>
+          <td>E</td>
+          <td>General adapter HPO</td>
+          <td>12-20 pilot runs, then 3-4 promoted</td>
+          <td>Weighted validation score across tasks, with floors to prevent collapse.</td>
+          <td>Promote only if it beats current general adapter on at least 3 task families without collapsing POS/NER.</td>
+        </tr>
+        <tr>
+          <td>F</td>
+          <td>T2X/AfriHG structural HPO</td>
+          <td>Only after source-structure candidate exists</td>
+          <td>Validation chrF plus source-preservation checks.</td>
+          <td>Do not spend large HPO budget on plain generation config alone.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Mono, Multi, General Matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Adapter family</th>
+          <th>What HPO means here</th>
+          <th>Tasks included</th>
+          <th>Tasks excluded or gated</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono"><strong>Mono</strong></td>
+          <td>One task-language pair per sweep, for example POS-Xhosa or SIB-Xhosa.</td>
+          <td>
+            <span class="pill">POS Xho/Tsn/Zul</span>
+            <span class="pill">SIB Xho if needed</span>
+            <span class="pill">T2X Xho only after structure fix</span>
+          </td>
+          <td>
+            <span class="pill">NER broad HPO</span>
+            <span class="pill">News unless regression appears</span>
+          </td>
+          <td>Best for isolating whether one language or one output contract is causing the failure.</td>
+        </tr>
+        <tr>
+          <td class="multi"><strong>Multi</strong></td>
+          <td>One task, all target languages. This is the main benchmark-oriented HPO path.</td>
+          <td>
+            <span class="pill">POS all</span>
+            <span class="pill">SIB all</span>
+            <span class="pill">Injongo all verification/HPO if needed</span>
+          </td>
+          <td>
+            <span class="pill">NER only as diagnostic</span>
+            <span class="pill">AfriHG after structure check</span>
+          </td>
+          <td>Improves the exact family of task-specific adapters used in the comparison table.</td>
+        </tr>
+        <tr>
+          <td class="general"><strong>General</strong></td>
+          <td>One adapter trained across tasks and languages. This is cross-task HPO.</td>
+          <td>
+            <span class="pill">News</span>
+            <span class="pill">POS</span>
+            <span class="pill">SIB</span>
+            <span class="pill">Injongo</span>
+            <span class="pill">small NER diagnostic gate</span>
+          </td>
+          <td>
+            <span class="pill">Generation tasks only if budget allows</span>
+          </td>
+          <td>The old general adapter collapsed, so tuning must include mixture balance and task floors.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Objective Design</h2>
+    <h3>POS Multi Objective</h3>
+    <div class="decision">
+      Main score = mean constrained validation token accuracy across Tswana, Xhosa, and Zulu. Tie-breakers are exact sequence accuracy, balanced per-language score, and lower confusion concentration.
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Gate</th>
+          <th>Reason</th>
+          <th>Fail condition</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Per-language floor</td>
+          <td>Prevents a run from winning by improving one language while damaging another.</td>
+          <td>Any language drops more than roughly 1-2 points versus current xLSTM constrained baseline.</td>
+        </tr>
+        <tr>
+          <td>Prediction label distribution</td>
+          <td>Detects label-prior collapse.</td>
+          <td>One or two labels dominate beyond a sensible threshold, even if token accuracy improves.</td>
+        </tr>
+        <tr>
+          <td>Exact sequence tie-break</td>
+          <td>Token accuracy can hide broken sentence-level behavior.</td>
+          <td>Higher token accuracy but worse exact sequence and worse examples.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>General Adapter Objective</h3>
+    <p>
+      This is the only genuinely cross-task HPO objective. Use a weighted validation score, not a single task's metric.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Task family</th>
+          <th>Metric</th>
+          <th>Weight</th>
+          <th>Gate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MasakhaNews</td>
+          <td>F1</td>
+          <td class="num">20%</td>
+          <td>Must not regress badly from current task-specific xLSTM.</td>
+        </tr>
+        <tr>
+          <td>MasakhaPOS</td>
+          <td>Constrained token accuracy</td>
+          <td class="num">30%</td>
+          <td>Must clear a minimum floor; POS is our cleanest structured-token signal.</td>
+        </tr>
+        <tr>
+          <td>SIB/Injongo</td>
+          <td>F1/accuracy</td>
+          <td class="num">25%</td>
+          <td>Must improve over current general adapter, not just task-specific adapters.</td>
+        </tr>
+        <tr>
+          <td>NER diagnostic</td>
+          <td>BIO entity F1 / label collapse check</td>
+          <td class="num">10%</td>
+          <td>Diagnostic only; use as collapse detector, not as primary target.</td>
+        </tr>
+        <tr>
+          <td>T2X/AfriHG</td>
+          <td>chrF plus source/semantic sanity</td>
+          <td class="num">15%</td>
+          <td>Only include if runtime budget allows; otherwise handle in separate structural wave.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Search Space</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>POS/multi first pass</th>
+          <th>General adapter pass</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Learning rate</td>
+          <td><code>1e-5</code> to <code>5e-4</code>, log scale</td>
+          <td><code>8e-6</code> to <code>3e-4</code>, log scale</td>
+          <td>Most likely high-impact knob for xLSTM LoRA adaptation.</td>
+        </tr>
+        <tr>
+          <td>LoRA rank</td>
+          <td><code>16, 32, 64, 128</code></td>
+          <td><code>32, 64, 128</code></td>
+          <td>Controls adapter capacity; general likely needs at least moderate capacity.</td>
+        </tr>
+        <tr>
+          <td>LoRA alpha</td>
+          <td><code>2r, 4r</code></td>
+          <td><code>2r, 4r</code></td>
+          <td>Keeps alpha tied to rank instead of searching arbitrary values.</td>
+        </tr>
+        <tr>
+          <td>LoRA dropout</td>
+          <td><code>0, 0.05, 0.1</code></td>
+          <td><code>0.05, 0.1, 0.15</code></td>
+          <td>General adapter may need more regularization than task-specific POS.</td>
+        </tr>
+        <tr>
+          <td>Weight decay</td>
+          <td><code>0, 0.01, 0.05, 0.1</code></td>
+          <td><code>0.01, 0.05, 0.1</code></td>
+          <td>Avoids too-wide uniform search over unhelpful values.</td>
+        </tr>
+        <tr>
+          <td>Warmup</td>
+          <td><code>0.03, 0.05, 0.1</code></td>
+          <td><code>0.05, 0.1</code></td>
+          <td>xLSTM has been sensitive to training stability.</td>
+        </tr>
+        <tr>
+          <td>Epochs</td>
+          <td><code>6, 8, 10, 12</code></td>
+          <td><code>2, 3, 4</code> general epochs first</td>
+          <td>POS can afford longer adaptation; general overfitting/collapse needs earlier checks.</td>
+        </tr>
+        <tr>
+          <td>Max sequence length</td>
+          <td><code>1024</code> first, test <code>2048</code> only in promotion</td>
+          <td><code>1024</code></td>
+          <td>Keep runtime controlled; POS usually does not need 2048.</td>
+        </tr>
+        <tr>
+          <td>Mixture weights</td>
+          <td>Not applicable</td>
+          <td>Tune task sampling weights</td>
+          <td>This is probably the real general-adapter knob.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Evidence Basis For The Parameters</h2>
+    <div class="decision">
+      The parameter families are research-backed. The exact ranges are not copied from one paper; they are a conservative blend of xLSTM training defaults, common LoRA practice, and local SALLM evidence from previous xLSTM/Mamba/POS audits.
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter family</th>
+          <th>Evidence tier</th>
+          <th>Backing</th>
+          <th>How it affects our sweep</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AdamW, warmup, weight decay, gradient clipping</td>
+          <td class="ok">Strong architecture-level support</td>
+          <td>The xLSTM paper trains with AdamW, beta2 0.95, epsilon 1e-5, gradient clipping 1.0, warmup, cosine decay, and weight decay 0.1. Our base xLSTM recipe already follows several of these choices.</td>
+          <td>Keep optimizer family fixed. Tune LR/warmup/weight decay around sensible local ranges instead of searching optimizer variants.</td>
+        </tr>
+        <tr>
+          <td>LoRA rank, alpha, dropout</td>
+          <td class="ok">Strong PEFT-method support, weaker exact-range support</td>
+          <td>LoRA is paper-backed as a parameter-efficient adaptation method. PEFT/TRL documentation treats rank, alpha, target modules, and dropout as the core LoRA configuration knobs.</td>
+          <td>Tune rank/alpha/dropout, but keep ranges bounded. Use rank 16-128 and alpha tied to rank rather than arbitrary alpha values.</td>
+        </tr>
+        <tr>
+          <td>Learning rate range</td>
+          <td class="gate">Local + general fine-tuning support</td>
+          <td>Existing SALLM sweeps use 3e-5 to 3e-4. Prior xLSTM configs live around 1e-4 to 5e-4, while task-specific LoRA adaptation often needs lower LR than base pretraining.</td>
+          <td>Use a log-scale LR search. Start with roughly 1e-5 to 5e-4 for POS; narrow after the pilot.</td>
+        </tr>
+        <tr>
+          <td>Epoch count</td>
+          <td class="gate">Local task evidence</td>
+          <td>POS is a closed-label dense token task and xLSTM already learns nontrivial POS behavior. NER did not improve under reformulation, so longer epochs alone are unlikely to rescue NER.</td>
+          <td>Let POS run longer than generation tasks. Do not infer that the same epoch range should apply to NER/T2X/AfriHG.</td>
+        </tr>
+        <tr>
+          <td>Bayesian sweep shape</td>
+          <td class="ok">Tooling/practice support</td>
+          <td>W&B Sweeps explicitly supports Bayesian hyperparameter search. The repo already uses W&B Bayesian sweeps for existing HPO configs.</td>
+          <td>Use Bayesian search only after the objective is clean. Keep pilot runs small because W&B sweeps do not magically fix bad metrics.</td>
+        </tr>
+        <tr>
+          <td>Per-language and per-task promotion gates</td>
+          <td class="diag">Local audit support</td>
+          <td>The POS and NER audits showed aggregate metrics can hide broken behavior or label-prior collapse.</td>
+          <td>Promotion requires per-language floors and confusion checks, not only the top aggregate validation score.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="small">
+      Sources to cite in advisor discussion: Beck et al. 2024 xLSTM; Hu et al. 2021 LoRA; Hugging Face PEFT/TRL LoRA docs; W&B Sweeps docs. Local evidence comes from the corrected constrained POS and NER diagnostics recorded in the 2026-06-16 notes.
+    </p>
+  </section>
+
+  <section>
+    <h2>Execution Order</h2>
+    <ol>
+      <li>Prepare corrected constrained validation evaluators for POS, and confirm they produce the same fields as test evaluators.</li>
+      <li>Create an xLSTM POS multi HPO sweep that optimizes constrained validation, not old lm-eval list-target accuracy.</li>
+      <li>Run 8-12 pilot trials on L40S; pull lightweight artifacts and summarize locally.</li>
+      <li>Promote top 3-4 to full runs; final test only the winner.</li>
+      <li>If POS improves, run small mono sweeps only for languages that remain weak.</li>
+      <li>Then run the general adapter HPO with a cross-task objective and collapse gates.</li>
+      <li>Only after this, decide whether T2X/AfriHG get structural HPO or whether we move to GatedDeltaNet.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>What I Would Not Do</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Bad plan</th>
+          <th>Why not</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Run one 50-trial sweep per existing xLSTM task config immediately.</td>
+          <td>Too expensive, and some objectives are known-broken or low-yield after the eval audits.</td>
+        </tr>
+        <tr>
+          <td>Optimize NER first.</td>
+          <td>The BIO diagnostic says the failure is label-prior/calibration collapse, not just a tunable span-output issue.</td>
+        </tr>
+        <tr>
+          <td>Tune on official test rows.</td>
+          <td>This would make the spreadsheet results less defensible. Use validation for HPO, test once.</td>
+        </tr>
+        <tr>
+          <td>Use old POS lm-eval token accuracy.</td>
+          <td>That path inflated POS before. Use constrained closed-label POS scoring.</td>
+        </tr>
+        <tr>
+          <td>Let a single aggregate score hide task collapse.</td>
+          <td>Every promoted config needs per-language and per-task floors.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Decision Needed Before Submission</h2>
+    <div class="decision warn">
+      My recommended first submission is <strong>xLSTM POS multi constrained-validation HPO</strong>, not general HPO and not NER HPO. After the pilot, we decide whether mono sweeps are necessary or whether the multi recipe is strong enough to promote.
+    </div>
+    <p class="small">
+      No jobs are submitted from this plan. It is a review artifact for deciding the HPO wave shape.
+    </p>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Latest Architecture Research for SALLM</title>
+  <style>
+    :root {
+      --bg: #f7f8f5;
+      --ink: #17211b;
+      --muted: #5e6962;
+      --line: #d9ded5;
+      --panel: #fff;
+      --green: #146c5a;
+      --blue: #245b88;
+      --amber: #8a4b12;
+      --red: #8d2d2d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1120px; margin: 0 auto; padding: 38px 22px 64px; }
+    header { border-bottom: 1px solid var(--line); margin-bottom: 26px; padding-bottom: 22px; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.03; letter-spacing: 0; }
+    h2 { margin: 34px 0 12px; font-size: 1.35rem; letter-spacing: 0; }
+    h3 { margin: 20px 0 7px; font-size: 1rem; }
+    p { margin: 0 0 14px; }
+    a { color: var(--blue); }
+    code { background: #eef1ec; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+    .meta { color: var(--muted); max-width: 820px; }
+    .callout {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--green);
+      border-radius: 8px;
+      padding: 18px;
+      margin: 18px 0 24px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0 8px;
+    }
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .tile b {
+      display: block;
+      color: var(--muted);
+      font-size: .86rem;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .go { color: var(--green); font-weight: 700; }
+    .screen { color: var(--amber); font-weight: 700; }
+    .no { color: var(--red); font-weight: 700; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: block;
+      overflow-x: auto;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 12px;
+      text-align: left;
+      vertical-align: top;
+      min-width: 185px;
+    }
+    th { background: #edf2ed; color: #34423a; font-size: .9rem; }
+    tr:last-child td { border-bottom: 0; }
+    ul, ol { padding-left: 22px; }
+    li { margin: 6px 0; }
+    .sources { columns: 2; column-gap: 30px; }
+    .sources li { break-inside: avoid; }
+    @media (max-width: 800px) {
+      main { padding: 24px 14px 42px; }
+      .grid { grid-template-columns: 1fr; }
+      .sources { columns: 1; }
+      th, td { min-width: 230px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Latest Architecture Research for SALLM</h1>
+    <p class="meta">Fresh literature pass on 2026-06-21 for a South African low-resource architecture-comparison dissertation. Primary sources only where possible: papers, official repos, model cards, and release notes.</p>
+  </header>
+
+  <section class="callout">
+    <p><strong>Updated answer:</strong> the best dissertation lineup is still a controlled comparison of LLaMA-style Transformer, Mamba-family efficient recurrence, and xLSTM, with HGRN2/BabyHGRN as the strongest next low-resource candidate. The newest papers make xLSTM more important, not less. Gated DeltaNet should be a bounded hybrid screen, and M2RNN / TTT / Titans should be cited as emerging future work unless implementation becomes cheap.</p>
+  </section>
+
+  <section class="grid" aria-label="architecture decision summary">
+    <div class="tile"><b>Core Baseline</b><span class="go">LLaMA-style Transformer</span></div>
+    <div class="tile"><b>Core Efficient Family</b><span class="go">Mamba-2 or Mamba-2 hybrid</span></div>
+    <div class="tile"><b>Strongest Current Bet</b><span class="go">xLSTM</span></div>
+    <div class="tile"><b>Best Missing Low-Resource Bet</b><span class="go">HGRN2 / BabyHGRN</span></div>
+  </section>
+
+  <h2>What Changed Since The Earlier Plan</h2>
+  <ul>
+    <li><strong>xLSTM moved up.</strong> ICLR 2026 scaling-law work reports favorable scaling from 80M to 7B and 2B to 2T tokens. A June 2026 subquadratic comparison finds xLSTM stronger than Mamba-2 and Gated DeltaNet across code pretraining, distillation, and time-series settings.</li>
+    <li><strong>GDN is still interesting, but mainly as hybrid.</strong> GDN-2, Qwen3-Next, and Kimi Linear all strengthen the GDN/KDA family, but the strongest practical designs keep attention or sliding-window attention around for recall.</li>
+    <li><strong>Low-resource evidence still favors HGRN2/BabyHGRN.</strong> BabyHGRN remains the cleanest direct sample-efficiency result. The 2025 BLaLM paper adds another low-resource signal: mLSTM or linear attention plus local attention and careful optimization can beat small Transformer baselines.</li>
+    <li><strong>New wildcards are real but expensive.</strong> M2RNN, TTT, and Titans are worth citing, but not worth derailing the dissertation unless their code drops cleanly into SALLM.</li>
+  </ul>
+
+  <h2>Recommended Dissertation Set</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Priority</th>
+        <th>Architecture</th>
+        <th>Why it belongs</th>
+        <th>Decision</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>LLaMA-style Transformer</td>
+        <td>Reference baseline and strongest known fit for copying, prompt conditioning, and source preservation in T2X/AfriHG.</td>
+        <td class="go">Keep as core.</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Mamba-2 or Mamba-2 hybrid</td>
+        <td>Defines the efficient SSM comparison. Pure Mamba weaknesses are already informative; hybrid Mamba is the fairer practical version.</td>
+        <td class="go">Keep, but frame pure Mamba carefully.</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>xLSTM</td>
+        <td>Best-supported recurrent alternative after latest scaling and subquadratic-comparison work. Also already viable locally.</td>
+        <td class="go">Keep as a thesis pillar.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>HGRN2 / BabyHGRN</td>
+        <td>Strongest direct sample-efficient low-resource evidence. Best missing architecture if another full screen is possible.</td>
+        <td class="go">Next full architecture screen.</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Gated DeltaNet hybrid or GDN-2 hybrid</td>
+        <td>Targets compressed-memory interference and Mamba's source-preservation gap. Latest GDN-2 and Qwen/Kimi evidence is strong, but not low-resource-specific.</td>
+        <td class="screen">Small screen, not full run first.</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Mamba-3</td>
+        <td>New pure-SSM direction improves state tracking and inference efficiency; FLA has added support.</td>
+        <td class="screen">Feasibility-only unless cheap.</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>M2RNN</td>
+        <td>Very relevant latest result: nonlinear matrix-state RNNs improve state tracking and beat GDN hybrids in reported settings.</td>
+        <td class="screen">Watch closely; cite now.</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>TTT / Titans</td>
+        <td>Important long-context memory direction, but it changes the project from architecture comparison to test-time adaptation/memory.</td>
+        <td class="no">Future work, not core.</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>RWKV, RetNet, RecurrentGemma/Griffin, Samba/Jamba/Falcon-H1 clones</td>
+        <td>Useful related work. Hybrid trend matters, but cloning every family would dilute the dissertation.</td>
+        <td class="no">Cite or run only if already easy.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Best Research Design</h2>
+  <ol>
+    <li><strong>Do not chase architectures one by one forever.</strong> The thesis contribution is the controlled South African-language comparison, not a leaderboard of every 2026 sequence mixer.</li>
+    <li><strong>Use the same corpus, tokenizer, parameter scale, train budget, and downstream gates.</strong> Otherwise the architecture claim becomes mush.</li>
+    <li><strong>Separate base quality from task adaptation.</strong> Keep base validation loss, clean conditional generation loss, source preservation, POS/NER constrained scoring, and downstream chrF/F1 as distinct evidence.</li>
+    <li><strong>Make source preservation a first-class metric.</strong> Latest literature keeps warning that fixed-state models struggle with copying and retrieval. That maps directly to T2X and AfriHG.</li>
+    <li><strong>Prefer bounded screens before full runs.</strong> A 10K-ish screen plus clean-loss/source-preservation probes should gate HGRN2, GDN hybrid, Mamba-3, or M2RNN before any full pretraining spend.</li>
+  </ol>
+
+  <h2>Concrete Next Moves</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Move</th>
+        <th>Smallest useful check</th>
+        <th>Pass condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Finish xLSTM evidence</td>
+        <td>Complete current HPO/test gates and clean source-preservation interpretation.</td>
+        <td>xLSTM beats Mamba on at least one defensible downstream family and has a clear failure story where it does not.</td>
+      </tr>
+      <tr>
+        <td>HGRN2 feasibility</td>
+        <td>Instantiate 125M-ish HGRN2 with SALLM vocab and one forward/backward/generation smoke.</td>
+        <td>Local training path is stable enough for a 10K screen.</td>
+      </tr>
+      <tr>
+        <td>HGRN2 10K screen</td>
+        <td>Run same tokenizer/splits/budget and compare to Mamba/xLSTM/LLaMA base gates.</td>
+        <td>Early validation or clean conditional loss is competitive with xLSTM and better than Mamba.</td>
+      </tr>
+      <tr>
+        <td>GDN hybrid screen</td>
+        <td>Use FLA implementation, not a custom port. Include periodic local/full attention if available.</td>
+        <td>Improves source entity/value preservation over Mamba without tanking chrF or throughput.</td>
+      </tr>
+      <tr>
+        <td>M2RNN watch</td>
+        <td>Check whether open-lm-engine can instantiate a small dense M2RNN cleanly in SALLM.</td>
+        <td>Only run if integration cost is lower than HGRN2/GDN and licensing is safe.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Decision</h2>
+  <p>The best possible research path is not "train the newest thing." It is: finish LLaMA vs Mamba vs xLSTM cleanly, add HGRN2 as the strongest low-resource missing candidate, then use GDN hybrid as a focused test of the Mamba source-preservation hypothesis. Cite Mamba-3, GDN-2, Kimi Linear, Qwen3-Next, M2RNN, TTT, and Titans to show the dissertation is current, but do not let them explode the experimental matrix.</p>
+
+  <h2>Primary Sources Checked</h2>
+  <ul class="sources">
+    <li><a href="https://arxiv.org/abs/2510.02228">xLSTM Scaling Laws</a></li>
+    <li><a href="https://openreview.net/forum?id=LV3DpKD08B">xLSTM 7B</a></li>
+    <li><a href="https://github.com/NX-AI/xlstm">NX-AI/xlstm</a></li>
+    <li><a href="https://arxiv.org/html/2606.12364v1">On Subquadratic Architectures</a></li>
+    <li><a href="https://arxiv.org/abs/2412.15978">BabyHGRN</a></li>
+    <li><a href="https://arxiv.org/abs/2404.07904">HGRN2</a></li>
+    <li><a href="https://arxiv.org/html/2511.05560v1">BLaLM sample-efficient linear attention</a></li>
+    <li><a href="https://arxiv.org/abs/2605.22791">Gated DeltaNet-2</a></li>
+    <li><a href="https://arxiv.org/abs/2412.06464">Gated DeltaNet</a></li>
+    <li><a href="https://github.com/fla-org/flash-linear-attention">Flash Linear Attention</a></li>
+    <li><a href="https://arxiv.org/abs/2510.26692">Kimi Linear</a></li>
+    <li><a href="https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Instruct">Qwen3-Next model card</a></li>
+    <li><a href="https://qwen.ai/blog?from=research.latest-advancements-list&id=4074cca80393150c248e508aa62983f9cb7d27cd">Qwen3-Next release note</a></li>
+    <li><a href="https://arxiv.org/abs/2603.15569">Mamba-3</a></li>
+    <li><a href="https://github.com/state-spaces/mamba">state-spaces/mamba</a></li>
+    <li><a href="https://arxiv.org/abs/2406.07887">Empirical Study of Mamba-based LMs</a></li>
+    <li><a href="https://arxiv.org/abs/2402.01032">Transformers are Better than SSMs at Copying</a></li>
+    <li><a href="https://arxiv.org/abs/2603.14360">M2RNN</a></li>
+    <li><a href="https://arxiv.org/abs/2407.04620">TTT layers</a></li>
+    <li><a href="https://arxiv.org/abs/2512.23675">End-to-End TTT for Long Context</a></li>
+    <li><a href="https://arxiv.org/abs/2501.00663">Titans</a></li>
+    <li><a href="https://arxiv.org/abs/2507.22448">Falcon-H1</a></li>
+    <li><a href="https://arxiv.org/abs/2408.12570">Jamba-1.5</a></li>
+  </ul>
+</main>
+</body>
+</html>
