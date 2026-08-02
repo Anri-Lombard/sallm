@@ -1194,6 +1194,18 @@ Current open gate:
   2,728 updates with final validation loss `0.2754413566702204`. Preserve it as
   a **GDN--Attention Hybrid (Qwen3Next implementation)** control; do not use it
   as evidence for the pure-GDN architecture.
+- Pure-GDN integration is locally accepted on
+  `research/pure-gdn-baseline-20260802` at signed commit `4feaadf`: 80 tests
+  and a third fresh Sol/high `ship` review cover pure/hybrid routing, wrapped
+  2,048-token streaming canary batches, the FLA kernel probe, and DDP-safe
+  saves. No HEX sync or GPU canary occurred because external-write approval is
+  still required.
+- The broad-pretraining budget is not yet scientifically frozen. The common
+  tokenizer/optimizer/context intentions are aligned, but executed histories
+  differ or are incomplete (LLaMA `48,403` steps; xLSTM `67,498` steps at
+  epoch `3.0871`; current Mamba Hub lineage not fully recovered). Treat the
+  pure config's five epochs as provisional; recover executed token/update
+  contracts and pre-register one explicit token budget before full launch.
 
 ## Update Rule
 

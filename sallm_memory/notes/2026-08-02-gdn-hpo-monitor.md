@@ -613,3 +613,28 @@ bounded causal study rather than a speculative broad sweep.
   The hybrid completion released its A100-80GB GPU. No pure-GDN GPU canary is
   authorized until the integration diff, lockfile, local verification, and
   fresh Sol final review pass.
+
+## Pure-GDN integration acceptance and budget audit — 2026-08-02
+
+- The pure/hybrid registry correction, FLA 0.5.1 dependency boundary,
+  streaming two-rank canary, wrapped non-flattening 2,048-token packing,
+  distinct `H`/`HV` kernel probe, and DDP-safe saving passed `80` local tests,
+  Ruff, formatting, `ty`, YAML, shell, lock, and diff checks. After two bounded
+  `fix-first` rounds, a third fresh Sol/high review returned `ship`; exact
+  before/after hashes confirmed the reviewer made no edits.
+- Signed local commit `4feaadf62b665e558069eccf978987f3238a65e7` records the
+  accepted integration on branch `research/pure-gdn-baseline-20260802`.
+  `main` is untouched and nothing was pushed. No HEX files or jobs changed:
+  the external-write approval gate rejected the attempted exact 35-file sync,
+  so the reviewed two-A100-80GB canary remains unsubmitted.
+- Static recipe audit confirms common tokenizer path and vocabulary (65,536),
+  LR `4e-4`, cosine schedule, warmup `2000`, weight decay `0.01`, Adam betas
+  `0.9/0.95`, gradient norm `1.0`, and intended effective batch `192` against
+  the 125M baselines. Current YAMLs are not sufficient execution provenance:
+  LLaMA W&B run `2mkkmx3d` ended at step `48,403`; the completed xLSTM run
+  reached step `67,498` / epoch `3.0871`; and the current Mamba Hub base has a
+  messy, incompletely recovered run lineage. Therefore the full pure-GDN
+  `num_train_epochs: 5` setting remains provisional, not a scientifically
+  frozen token budget. Before broad pretraining, recover the executed
+  per-architecture token/update contracts and pre-register one explicit token
+  budget; the two-step canary is only an implementation gate.
