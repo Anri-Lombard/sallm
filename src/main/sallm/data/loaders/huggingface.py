@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 from urllib.request import urlopen
 
 from datasets import (
@@ -11,7 +12,10 @@ from datasets import (
 
 from sallm.config import FinetuneDatasetConfig
 from sallm.data.loaders.base import VALIDATION_ALIASES, load_split_with_fallback
-from sallm.data.loaders.injongointent_split import split_injongointent_rows
+from sallm.data.loaders.injongointent_split import (
+    exclude_heldout_texts,
+    split_injongointent_rows,
+)
 from sallm.data.transforms.language_filter import (
     filter_by_language,
     filter_by_single_language,
@@ -43,11 +47,14 @@ def _load_train_val_with_revision_fallback(
     last_err: Exception | None = None
     for revision in (None, PARQUET_REVISION):
         try:
-            train_ds = load_dataset(
-                hf_name,
-                name=name,
-                split=train_split,
-                revision=revision,
+            train_ds = cast(
+                Dataset,
+                load_dataset(
+                    hf_name,
+                    name=name,
+                    split=train_split,
+                    revision=revision,
+                ),
             )
             val_ds = load_split_with_fallback(
                 hf_name,
@@ -217,17 +224,20 @@ def _load_injongointent_dataset(
     val_parts: list[Dataset] = []
     for lang_code in lang_list_cfg:
         train_ds = _load_injongointent_split(lang_code, splits["train"])
+        test_ds = _load_injongointent_split(lang_code, "test")
+        train_ds = Dataset.from_list(
+            exclude_heldout_texts(train_ds.to_list(), test_ds.to_list())
+        )
 
         val_split = splits["val"]
         if val_split.lower() in VALIDATION_ALIASES:
-            try:
-                val_ds = _load_injongointent_split(lang_code, val_split)
-            except Exception:
-                train_rows, val_rows = split_injongointent_rows(train_ds.to_list())
-                if not val_rows:
-                    raise
-                train_ds = Dataset.from_list(train_rows)
-                val_ds = Dataset.from_list(val_rows)
+            train_rows, val_rows = split_injongointent_rows(train_ds.to_list())
+            if not val_rows:
+                raise ValueError(
+                    f"Could not derive InjongoIntent validation rows for {lang_code}."
+                )
+            train_ds = Dataset.from_list(train_rows)
+            val_ds = Dataset.from_list(val_rows)
         else:
             val_ds = _load_injongointent_split(lang_code, val_split)
 
@@ -282,10 +292,13 @@ def _load_masakhaner_dataset(
 
     for lang_code in _requested_languages(ds_cfg, MASAKHANER_DATASET):
         data_files = _masakhaner_data_files(lang_code)
-        train_ds = load_dataset(
-            MASAKHANER_PARQUET_DATASET,
-            data_files=data_files,
-            split=splits["train"],
+        train_ds = cast(
+            Dataset,
+            load_dataset(
+                MASAKHANER_PARQUET_DATASET,
+                data_files=data_files,
+                split=splits["train"],
+            ),
         )
         val_ds = load_split_with_fallback(
             MASAKHANER_PARQUET_DATASET,

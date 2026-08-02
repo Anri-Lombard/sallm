@@ -2,7 +2,7 @@ import inspect
 import logging
 from typing import Any, cast
 
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from torch.utils.data import Dataset as TorchDataset
 from transformers import (
     EarlyStoppingCallback,
@@ -58,8 +58,8 @@ def build_trainer(
     config: ExperimentConfig,
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerBase,
-    train_dataset: Dataset | TorchDataset,
-    eval_dataset: Dataset | TorchDataset,
+    train_dataset: Dataset | IterableDataset | TorchDataset,
+    eval_dataset: Dataset | IterableDataset | TorchDataset,
 ) -> CustomSFTTrainer:
     training_args_dict = (
         {}
@@ -166,13 +166,20 @@ def build_trainer(
                 "Fine-tuning evaluation callbacks require a HuggingFace Dataset."
             )
         eval_hf_dataset = eval_dataset
-        completions_callback = ShowCompletionsCallback(
-            eval_dataset=eval_hf_dataset,
-            tokenizer=tokenizer,
-            num_samples=5,
-            decoding=config.generation_decoding,
-        )
-        callbacks.append(completions_callback)
+        model_type = getattr(getattr(model, "config", None), "model_type", None)
+        if model_type == "xlstm":
+            logger.info(
+                "Skipping representative free-generation callback for xLSTM "
+                "training-mode checkpoints; task metrics remain enabled."
+            )
+        else:
+            completions_callback = ShowCompletionsCallback(
+                eval_dataset=eval_hf_dataset,
+                tokenizer=tokenizer,
+                num_samples=5,
+                decoding=config.generation_decoding,
+            )
+            callbacks.append(completions_callback)
 
         if task_type == FinetuneTaskType.CLASSIFICATION:
             callbacks.append(

@@ -11,9 +11,9 @@ from typing import Any, cast
 import peft
 import torch
 import wandb
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from omegaconf import OmegaConf
-from sallm.config import ExperimentConfig, to_resolved_dict
+from sallm.config import ExperimentConfig, FinetuneTaskType, to_resolved_dict
 from sallm.data.factory import (
     build_conversation_dataset,
     build_datasets,
@@ -32,9 +32,18 @@ def _is_hpo_run(config: ExperimentConfig) -> bool:
     return isinstance(wb_id, str) and "sweep" in wb_id
 
 
+def _configure_task_truncation(*, tokenizer, task_type) -> None:
+    """Preserve assistant answers when fine-tuning examples exceed the limit."""
+    if task_type in (
+        FinetuneTaskType.CLASSIFICATION,
+        FinetuneTaskType.INSTRUCTION,
+    ):
+        tokenizer.truncation_side = "left"
+
+
 # TODO: improve naming
 # TODO: no defaults for loraconfig, specify in config files
-def _apply_peft_if_needed(model, peft_cfg):
+def _apply_peft_if_needed(*, model, peft_cfg, trainable_token_indices):
     if not peft_cfg or peft_cfg.method == "none":
         return model
 
@@ -44,11 +53,28 @@ def _apply_peft_if_needed(model, peft_cfg):
             peft_kwargs: dict[str, Any] = {}
         else:
             peft_kwargs = to_resolved_dict(kwargs_obj, name="peft kwargs")
+        default_target_modules = ["q_proj", "v_proj"]
+        if getattr(getattr(model, "config", None), "model_type", None) == (
+            "qwen3_next"
+        ):
+            default_target_modules = [
+                "in_proj_qkvz",
+                "in_proj_ba",
+                "out_proj",
+                "q_proj",
+                "k_proj",
+                "v_proj",
+                "o_proj",
+            ]
         lora_conf = peft.LoraConfig(
             r=peft_kwargs.get("r", 64),
             lora_alpha=peft_kwargs.get("lora_alpha", 16),
             lora_dropout=peft_kwargs.get("lora_dropout", 0.05),
-            target_modules=peft_kwargs.get("target_modules", ["q_proj", "v_proj"]),
+            target_modules=peft_kwargs.get("target_modules", default_target_modules),
+            trainable_token_indices=peft_kwargs.get(
+                "trainable_token_indices",
+                trainable_token_indices,
+            ),
             bias="none",
             task_type=peft.TaskType.CAUSAL_LM,
             modules_to_save=peft_kwargs.get("modules_to_save"),
@@ -157,6 +183,12 @@ def _sanitize_hf_repo_component(value: str) -> str:
 
 
 def _build_hub_repo_id(config: ExperimentConfig, *, merged: bool = False) -> str:
+    if config.hub and config.hub.repo_id:
+        repo_id = config.hub.repo_id.strip().rstrip("/")
+        if repo_id.count("/") != 1:
+            raise ValueError("hub.repo_id must use the 'owner/model' format")
+        return f"{repo_id}-merged" if merged else repo_id
+
     org = str(config.hub.organization).strip() if config.hub else "anrilombard"
     arch = _sanitize_hf_repo_component(
         config.model.architecture if config.model else "unknown"
@@ -226,6 +258,8 @@ def run(config: ExperimentConfig) -> None:
 
     logger.info("Tokenizer …")
     tokenizer = build_tokenizer(config)
+    task_type = config.dataset.task if config.dataset is not None else None
+    _configure_task_truncation(tokenizer=tokenizer, task_type=task_type)
     tokenizer_source_path = getattr(config.tokenizer, "path", None)
     if tokenizer_source_path is not None:
         tokenizer_source_path = os.path.expanduser(str(tokenizer_source_path))
@@ -242,9 +276,14 @@ def run(config: ExperimentConfig) -> None:
         ]
     }
     num_added_tokens = tokenizer.add_special_tokens(cast(Any, special_tokens_dict))
+    trainable_token_indices: list[int] | None = None
 
     if num_added_tokens > 0:
         model.resize_token_embeddings(len(tokenizer))
+        trainable_token_indices = [
+            int(tokenizer.convert_tokens_to_ids(str(token)))
+            for token in special_tokens_dict["additional_special_tokens"]
+        ]
 
         # TEMP FIX: Mamba2 resize bug - lm_head not resized
         # See: https://github.com/huggingface/transformers/issues/43206
@@ -299,13 +338,19 @@ def run(config: ExperimentConfig) -> None:
             tokenizer.eos_token,
         )
 
-    model = _apply_peft_if_needed(model, config.peft)
+    model = _apply_peft_if_needed(
+        model=model,
+        peft_cfg=config.peft,
+        trainable_token_indices=trainable_token_indices,
+    )
 
     if i_am_main and hasattr(model, "print_trainable_parameters"):
         model.print_trainable_parameters()
 
     logger.info("Datasets …")
     train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
+    if isinstance(train_ds, IterableDataset) or isinstance(val_ds, IterableDataset):
+        raise TypeError("Fine-tuning requires map-style HuggingFace datasets.")
 
     def _has_messages(ds) -> bool:
         if hasattr(ds, "column_names"):

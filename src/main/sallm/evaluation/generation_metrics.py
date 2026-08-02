@@ -249,7 +249,7 @@ class GenerationEvaluator:
         input_lengths = attn.sum(dim=1)
 
         max_input_len = int(input_lengths.max().item())
-        window_len = max(1, model_ctx_limit - 1)
+        window_len = max(1, model_ctx_limit - self.max_new_tokens - 1)
         if max_input_len >= window_len:
             input_ids = input_ids[:, -window_len:]
             attn = (input_ids != pad_id).long()

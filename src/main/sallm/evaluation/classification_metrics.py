@@ -17,6 +17,14 @@ from sallm.templates import registry as tmpl
 logger = logging.getLogger(__name__)
 
 
+def _gather_target_log_probs(
+    *, logits: torch.Tensor, target_ids: torch.Tensor
+) -> torch.Tensor:
+    """Return target-token log probabilities without a full log-softmax tensor."""
+    target_logits = torch.gather(logits, 2, target_ids.unsqueeze(-1)).squeeze(-1)
+    return target_logits - torch.logsumexp(logits, dim=-1)
+
+
 class ChoiceScoreMode(str, Enum):
     SUM = "sum"
     MEAN = "mean"
@@ -31,7 +39,7 @@ class ClassificationEvaluator:
         max_new_tokens: int = 32,
         max_samples_per_lang: int | None = 256,
         decoding: DecodingConfig | None = None,
-        choice_score_mode: ChoiceScoreMode | str = ChoiceScoreMode.SUM,
+        choice_score_mode: ChoiceScoreMode | str = ChoiceScoreMode.MEAN,
     ) -> None:
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
@@ -242,6 +250,7 @@ class ClassificationEvaluator:
             model_ctx_limit=self._get_model_ctx_limit(model),
             pad_token_id=pad_token_id,
             device=device,
+            pad_to_multiple_of=self._get_model_chunk_size(model),
         )
 
         outputs = model(
@@ -251,11 +260,10 @@ class ClassificationEvaluator:
         )
         logits = outputs.logits[:, :-1, :]
         target_ids = input_ids[:, 1:]
-        token_log_probs = torch.gather(
-            torch.log_softmax(logits, dim=-1),
-            2,
-            target_ids.unsqueeze(-1),
-        ).squeeze(-1)
+        token_log_probs = _gather_target_log_probs(
+            logits=logits,
+            target_ids=target_ids,
+        )
 
         continuation_mask = torch.zeros_like(input_ids, dtype=torch.bool)
         seq_lens = attn.sum(dim=1)
@@ -460,8 +468,27 @@ class ClassificationEvaluator:
             return dataset
         if len(dataset) <= self.max_samples_per_lang:
             return dataset
-        indices = list(range(self.max_samples_per_lang))
-        return dataset.select(indices)
+
+        groups: dict[tuple[str, str], list[int]] = defaultdict(list)
+        for index, sample in enumerate(dataset):
+            messages = sample.get("messages") or []
+            if not messages:
+                continue
+            groups[
+                (
+                    str(sample.get("template_id") or ""),
+                    str(messages[-1].get("content") or ""),
+                )
+            ].append(index)
+
+        per_group = self.max_samples_per_lang // len(groups) if groups else 0
+        if per_group:
+            indices = [
+                index for key in sorted(groups) for index in groups[key][:per_group]
+            ]
+            return dataset.select(indices)
+
+        return dataset.select(range(self.max_samples_per_lang))
 
     def _build_choice_inputs(
         self,
@@ -470,6 +497,7 @@ class ClassificationEvaluator:
         model_ctx_limit: int,
         pad_token_id: int,
         device: torch.device,
+        pad_to_multiple_of: int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, list[int]]:
         sequences: list[torch.Tensor] = []
         choice_starts: list[int] = []
@@ -502,23 +530,55 @@ class ClassificationEvaluator:
             batch_first=True,
             padding_value=pad_token_id,
         ).to(device)
+        if pad_to_multiple_of is not None and pad_to_multiple_of > 1:
+            padded_length = int(padded.shape[1])
+            target_length = min(
+                model_ctx_limit,
+                ((padded_length + pad_to_multiple_of - 1) // pad_to_multiple_of)
+                * pad_to_multiple_of,
+            )
+            if target_length > padded_length:
+                padded = torch.nn.functional.pad(
+                    padded,
+                    (0, target_length - padded_length),
+                    value=pad_token_id,
+                )
         trimmed_mask = torch.zeros_like(padded, dtype=torch.long)
         for idx, seq in enumerate(sequences):
             trimmed_mask[idx, : seq.shape[0]] = 1
         return padded, trimmed_mask, choice_starts
+
+    @staticmethod
+    def _get_model_chunk_size(model: PreTrainedModel) -> int | None:
+        config = getattr(model, "config", None)
+        if getattr(config, "model_type", None) != "xlstm":
+            return None
+        chunk_size = getattr(config, "chunk_size", None)
+        if isinstance(chunk_size, int) and not isinstance(chunk_size, bool):
+            return chunk_size
+        return None
 
     def _encode_choice_pair(
         self,
         context: str,
         continuation: str,
     ) -> tuple[list[int], list[int]]:
+        if continuation and not continuation[0].isspace():
+            continuation = f" {continuation}"
+
         trailing_spaces = len(context) - len(context.rstrip())
         if trailing_spaces:
             continuation = context[-trailing_spaces:] + continuation
             context = context[:-trailing_spaces]
 
-        whole_ids = self.tokenizer.encode(context + continuation)
-        context_ids = self.tokenizer.encode(context)
+        whole_ids = self.tokenizer.encode(
+            context + continuation,
+            add_special_tokens=False,
+        )
+        context_ids = self.tokenizer.encode(
+            context,
+            add_special_tokens=False,
+        )
         continuation_ids = whole_ids[len(context_ids) :]
         if not continuation_ids:
             continuation_ids = self.tokenizer.encode(

@@ -30,6 +30,7 @@ class LazyRegistry(dict):
 MODEL_CONFIG_REGISTRY = LazyRegistry(
     {
         "llama": "LlamaConfig",
+        "gated_deltanet": "Qwen3NextConfig",
         "mamba2": "Mamba2Config",
         "recurrent_gemma": "RecurrentGemmaConfig",
         "rwkv": "RwkvConfig",
@@ -40,6 +41,7 @@ MODEL_CONFIG_REGISTRY = LazyRegistry(
 MODEL_CLASS_REGISTRY = LazyRegistry(
     {
         "llama": "LlamaForCausalLM",
+        "gated_deltanet": "Qwen3NextForCausalLM",
         "mamba2": "Mamba2ForCausalLM",
         "recurrent_gemma": "RecurrentGemmaForCausalLM",
         "rwkv": "RwkvForCausalLM",

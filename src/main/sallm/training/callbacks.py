@@ -359,11 +359,15 @@ class ClassificationMetricsCallback(TrainerCallback):
                 "ClassificationMetricsCallback: `model` not found in kwargs. Skipping."
             )
         elif state.is_world_process_zero:
-            metrics = self.evaluator.evaluate(
-                model,
-                self.eval_dataset,
-                metric_prefix="classification",
-            )
+            try:
+                metrics = self.evaluator.evaluate(
+                    model,
+                    self.eval_dataset,
+                    metric_prefix="classification",
+                )
+            finally:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
             if metrics:
                 trainer_metrics = dict(metrics)

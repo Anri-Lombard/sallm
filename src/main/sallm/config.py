@@ -14,7 +14,7 @@ def to_resolved_dict(value: Any, *, name: str = "config") -> dict[str, Any]:
     if isinstance(value, DictConfig):
         resolved = OmegaConf.to_container(value, resolve=True)
     elif isinstance(value, dict):
-        resolved = value
+        resolved = OmegaConf.to_container(OmegaConf.create(value), resolve=True)
     else:
         raise TypeError(f"{name} must be a mapping, got {type(value)!r}.")
 
@@ -63,6 +63,7 @@ class ModelEvalConfig:
     peft_adapter: str | None = None
     merge_lora: bool | None = None
     tie_word_embeddings: bool | None = None
+    lm_eval_model_args: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         adapter_path = None
@@ -293,6 +294,7 @@ class ModelConfig:
 class DataConfig:
     path: str | None = None
     hf_name: str | None = None
+    streaming: bool = False
     train_split: str = "train"
     eval_split: str = "validation"
     test_split: str | None = "test"
@@ -538,6 +540,7 @@ class PeftConfig:
 class HubConfig:
     enabled: bool = False
     organization: str = "anrilombard"
+    repo_id: str | None = None
     private: bool = True
     push_adapter: bool = True
     push_merged: bool = False

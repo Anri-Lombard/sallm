@@ -1,13 +1,24 @@
 from __future__ import annotations
 
-from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
+from datasets import (
+    Dataset,
+    DatasetDict,
+    IterableDataset,
+    IterableDatasetDict,
+    load_dataset,
+    load_from_disk,
+)
 
 from sallm.config import ExperimentConfig
 
 
 def load_pretrain_datasets(
     config: ExperimentConfig, is_hpo: bool
-) -> tuple[Dataset, Dataset, Dataset | None]:
+) -> tuple[
+    Dataset | IterableDataset,
+    Dataset | IterableDataset,
+    Dataset | IterableDataset | None,
+]:
     """Load datasets for pretraining mode.
 
     Supports loading from local disk (Arrow format) or HuggingFace Hub.
@@ -24,13 +35,13 @@ def load_pretrain_datasets(
         raise ValueError("data config is required for pretraining")
 
     if data_conf.hf_name:
-        dataset_dict = load_dataset(data_conf.hf_name)
+        dataset_dict = load_dataset(data_conf.hf_name, streaming=data_conf.streaming)
     elif data_conf.path:
         dataset_dict = load_from_disk(data_conf.path)
     else:
         raise ValueError("Either hf_name or path must be provided in data config")
 
-    if not isinstance(dataset_dict, DatasetDict):
+    if not isinstance(dataset_dict, DatasetDict | IterableDatasetDict):
         source = data_conf.hf_name or data_conf.path
         raise TypeError(
             f"Expected DatasetDict from {source}, found {type(dataset_dict)}"

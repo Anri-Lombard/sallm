@@ -9,7 +9,12 @@ from transformers import (
     PreTrainedTokenizerBase,
 )
 
-from sallm.config import ExperimentConfig, ModelConfig, TokenizerConfig
+from sallm.config import (
+    ExperimentConfig,
+    ModelConfig,
+    TokenizerConfig,
+    to_resolved_dict,
+)
 from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY
 from sallm.utils import count_trainable_parameters
 
@@ -94,10 +99,12 @@ def build_model(
             "`model.config` is required when `init_checkpoint` is not provided."
         )
 
-    model_config_obj = config_class(**model_conf.config)
+    model_config = to_resolved_dict(model_conf.config, name="model config")
+    model_config_obj = config_class(**model_config)
     model_config_obj.vocab_size = len(tokenizer)
 
     torch_dtype = _get_torch_dtype(config)
+    model_config_obj.dtype = torch_dtype
     logger.info(f"Creating model with torch_dtype={torch_dtype}")
     model = cast(PreTrainedModel, model_class(model_config_obj).to(torch_dtype))
 

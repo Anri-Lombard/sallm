@@ -33,6 +33,37 @@ from sallm.evaluation.generation_metrics import GenerationEvaluator
 logger = logging.getLogger(__name__)
 
 
+def use_exact_xlstm_head_dims(config: Any) -> None:
+    config_class = type(config)
+    if (
+        getattr(config, "model_type", None) == "xlstm"
+        and hasattr(config_class, "qk_dim")
+        and hasattr(config_class, "v_dim")
+    ):
+        config_class.qk_dim = property(  # type: ignore[attr-defined]
+            lambda cfg: int(cfg.hidden_size * cfg.qk_dim_factor)
+        )
+        config_class.v_dim = property(  # type: ignore[attr-defined]
+            lambda cfg: int(cfg.hidden_size * cfg.v_dim_factor)
+        )
+
+
+def prepare_model_config_for_evaluation(config: Any) -> None:
+    """Apply architecture-specific inference settings without changing weights."""
+    use_exact_xlstm_head_dims(config)
+    if (
+        getattr(config, "model_type", None) == "xlstm"
+        and getattr(config, "mode", None) == "train"
+    ):
+        config.mode = "inference"
+        config.return_last_states = True
+        config.inference_state_dtype = str(config.dtype).removeprefix("torch.")
+
+
+def prepare_model_for_evaluation(model: PreTrainedModel) -> None:
+    prepare_model_config_for_evaluation(getattr(model, "config", None))
+
+
 def _prepare_tokenizer(
     tokenizer: PreTrainedTokenizerBase,
 ) -> PreTrainedTokenizerBase:
@@ -279,6 +310,7 @@ def load_model_and_tokenizer(
             logger.info("Merging LoRA weights into the base model for evaluation.")
             model = cast(PreTrainedModel, cast(Any, model).merge_and_unload())
 
+    prepare_model_for_evaluation(model)
     device = torch.device(model_cfg.device)
     cast(Any, model).to(device)
     generation_config = model.generation_config
@@ -324,11 +356,14 @@ def _load_raw_split(task_cfg: GenerationEvalTaskConfig, split_key: str) -> Datas
             load_name = None
             filter_after_load = True
 
-        raw_ds = load_dataset(
-            ds_cfg.hf_name,
-            name=load_name,
-            split=split_name,
-            trust_remote_code=True,
+        raw_ds = cast(
+            Dataset,
+            load_dataset(
+                ds_cfg.hf_name,
+                name=load_name,
+                split=split_name,
+                trust_remote_code=True,
+            ),
         )
 
         if filter_after_load and ds_cfg.subset:
