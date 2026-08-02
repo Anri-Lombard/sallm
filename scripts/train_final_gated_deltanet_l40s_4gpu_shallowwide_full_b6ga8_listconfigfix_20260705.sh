@@ -12,7 +12,7 @@ set -euo pipefail
 
 export MKL_INTERFACE_LAYER=LP64,INTEL64
 
-CONFIG="base/gated_deltanet_125m_shallowwide_full_4x40_pack_nogc_b6ga8_20260628.yaml"
+CONFIG="base/gated_deltanet_125m_shallowwide_full_4x40_pack_nogc_b6ga8_listconfigfix_dtypefix_20260707.yaml"
 SCRIPT_DIR="$PWD/scripts"
 source "$SCRIPT_DIR/lib/env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
@@ -40,7 +40,7 @@ mkdir -p /scratch/lmbanr001/masters/sallm_wandb
 uv sync --frozen --inexact
 source .venv/bin/activate
 
-echo "--- Checking GatedDeltaNet support ---"
+echo "--- Checking GDN–Attention Hybrid (Qwen3Next implementation) support ---"
 python - <<'PY'
 from transformers import Qwen3NextConfig, Qwen3NextForCausalLM
 
@@ -61,10 +61,7 @@ print("Required fast kernels import OK")
 PY
 echo "-------------------------------"
 
-RUN_ID="sallm-gated-deltanet-125m-shallowwide-full-4x40-pack-nogc-b6ga8-listconfigfix-20260705"
-echo "Launching full shallow/wide GatedDeltaNet run with $CONFIG as $RUN_ID"
+RUN_ID="sallm-gated-deltanet-125m-shallowwide-full-4x40-pack-nogc-b6ga8-listconfigfix-dtypefix-20260707"
+echo "Launching GDN–Attention Hybrid (Qwen3Next implementation) run with $CONFIG as $RUN_ID"
 accelerate launch --num_processes=4 --num_machines=1 --mixed_precision=bf16 -m sallm.main \
-  --config-name "$CONFIG" \
-  wandb.name="125m-shallowwide-4x40-pack-nogc-b6ga8-full-listconfigfix-20260705" \
-  training.output_dir="\${oc.env:SCRATCH}/masters/sallm/checkpoints/$RUN_ID" \
-  training.logging_dir="\${oc.env:SCRATCH}/masters/sallm/logs/$RUN_ID"
+  --config-name "$CONFIG"
