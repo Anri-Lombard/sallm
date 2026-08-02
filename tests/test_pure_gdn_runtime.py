@@ -168,3 +168,19 @@ def test_canary_falls_back_when_the_conda_environment_is_absent() -> None:
     assert launcher.index("using the repository .venv") < launcher.index(
         "source .venv/bin/activate"
     )
+
+
+def test_canary_uses_grouped_training_cli_overrides() -> None:
+    launcher = (
+        Path(__file__).parents[1] / "scripts" / "run_pure_gdn_a10080_canary.sh"
+    ).read_text()
+
+    assert '"base.training.output_dir=$OUTPUT_DIR"' in launcher
+    assert '"base.training.logging_dir=$LOG_DIR"' in launcher
+    assert (
+        'resume_args+=("base.training.resume_from_checkpoint=$latest_checkpoint")'
+        in launcher
+    )
+    assert '"training.output_dir=' not in launcher
+    assert '"training.logging_dir=' not in launcher
+    assert '"training.resume_from_checkpoint=' not in launcher

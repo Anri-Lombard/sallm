@@ -99,14 +99,14 @@ else
     fi
   done
   if [[ -n "$latest_checkpoint" ]]; then
-    resume_args+=("training.resume_from_checkpoint=$latest_checkpoint")
+    resume_args+=("base.training.resume_from_checkpoint=$latest_checkpoint")
     echo "Resuming from $latest_checkpoint"
   fi
 
   accelerate launch --num_processes=2 --num_machines=1 --mixed_precision=bf16 \
     -m sallm.main --config-name "$CONFIG" \
-    "training.output_dir=$OUTPUT_DIR" \
-    "training.logging_dir=$LOG_DIR" \
+    "base.training.output_dir=$OUTPUT_DIR" \
+    "base.training.logging_dir=$LOG_DIR" \
     "${resume_args[@]}"
 fi
 
