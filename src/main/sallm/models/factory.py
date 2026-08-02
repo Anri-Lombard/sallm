@@ -1,5 +1,5 @@
 import logging
-from typing import cast
+from typing import Any, cast
 
 import torch
 from tokenizers.decoders import ByteLevel
@@ -91,6 +91,9 @@ def build_model(
                 torch_dtype=torch_dtype,
             ),
         )
+        if model_conf.architecture == "gated_deltanet":
+            # FLA 0.5.1 ignores num_items_in_batch despite accepting **kwargs.
+            cast(Any, model).accepts_loss_kwargs = False
         return model
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
@@ -107,6 +110,10 @@ def build_model(
     model_config_obj.dtype = torch_dtype
     logger.info(f"Creating model with torch_dtype={torch_dtype}")
     model = cast(PreTrainedModel, model_class(model_config_obj).to(torch_dtype))
+
+    if model_conf.architecture == "gated_deltanet":
+        # FLA 0.5.1 ignores num_items_in_batch despite accepting **kwargs.
+        cast(Any, model).accepts_loss_kwargs = False
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

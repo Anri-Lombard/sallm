@@ -149,6 +149,16 @@ def build_trainer(
         assistant_only_loss=assistant_only_loss,
     )
 
+    if isinstance(train_dataset, IterableDataset) or isinstance(
+        eval_dataset, IterableDataset
+    ):
+        accelerator_config = cast(Any, training_args.accelerator_config)
+        if (
+            accelerator_config is not None
+            and accelerator_config.dispatch_batches is None
+        ):
+            accelerator_config.dispatch_batches = False
+
     if getattr(training_args, "gradient_checkpointing", False) and not getattr(
         training_args, "gradient_checkpointing_kwargs", None
     ):

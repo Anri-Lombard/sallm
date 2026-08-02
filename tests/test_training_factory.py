@@ -1,8 +1,12 @@
+import json
 from types import SimpleNamespace
 
+import pytest
+from datasets import IterableDataset
 from sallm.config import ExperimentConfig, WandbConfig
 from sallm.training import factory
 from sallm.utils import RunMode
+from trl import SFTConfig
 
 
 class _FakeSFTConfig:
@@ -34,8 +38,14 @@ class _FakeTrainer:
         self.processing_class = kwargs["processing_class"]
 
 
-def _build(monkeypatch, training: dict[str, object]) -> _FakeTrainer:
-    monkeypatch.setattr(factory, "SFTConfig", _FakeSFTConfig)
+def _build(
+    monkeypatch,
+    training: dict[str, object],
+    train_dataset=None,
+    eval_dataset=None,
+    sft_config=_FakeSFTConfig,
+) -> _FakeTrainer:
+    monkeypatch.setattr(factory, "SFTConfig", sft_config)
     monkeypatch.setattr(factory, "CustomSFTTrainer", _FakeTrainer)
     config = ExperimentConfig(
         mode=RunMode.TRAIN,
@@ -47,8 +57,8 @@ def _build(monkeypatch, training: dict[str, object]) -> _FakeTrainer:
         config,
         SimpleNamespace(),
         SimpleNamespace(),
-        [],
-        [],
+        [] if train_dataset is None else train_dataset,
+        [] if eval_dataset is None else eval_dataset,
     )
 
 
@@ -84,3 +94,59 @@ def test_pretraining_non_flattening_packing_options_reach_sft_config(
 
     assert trainer.args.packing_strategy == "wrapped"
     assert trainer.args.padding_free is False
+
+
+@pytest.mark.parametrize("iterable_dataset", ["train", "eval"])
+def test_iterable_dataset_defaults_dispatch_batches_to_false(
+    monkeypatch, iterable_dataset: str
+) -> None:
+    dataset = IterableDataset.from_generator(lambda: iter(()))
+    trainer = _build(
+        monkeypatch,
+        {"output_dir": "unused", "max_length": 2048, "use_cpu": True},
+        train_dataset=dataset if iterable_dataset == "train" else None,
+        eval_dataset=dataset if iterable_dataset == "eval" else None,
+        sft_config=SFTConfig,
+    )
+
+    assert trainer.args.accelerator_config.dispatch_batches is False
+
+
+def test_iterable_dataset_preserves_explicit_dispatch_and_accelerator_options(
+    monkeypatch, tmp_path
+) -> None:
+    dataset = IterableDataset.from_generator(lambda: iter(()))
+    explicit_trainer = _build(
+        monkeypatch,
+        {
+            "output_dir": "unused",
+            "max_length": 2048,
+            "use_cpu": True,
+            "accelerator_config": {
+                "dispatch_batches": True,
+                "split_batches": True,
+            },
+        },
+        train_dataset=dataset,
+        sft_config=SFTConfig,
+    )
+
+    assert explicit_trainer.args.accelerator_config.dispatch_batches is True
+    assert explicit_trainer.args.accelerator_config.split_batches is True
+
+    config_path = tmp_path / "accelerator_config.json"
+    config_path.write_text(json.dumps({"split_batches": True}))
+    path_trainer = _build(
+        monkeypatch,
+        {
+            "output_dir": "unused",
+            "max_length": 2048,
+            "use_cpu": True,
+            "accelerator_config": str(config_path),
+        },
+        train_dataset=dataset,
+        sft_config=SFTConfig,
+    )
+
+    assert path_trainer.args.accelerator_config.dispatch_batches is False
+    assert path_trainer.args.accelerator_config.split_batches is True

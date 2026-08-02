@@ -1245,3 +1245,10 @@ Current open gate:
   architecture × variant on the same task-language. Headline variant averages
   use only fully verified 12/12 Mono/Multi/General rows; exact scores and
   incomplete coverage remain visible without promotion.
+## Pure-GDN runtime gate status — 2026-08-02 evening
+
+- Pure arm remains FLA `GatedDeltaNetForCausalLM`, `attn=None`, exact `127,425,448` parameters; prior Qwen3Next results remain explicitly **GDN--Attention Hybrid**, not pure GDN.
+- A100-80GB jobs `1164608`, `1164702`, and `1164809` collectively verify BF16 forward/backward, direct FLA chunk-kernel backward, two-rank startup, Hub streaming with `datasets 4.x`, exact model-size validation, a real wrapped `2048`-token batch, TileLang backend selection, and one optimizer step. They do not yet verify a complete canary/save/reload/generation chain.
+- Runtime defects found and fixed on `research/pure-gdn-baseline-20260802`: Slurm submit-dir resolution (`8521c6ec...`), grouped Hydra overrides (`3b50f218...`), Hub `List` metadata compatibility (`581e95cf...`). A reviewed but currently uncommitted trainer fix marks only pure GDN `accepts_loss_kwargs=False` and defaults resolved iterable `dispatch_batches=False` when unset; affected suite `16` tests plus fresh Sol verdict `ship`.
+- Decisive two-step canary rerun is pending because the external-write approval service rejected both staging and HEX sync with `unknown_parameter: input[6].namespace`. Exact-file sync must be explicitly re-authorized; do not bypass the approval boundary.
+- Full pretraining remains gated after canary by storage (`~89.9/100 GB` used) and a preregistered matched token/update budget. Selection is validation loss/validation metrics only; never tune on held-out test.
