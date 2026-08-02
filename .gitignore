@@ -47,3 +47,14 @@ dist/
 .bmad-core
 reports/
 *.csv
+.playwright-cli/
+output/
+outputs/
+sallm_memory/artifacts/
+sallm_memory/.obsidian/
+sallm_memory/observability/
+node_modules/
+observability_app/dist/
+observability_app/node_modules/
+!observability_app/package.json
+!observability_app/package-lock.json
