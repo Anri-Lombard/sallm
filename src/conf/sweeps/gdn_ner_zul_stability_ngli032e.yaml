@@ -1,0 +1,72 @@
+name: stability-gdn-ner-zul-ngli032e-20260802
+project: sallm-ft
+method: grid
+run_cap: 2
+metric:
+  name: eval/all_f1
+  goal: maximize
+parameters:
+  model.architecture:
+    value: gated_deltanet
+  model.init_checkpoint:
+    value: anrilombard/sallm-gated-deltanet-125m-shallowwide-4x40-20260707
+  peft.kwargs.target_modules:
+    value: [in_proj_qkvz, in_proj_ba, out_proj, q_proj, k_proj, v_proj, o_proj]
+  hpo.lora_rank:
+    value: 64
+  hpo.effective_batch_size:
+    value: 32
+  peft.kwargs.lora_dropout:
+    value: 0.0
+  training.learning_rate:
+    value: 0.0002900524112494857
+  training.weight_decay:
+    value: 0.028591710568416695
+  training.warmup_ratio:
+    value: 0.03
+  training.lr_scheduler_type:
+    value: cosine
+  training.seed:
+    values: [17, 73]
+  training.per_device_train_batch_size:
+    value: 8
+  training.per_device_eval_batch_size:
+    value: 4
+  training.num_train_epochs:
+    value: 15
+  training.eval_strategy:
+    value: epoch
+  training.save_strategy:
+    value: epoch
+  training.save_total_limit:
+    value: 1
+  training.save_only_model:
+    value: true
+  training.load_best_model_at_end:
+    value: true
+  training.metric_for_best_model:
+    value: eval_all_f1
+  training.greater_is_better:
+    value: true
+  training.early_stopping_patience:
+    value: 3
+  training.gradient_checkpointing:
+    value: false
+  training.output_dir:
+    value: ${oc.env:SCRATCH}/masters/sallm/checkpoints/gdn_hpo_20260801/ner_zul_stability/ngli032e
+  training.logging_dir:
+    value: ${oc.env:SCRATCH}/masters/sallm/logs/gdn_hpo_20260801/ner_zul_stability/ngli032e
+  hub.enabled:
+    value: false
+  hub.push_adapter:
+    value: false
+  hub.push_merged:
+    value: false
+command:
+  - ${env}
+  - python
+  - -u
+  - -m
+  - sallm.hpo.run
+  - --base-config
+  - finetune/mamba_ner_zul
