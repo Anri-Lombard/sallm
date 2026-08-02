@@ -10,6 +10,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  for candidate in "${SLURM_SUBMIT_DIR:-}/scripts" "$HOME/masters/sallm/scripts"; do
+    if [[ -f "$candidate/lib/env.sh" ]]; then
+      SCRIPT_DIR="$candidate"
+      break
+    fi
+  done
+fi
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  echo "ERROR: Could not locate scripts/lib/env.sh." >&2
+  exit 1
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 
@@ -39,15 +51,26 @@ export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 module load python/miniconda3-py3.12
-set +u
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate sallm-uv
-set -u
+if command -v conda >/dev/null 2>&1; then
+  CONDA_BASE=$(conda info --base)
+  set +u
+  source "$CONDA_BASE/etc/profile.d/conda.sh"
+  if conda env list | awk '{print $1}' | grep -qx sallm-uv; then
+    conda activate sallm-uv
+  else
+    echo "Conda environment sallm-uv is unavailable; using the repository .venv."
+  fi
+  set -u
+fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
 cd "$SALLM_REPO_DIR"
 uv sync --frozen --inexact
 source .venv/bin/activate
+
+python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" \
+  || { echo "ERROR: GatedDeltaNet fast kernels are unavailable." >&2; exit 1; }
+echo "✓ GatedDeltaNet fast path available"
 
 # Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
 # Wheels are cached on cluster scratch so this should stay quick.
@@ -68,9 +91,13 @@ except ImportError as e:
 echo "-------------------------------"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
+export WANDB_AGENT_MAX_INITIAL_FAILURES="${WANDB_AGENT_MAX_INITIAL_FAILURES:-100}"
 
-NUM_GPUS=2
+NUM_GPUS="${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-2}}"
 AGENTS_TO_RUN=$NUM_GPUS
+if [[ "$COUNT" -lt "$AGENTS_TO_RUN" ]]; then
+  AGENTS_TO_RUN="$COUNT"
+fi
 BASE_PER_AGENT=$(( COUNT / AGENTS_TO_RUN ))
 REMAINDER=$(( COUNT % AGENTS_TO_RUN ))
 

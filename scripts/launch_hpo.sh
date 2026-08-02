@@ -9,6 +9,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  for candidate in "${SLURM_SUBMIT_DIR:-}/scripts" "$HOME/masters/sallm/scripts"; do
+    if [[ -f "$candidate/lib/env.sh" ]]; then
+      SCRIPT_DIR="$candidate"
+      break
+    fi
+  done
+fi
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  echo "ERROR: Could not locate scripts/lib/env.sh." >&2
+  exit 1
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 
@@ -18,8 +30,11 @@ SWEEP_DIR="src/conf/sweeps"
 
 SWEEP_NAME="${SWEEP_ARG%.yaml}"
 SWEEP_NAME="${SWEEP_NAME##*/}"
-JOB_NAME="hpo-${SWEEP_NAME#mamba_}"
-JOB_NAME="${JOB_NAME#llama_}"
+JOB_SUFFIX="${SWEEP_NAME#mamba_}"
+JOB_SUFFIX="${JOB_SUFFIX#llama_}"
+JOB_SUFFIX="${JOB_SUFFIX#xlstm_}"
+JOB_SUFFIX="${JOB_SUFFIX#gdn_}"
+JOB_NAME="hpo-${JOB_SUFFIX}"
 if [[ -n "${SLURM_JOB_ID:-}" ]]; then
   scontrol update JobId="$SLURM_JOB_ID" JobName="$JOB_NAME"
   mkdir -p logs
@@ -54,23 +69,34 @@ echo "--- Checking GPU availability ---"
 nvidia-smi || true
 echo "-------------------------------"
 
-module load python/miniconda3-py3.12
-set +u
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate sallm-uv
-set -u
+if command -v module >/dev/null 2>&1; then
+  module load python/miniconda3-py3.12
+fi
+if command -v conda >/dev/null 2>&1; then
+  CONDA_BASE=$(conda info --base)
+  source "$CONDA_BASE/etc/profile.d/conda.sh"
+  if conda env list | awk '{print $1}' | grep -qx sallm-uv; then
+    conda activate sallm-uv
+  else
+    echo "Conda environment sallm-uv is unavailable; using the repository .venv."
+  fi
+fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
 cd "$SALLM_REPO_DIR"
-uv sync --frozen --inexact
+if command -v uv >/dev/null 2>&1; then
+  uv sync --frozen --inexact
+fi
 source .venv/bin/activate
 
 # Install CUDA kernels based on model type
 echo "--- CUDA kernel status ---"
 IS_MAMBA=false
 IS_XLSTM=false
+IS_GDN=false
 [[ "$SWEEP_NAME" == *mamba* ]] && IS_MAMBA=true
 [[ "$SWEEP_NAME" == *xlstm* ]] && IS_XLSTM=true
+[[ "$SWEEP_NAME" == *gdn* || "$SWEEP_NAME" == *gated_deltanet* ]] && IS_GDN=true
 
 if $IS_MAMBA; then
     if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
@@ -100,9 +126,20 @@ if $IS_XLSTM; then
         fi
     fi
 fi
+
+if $IS_GDN; then
+    if python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" 2>/dev/null; then
+        echo "✓ GatedDeltaNet fast path available"
+    else
+        echo "ERROR: GatedDeltaNet fast kernels are unavailable. Aborting before sweep creation."
+        exit 1
+    fi
+fi
 echo "-------------------------------"
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
+# Hyperband pruning exits nonzero; do not let five valid prunes abort an agent.
+export WANDB_AGENT_MAX_INITIAL_FAILURES="${WANDB_AGENT_MAX_INITIAL_FAILURES:-100}"
 
 echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
 
