@@ -9,6 +9,33 @@
 
 set -euo pipefail
 
+SWEEP_PATH="${1:-}"
+ARCHITECTURE="${2:-}"
+COUNT="${3:-43}"
+
+if [[ -z "$SWEEP_PATH" || -z "$ARCHITECTURE" ]]; then
+  echo "Usage: sbatch $0 <sweep_path> <architecture> [count]" >&2
+  echo "Architectures: gated_deltanet (gdn), mamba2 (mamba), xlstm, llama" >&2
+  echo "Example: sbatch $0 anri-lombard/sallm-ft/z0vyuasg gated_deltanet 43" >&2
+  exit 1
+fi
+
+case "$ARCHITECTURE" in
+  gated_deltanet|gdn) ARCHITECTURE="gated_deltanet" ;;
+  mamba2|mamba) ARCHITECTURE="mamba2" ;;
+  xlstm|llama) ;;
+  *)
+    echo "Unknown architecture: $ARCHITECTURE" >&2
+    exit 1
+    ;;
+esac
+
+if [[ ! "$COUNT" =~ ^[0-9]+$ ]] || (( 10#$COUNT <= 0 )); then
+  echo "Count must be a positive integer: $COUNT" >&2
+  exit 1
+fi
+COUNT=$((10#$COUNT))
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
   for candidate in "${SLURM_SUBMIT_DIR:-}/scripts" "$HOME/masters/sallm/scripts"; do
@@ -24,15 +51,6 @@ if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
 fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
-
-SWEEP_PATH="${1:-}"
-COUNT="${2:-43}"
-
-if [[ -z "$SWEEP_PATH" ]]; then
-  echo "Usage: sbatch $0 <sweep_path> [count]" >&2
-  echo "Example: sbatch $0 anri-lombard/sallm-ft/z0vyuasg 43" >&2
-  exit 1
-fi
 
 SWEEP_ID="${SWEEP_PATH##*/}"
 mkdir -p logs
@@ -68,18 +86,21 @@ cd "$SALLM_REPO_DIR"
 uv sync --frozen --inexact
 source .venv/bin/activate
 
-python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" \
-  || { echo "ERROR: GatedDeltaNet fast kernels are unavailable." >&2; exit 1; }
-echo "✓ GatedDeltaNet fast path available"
-
-# Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
-# Wheels are cached on cluster scratch so this should stay quick.
-echo "--- Mamba CUDA kernel status ---"
-if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-    echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
-    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5 || true
-fi
-python -c "
+case "$ARCHITECTURE" in
+  gated_deltanet)
+    python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" \
+      || { echo "ERROR: GatedDeltaNet fast kernels are unavailable." >&2; exit 1; }
+    echo "✓ GatedDeltaNet fast path available"
+    ;;
+  mamba2)
+    # Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
+    # Wheels are cached on cluster scratch so this should stay quick.
+    echo "--- Mamba CUDA kernel status ---"
+    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+        echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
+        uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5 || true
+    fi
+    python -c "
 try:
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
     from causal_conv1d import causal_conv1d_fn
@@ -88,7 +109,12 @@ except ImportError as e:
     print(f'ℹ Mamba CUDA kernels unavailable: {e}')
     raise SystemExit(1)
 "
-echo "-------------------------------"
+    echo "-------------------------------"
+    ;;
+  xlstm|llama)
+    echo "Skipping CUDA kernel preflight for $ARCHITECTURE; no architecture-specific kernel requirement."
+    ;;
+esac
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 export WANDB_AGENT_MAX_INITIAL_FAILURES="${WANDB_AGENT_MAX_INITIAL_FAILURES:-100}"

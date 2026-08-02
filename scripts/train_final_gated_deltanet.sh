@@ -5,14 +5,14 @@
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
-#SBATCH --job-name="sallm-gdn"
+#SBATCH --job-name="sallm-gdn-hybrid"
 #SBATCH --mail-type=FAIL,END
 
 set -euo pipefail
 
 export MKL_INTERFACE_LAYER=LP64,INTEL64
 
-CONFIG="base/gated_deltanet_125m.yaml"
+CONFIG="base/gated_deltanet_125m_shallowwide_full_4x40_pack_nogc_b6ga8_listconfigfix_dtypefix_20260707.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
@@ -37,7 +37,7 @@ cd "$SALLM_REPO_DIR"
 uv sync --frozen
 source .venv/bin/activate
 
-echo "--- Checking GatedDeltaNet support ---"
+echo "--- Checking GDN–Attention Hybrid (Qwen3Next implementation) support ---"
 python - <<'PY'
 from transformers import Qwen3NextConfig, Qwen3NextForCausalLM
 
@@ -52,5 +52,5 @@ else:
 PY
 echo "-------------------------------"
 
-echo "Launching training with $CONFIG"
+echo "Launching GDN–Attention Hybrid (Qwen3Next implementation) training with $CONFIG"
 accelerate launch --mixed_precision=bf16 -m sallm.main --config-name "$CONFIG"
