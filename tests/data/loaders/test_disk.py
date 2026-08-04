@@ -49,3 +49,30 @@ def test_load_pretrain_datasets_streams_hub_dataset(monkeypatch) -> None:
     assert train is dataset["train"]
     assert validation is dataset["validation"]
     assert test is None
+
+
+def test_max_step_streaming_training_repeats_instead_of_exhausting(
+    monkeypatch,
+) -> None:
+    dataset = IterableDatasetDict(
+        {
+            "train": IterableDataset.from_generator(lambda: iter([{"input_ids": [1]}])),
+            "validation": IterableDataset.from_generator(lambda: iter(())),
+        }
+    )
+    monkeypatch.setattr(disk, "load_dataset", lambda *args, **kwargs: dataset)
+    config = ExperimentConfig(
+        mode=RunMode.TRAIN,
+        wandb=WandbConfig(project="test"),
+        data=DataConfig(hf_name="owner/dataset", streaming=True, test_split=None),
+        tokenizer=TokenizerConfig(path="tokenizer"),
+        training={"max_steps": 2},
+    )
+
+    train, _, _ = disk.load_pretrain_datasets(config, is_hpo=False)
+
+    assert list(train.take(3)) == [
+        {"input_ids": [1]},
+        {"input_ids": [1]},
+        {"input_ids": [1]},
+    ]

@@ -50,6 +50,10 @@ def load_pretrain_datasets(
     train_ds = dataset_dict[data_conf.train_split]
     val_ds = dataset_dict[data_conf.eval_split]
 
+    max_steps = (config.training or {}).get("max_steps", -1)
+    if isinstance(train_ds, IterableDataset) and max_steps > 0:
+        train_ds = train_ds.repeat(None)
+
     test_ds = None
     if not is_hpo and data_conf.test_split and data_conf.test_split in dataset_dict:
         test_ds = dataset_dict[data_conf.test_split]
