@@ -58,6 +58,8 @@ class DataProcessor:
         self.chars_per_token_estimate = splits["capping"]["chars_per_token_estimate"]
 
         self.seed = settings["seed"]
+        self.expected_source_files = settings["expected_source_files"]
+        self.expected_split_sizes = settings["expected_split_sizes"]
         random.seed(self.seed)
 
     def run(self) -> None:
@@ -67,10 +69,11 @@ class DataProcessor:
                 "Please update the 'source_directory' path in your config file."
             )
 
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._validate_source_files()
 
         language_indexes = self._build_index()
         split_pointers = self._calculate_splits(language_indexes)
+        self._validate_split_sizes(split_pointers)
         self._create_and_save_splits(split_pointers)
 
         print("\nProcessing complete.")
@@ -81,6 +84,30 @@ class DataProcessor:
 
         for split in ["train", "validation", "test"]:
             (self.output_dir / split).mkdir(exist_ok=True)
+
+    def _validate_source_files(self) -> None:
+        actual = {
+            path.relative_to(self.root_dir).as_posix()
+            for path in self.root_dir.rglob("*.jsonl")
+        }
+        expected = set(self.expected_source_files)
+        missing = sorted(expected - actual)
+        unexpected = sorted(actual - expected)
+        if missing or unexpected:
+            raise ValueError(
+                "Source corpus does not match the MzansiText release manifest. "
+                f"Missing: {missing or 'none'}; unexpected: {unexpected or 'none'}"
+            )
+
+    def _validate_split_sizes(
+        self, split_pointers: dict[str, list[FilePointer]]
+    ) -> None:
+        actual = {name: len(pointers) for name, pointers in split_pointers.items()}
+        if actual != self.expected_split_sizes:
+            raise ValueError(
+                "Generated split sizes do not match the MzansiText release: "
+                f"expected {self.expected_split_sizes}, got {actual}"
+            )
 
     def _normalize_lang_code(self, file_path: Path, file_field: str) -> str:
         if file_field:
@@ -94,12 +121,12 @@ class DataProcessor:
     def _build_index(self) -> dict[str, list[FilePointer]]:
         print("Phase 1: Indexing source files...")
         language_indexes = defaultdict(list)
-        jsonl_files = list(self.root_dir.rglob("*.jsonl"))
+        jsonl_files = [self.root_dir / path for path in self.expected_source_files]
 
         for file_path in tqdm(jsonl_files, desc="Indexing files"):
             with file_path.open("rb") as f:
                 offset = 0
-                for line in f:
+                for line_number, line in enumerate(f, start=1):
                     try:
                         data = json.loads(line)
                         text = data.get("text", "")
@@ -109,8 +136,10 @@ class DataProcessor:
                         if text and lang != "unknown":
                             pointer = FilePointer(file_path, offset, len(text))
                             language_indexes[lang].append(pointer)
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        pass
+                    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+                        raise ValueError(
+                            f"Invalid JSONL record at {file_path}:{line_number}"
+                        ) from error
                     offset += len(line)
         return language_indexes
 
@@ -215,7 +244,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/datasets/sallm_dataset.yaml",
+        default="src/conf/datasets/sallm_dataset.yaml",
         help="Path to the dataset preparation configuration YAML file.",
     )
     args = parser.parse_args()
