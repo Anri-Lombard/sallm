@@ -47,10 +47,20 @@ The `main` branch is actively maintained and may differ from the paper snapshot.
 ## Releases
 
 - Paper: [arXiv:2603.20732](https://arxiv.org/abs/2603.20732)
-- Model: [anrilombard/mzansilm-125m](https://huggingface.co/anrilombard/mzansilm-125m)
-- Raw corpus: [anrilombard/mzansi-text](https://huggingface.co/datasets/anrilombard/mzansi-text)
-- Tokenized corpus: [anrilombard/mzansi-text-tokenized](https://huggingface.co/datasets/anrilombard/mzansi-text-tokenized)
+- Model: [uctnlp/mzansilm-125m](https://huggingface.co/uctnlp/mzansilm-125m)
+- Raw corpus: [uctnlp/mzansi-text](https://huggingface.co/datasets/uctnlp/mzansi-text)
+- Tokenized corpus: [uctnlp/mzansi-text-tokenized](https://huggingface.co/datasets/uctnlp/mzansi-text-tokenized)
 - Collection: [MzansiLM](https://huggingface.co/collections/anrilombard/mzansilm-69635ca7b60efedb9dfcb09e)
+
+Rebuild the raw release from the complete filtered source tree with:
+
+```bash
+uv run python data/prepare_datasets.py
+```
+
+The release guard requires all 42 source files and the exact paper splits:
+3,943,584 train, 19,379 validation, and 19,341 test rows. Output columns are
+`text` and `lang`.
 
 ## Repository Layout
 

@@ -16,3 +16,51 @@ dataset_preparation:
 
   settings:
     seed: 42
+    expected_split_sizes:
+      train: 3943584
+      validation: 19379
+      test: 19341
+    # This order is part of the seeded paper split; do not alphabetize it.
+    expected_source_files:
+      - glot500/xho.jsonl
+      - glot500/tsn.jsonl
+      - glot500/ven.jsonl
+      - glot500/tso.jsonl
+      - glot500/ssw.jsonl
+      - glot500/sot.jsonl
+      - glot500/zul.jsonl
+      - glot500/nso.jsonl
+      - inkuba/xho.jsonl
+      - inkuba/zul.jsonl
+      - mc4/zu.jsonl
+      - mc4/xh.jsonl
+      - mc4/af.jsonl
+      - mc4/st.jsonl
+      - wura/zu.jsonl
+      - wura/xh.jsonl
+      - wura/af.jsonl
+      - wura/en.jsonl
+      - culturax/af.jsonl
+      - cc100/zu.jsonl
+      - cc100/xh.jsonl
+      - cc100/ns.jsonl
+      - cc100/tn.jsonl
+      - cc100/ss.jsonl
+      - corpora/zu.jsonl
+      - corpora/xh.jsonl
+      - corpora/ts.jsonl
+      - corpora/tn.jsonl
+      - corpora/af.jsonl
+      - corpora/nr.jsonl
+      - corpora/ve.jsonl
+      - corpora/st.jsonl
+      - corpora/en.jsonl
+      - corpora/ss.jsonl
+      - corpora/nso.jsonl
+      - paracrawl/xho.jsonl
+      - paracrawl/tsn.jsonl
+      - paracrawl/tso.jsonl
+      - paracrawl/ssw.jsonl
+      - paracrawl/zul.jsonl
+      - paracrawl/nso.jsonl
+      - paracrawl/afr.jsonl
