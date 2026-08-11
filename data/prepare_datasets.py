@@ -1,7 +1,9 @@
 # TODO split into modular files as part of restructuring
 import argparse
+import hashlib
 import json
 import random
+import unicodedata
 from collections import defaultdict
 from collections.abc import Generator
 from itertools import groupby
@@ -58,6 +60,7 @@ class DataProcessor:
         self.chars_per_token_estimate = splits["capping"]["chars_per_token_estimate"]
 
         self.seed = settings["seed"]
+        self.deduplicate = settings.get("deduplicate", False)
         self.expected_source_files = settings["expected_source_files"]
         self.expected_split_sizes = settings["expected_split_sizes"]
         random.seed(self.seed)
@@ -121,12 +124,17 @@ class DataProcessor:
     def _build_index(self) -> dict[str, list[FilePointer]]:
         print("Phase 1: Indexing source files...")
         language_indexes = defaultdict(list)
+        duplicate_counts = defaultdict(int)
+        seen = set()
         jsonl_files = [self.root_dir / path for path in self.expected_source_files]
 
         for file_path in tqdm(jsonl_files, desc="Indexing files"):
             with file_path.open("rb") as f:
                 offset = 0
                 for line_number, line in enumerate(f, start=1):
+                    if not line.strip():
+                        offset += len(line)
+                        continue
                     try:
                         data = json.loads(line)
                         text = data.get("text", "")
@@ -134,6 +142,19 @@ class DataProcessor:
                             file_path, data.get("file", "")
                         )
                         if text and lang != "unknown":
+                            if self.deduplicate:
+                                normalized = " ".join(
+                                    unicodedata.normalize("NFC", text).split()
+                                )
+                                key = (
+                                    lang,
+                                    hashlib.sha256(normalized.encode()).digest(),
+                                )
+                                if key in seen:
+                                    duplicate_counts[lang] += 1
+                                    offset += len(line)
+                                    continue
+                                seen.add(key)
                             pointer = FilePointer(file_path, offset, len(text))
                             language_indexes[lang].append(pointer)
                     except (json.JSONDecodeError, UnicodeDecodeError) as error:
@@ -141,6 +162,10 @@ class DataProcessor:
                             f"Invalid JSONL record at {file_path}:{line_number}"
                         ) from error
                     offset += len(line)
+        if duplicate_counts:
+            print(
+                f"Removed normalized duplicates by language: {dict(duplicate_counts)}"
+            )
         return language_indexes
 
     def _calculate_splits(
