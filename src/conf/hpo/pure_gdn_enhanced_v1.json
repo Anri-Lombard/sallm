@@ -1,0 +1,133 @@
+{
+  "schema": "sallm_adapter_hpo/v1",
+  "generator": {
+    "algorithm": "torch.quasirandom.SobolEngine",
+    "dimension": 4,
+    "scramble": true,
+    "seed": 20260811
+  },
+  "search_space": {
+    "learning_rate": {
+      "distribution": "log_uniform",
+      "low": 0.00002,
+      "high": 0.0002
+    },
+    "lora_rank": {
+      "distribution": "categorical_equal_bins",
+      "values": [8, 16, 32]
+    },
+    "lora_alpha": "2 * lora_rank",
+    "lora_dropout": {
+      "distribution": "uniform",
+      "low": 0.0,
+      "high": 0.1
+    },
+    "warmup_ratio": {
+      "distribution": "uniform",
+      "low": 0.01,
+      "high": 0.1
+    }
+  },
+  "stage_a": [
+    {
+      "id": "a0",
+      "learning_rate": 0.00003,
+      "lora_rank": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "warmup_ratio": 0.03
+    },
+    {
+      "id": "a1",
+      "learning_rate": 0.00008,
+      "lora_rank": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "warmup_ratio": 0.03
+    },
+    {
+      "id": "a2",
+      "learning_rate": 0.00015,
+      "lora_rank": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "warmup_ratio": 0.03
+    }
+  ],
+  "stage_b": [
+    {
+      "id": "b0",
+      "sobol_point": [0.8795701265335083, 0.31370800733566284, 0.28929591178894043, 0.5698526501655579],
+      "learning_rate": 0.00015156541821567134,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "lora_dropout": 0.028929591178894043,
+      "warmup_ratio": 0.061286738514900206
+    },
+    {
+      "id": "b1",
+      "sobol_point": [0.1808297336101532, 0.8902739882469177, 0.8691746592521667, 0.21891964972019196],
+      "learning_rate": 0.000030329114402234482,
+      "lora_rank": 32,
+      "lora_alpha": 64,
+      "lora_dropout": 0.08691746592521668,
+      "warmup_ratio": 0.029702768474817273
+    },
+    {
+      "id": "b2",
+      "sobol_point": [0.25743260979652405, 0.0818699300289154, 0.19731278717517853, 0.9536187052726746],
+      "learning_rate": 0.00003617950373518279,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "lora_dropout": 0.019731278717517856,
+      "warmup_ratio": 0.09582568347454071
+    },
+    {
+      "id": "b3",
+      "sobol_point": [0.556736171245575, 0.6536060571670532, 0.6486568450927734, 0.366372674703598],
+      "learning_rate": 0.00007207193245743205,
+      "lora_rank": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.06486568450927735,
+      "warmup_ratio": 0.04297354072332382
+    },
+    {
+      "id": "b4",
+      "sobol_point": [0.6523267030715942, 0.2339366227388382, 0.9711654186248779, 0.44249141216278076],
+      "learning_rate": 0.00008981661817441004,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "lora_dropout": 0.0971165418624878,
+      "warmup_ratio": 0.04982422709465027
+    },
+    {
+      "id": "b5",
+      "sobol_point": [0.4125935435295105, 0.5322962403297424, 0.4221685230731964, 0.8464029431343079],
+      "learning_rate": 0.0000517158347654887,
+      "lora_rank": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.04221685230731964,
+      "warmup_ratio": 0.0861762648820877
+    },
+    {
+      "id": "b6",
+      "sobol_point": [0.024207716807723045, 0.49745190143585205, 0.5002756714820862, 0.08017883449792862],
+      "learning_rate": 0.000021146461814662826,
+      "lora_rank": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05002756714820862,
+      "warmup_ratio": 0.017216095104813575
+    },
+    {
+      "id": "b7",
+      "sobol_point": [0.7864248156547546, 0.8007634878158569, 0.08055734634399414, 0.7399346232414246],
+      "learning_rate": 0.0001223079850011719,
+      "lora_rank": 32,
+      "lora_alpha": 64,
+      "lora_dropout": 0.008055734634399415,
+      "warmup_ratio": 0.0765941160917282
+    }
+  ],
+  "selection_seed": 42,
+  "confirmation_seeds": [13, 42, 87]
+}
