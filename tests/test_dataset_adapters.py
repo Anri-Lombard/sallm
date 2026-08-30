@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from urllib.error import HTTPError, URLError
+
+import pytest
 from datasets import Dataset, DatasetDict
 from sallm.config import FinetuneDatasetConfig, FinetuneTaskType
 from sallm.data.adapters import (
@@ -114,6 +117,97 @@ def test_masakhapos_adapter_loads_and_formats_pos_sample(monkeypatch) -> None:
     assert {row["lang"] for row in train_raw} == {"xho", "zul"}
     assert val_raw[0]["upos"] == ["VERB", "PUNCT"]
     assert "VERB" in format_pos(train_raw[0])[1]["content"]
+
+
+class _MasakhaPOSResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+    def read(self) -> bytes:
+        return b"Ndiyahamba VERB\n\n"
+
+
+@pytest.mark.parametrize(
+    "transient_error",
+    [
+        HTTPError("url", 408, "timeout", None, None),
+        HTTPError("url", 429, "rate limited", None, None),
+        HTTPError("url", 599, "server error", None, None),
+        URLError("temporary transport failure"),
+        TimeoutError(),
+    ],
+)
+def test_masakhapos_retries_transient_download_failures(
+    monkeypatch, transient_error
+) -> None:
+    requests = []
+
+    def fake_urlopen(request, timeout):  # noqa: ANN001
+        assert timeout == 30
+        requests.append(request)
+        if len(requests) == 1:
+            raise transient_error
+        return _MasakhaPOSResponse()
+
+    monkeypatch.setattr(masakhapos, "urlopen", fake_urlopen)
+    monkeypatch.setattr(masakhapos, "sleep", lambda _seconds: None)
+
+    dataset = masakhapos.load_masakhapos_split("xho", "train")
+
+    assert dataset[0]["tokens"] == ["Ndiyahamba"]
+    assert len(requests) == 2
+    assert requests[0].full_url == requests[1].full_url
+
+
+def test_masakhapos_stops_after_three_transient_failures(monkeypatch) -> None:
+    calls = 0
+
+    def fake_urlopen(request, timeout):  # noqa: ANN001
+        nonlocal calls
+        calls += 1
+        raise HTTPError(request.full_url, 503, "unavailable", None, None)
+
+    monkeypatch.setattr(masakhapos, "urlopen", fake_urlopen)
+    monkeypatch.setattr(masakhapos, "sleep", lambda _seconds: None)
+
+    with pytest.raises(HTTPError):
+        masakhapos.load_masakhapos_split("xho", "train")
+
+    assert calls == 3
+
+
+def test_masakhapos_uses_pinned_source_and_preserves_filename_fallback(
+    monkeypatch,
+) -> None:
+    requests = []
+
+    def fake_urlopen(request, timeout):  # noqa: ANN001
+        assert timeout == 30
+        requests.append(request)
+        if request.full_url.endswith(
+            "/dev.txt?ref=376f4161f0425584d4bd7664122b56fa026926d3"
+        ):
+            raise HTTPError(request.full_url, 404, "missing", None, None)
+        return _MasakhaPOSResponse()
+
+    monkeypatch.setattr(masakhapos, "urlopen", fake_urlopen)
+
+    dataset = masakhapos.load_masakhapos_split("xho", "validation")
+
+    assert dataset[0]["upos"] == ["VERB"]
+    assert [request.full_url for request in requests] == [
+        "https://api.github.com/repos/masakhane-io/masakhane-pos/contents/data/"
+        "xho/dev.txt?ref=376f4161f0425584d4bd7664122b56fa026926d3",
+        "https://api.github.com/repos/masakhane-io/masakhane-pos/contents/data/"
+        "xho/validation.txt?ref=376f4161f0425584d4bd7664122b56fa026926d3",
+    ]
+    assert all(
+        request.headers["Accept"] == "application/vnd.github.raw+json"
+        for request in requests
+    )
 
 
 def test_huggingface_adapter_filters_subset_after_default_fallback(monkeypatch) -> None:
