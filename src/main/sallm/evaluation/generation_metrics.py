@@ -4,7 +4,6 @@ import collections
 import logging
 import os
 import random
-import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, cast
@@ -30,6 +29,7 @@ from sallm.evaluation.task_metrics import (
     compute_pos_quality_metrics,
     compute_pos_token_accuracy,
 )
+from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +240,7 @@ class GenerationEvaluator:
                 prompt_texts,
                 return_tensors="pt",
                 padding=True,
+                add_special_tokens=False,
             ).to(device)
 
         input_ids = tokenized["input_ids"]
@@ -382,26 +383,7 @@ class GenerationEvaluator:
     ) -> GenerationEvalResult:
         fallback_template = None
         if getattr(self.tokenizer, "chat_template", None) is None:
-            fallback_template = textwrap.dedent(
-                """
-                {%- if system_message %}
-                <|system|>
-                {{ system_message }}{{ eos_token }}
-                {%- endif %}
-                {%- for message in messages %}
-                    {%- if message['role'] == 'user' %}
-                        <|user|>
-                        {{ message['content'] }}{{ eos_token }}
-                    {%- elif message['role'] == 'assistant' %}
-                        {%- generation -%}
-                        <|assistant|>
-                        {{ message['content'] }}{{ eos_token }}
-                        {%- endgeneration -%}
-                    {%- endif %}
-                {%- endfor %}
-                {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-                """
-            ).lstrip()
+            fallback_template = DEFAULT_CHAT_TEMPLATE
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
 

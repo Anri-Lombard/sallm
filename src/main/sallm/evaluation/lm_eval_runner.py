@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import tempfile
-import textwrap
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
@@ -15,6 +14,7 @@ import numpy as np
 import torch
 from lm_eval import evaluator
 from lm_eval.tasks import TaskManager
+from tokenizers.processors import TemplateProcessing
 from transformers import AutoTokenizer
 
 from sallm.config import ModelEvalConfig
@@ -26,6 +26,7 @@ from sallm.evaluation.registry import (
     load_rerank_task_pack,
     load_task_pack,
 )
+from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = CONF_DIR.parent.parent
@@ -92,6 +93,7 @@ def _format_model_args(
     peft_adapter: str | None,
     tokenizer_override: str | None = None,
     tie_word_embeddings: bool | None = None,
+    add_bos_token: bool = False,
 ) -> str:
     args: list[str] = [
         f"pretrained={pretrained_path}",
@@ -105,6 +107,7 @@ def _format_model_args(
         args.append(f"tokenizer={tokenizer_override}")
     if tie_word_embeddings is not None:
         args.append(f"tie_word_embeddings={str(tie_word_embeddings).lower()}")
+    args.append(f"add_bos_token={str(add_bos_token).lower()}")
     return ",".join(args)
 
 
@@ -228,26 +231,7 @@ def _resolve_ephemeral_eval_root() -> Path:
 
 
 def _fallback_chat_template() -> str:
-    return textwrap.dedent(
-        """
-        {%- if system_message %}
-        <|system|>
-        {{ system_message }}{{ eos_token }}
-        {%- endif %}
-        {%- for message in messages %}
-            {%- if message['role'] == 'user' %}
-                <|user|>
-                {{ message['content'] }}{{ eos_token }}
-            {%- elif message['role'] == 'assistant' %}
-                {%- generation -%}
-                <|assistant|>
-                {{ message['content'] }}{{ eos_token }}
-                {%- endgeneration -%}
-            {%- endif %}
-        {%- endfor %}
-        {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-        """
-    ).lstrip()
+    return DEFAULT_CHAT_TEMPLATE
 
 
 def _prepare_tokenizer_for_lm_eval(
@@ -267,7 +251,11 @@ def _prepare_tokenizer_for_lm_eval(
     except Exception:
         try:
             tok = AutoTokenizer.from_pretrained(pretrained_path, trust_remote_code=True)
-        except Exception:
+        except Exception as exc:
+            if not require_chat_template:
+                raise RuntimeError(
+                    "Unable to prepare the required raw lm-eval tokenizer."
+                ) from exc
             return None
 
     if tok is None:
@@ -282,6 +270,18 @@ def _prepare_tokenizer_for_lm_eval(
             cast(Any, tok).chat_template = _fallback_chat_template()
         except Exception:
             pass
+
+    if not require_chat_template:
+        bos_token = tok.bos_token
+        bos_token_id = tok.bos_token_id
+        backend = getattr(tok, "backend_tokenizer", None)
+        if bos_token is None or bos_token_id is None or backend is None:
+            raise ValueError("Raw lm-eval requires a fast tokenizer with a BOS token.")
+        backend.post_processor = TemplateProcessing(
+            single=f"{bos_token} $A",
+            pair=f"{bos_token} $A $B",
+            special_tokens=[(bos_token, bos_token_id)],
+        )
 
     try:
         tok_out.mkdir(parents=True, exist_ok=True)
@@ -299,7 +299,11 @@ def _prepare_tokenizer_for_lm_eval(
             data["chat_template"] = _fallback_chat_template()
             cfg_path.write_text(_json.dumps(data, indent=2))
         return str(tok_out)
-    except Exception:
+    except Exception as exc:
+        if not require_chat_template:
+            raise RuntimeError(
+                "Unable to persist the required raw lm-eval tokenizer."
+            ) from exc
         return None
 
 
@@ -329,8 +333,26 @@ def _run_pack(
     pack_out = output_dir / pack_name
     pack_out.mkdir(parents=True, exist_ok=True)
 
+    evaluator_overrides: dict[str, Any] = {}
+    task_manager_overrides: dict[str, Any] = {}
+    if pack_overrides:
+        evaluator_overrides, task_manager_overrides = _split_task_manager_kwargs(
+            pack_overrides
+        )
+    effective_apply_chat_template = evaluator_overrides.get(
+        "apply_chat_template", pack.apply_chat_template
+    )
+    if not isinstance(effective_apply_chat_template, bool):
+        raise TypeError("apply_chat_template override must be a boolean")
+    add_bos_token = not effective_apply_chat_template
+    tokenizer_cache = (
+        "_tokenizer_chat" if effective_apply_chat_template else "_tokenizer_raw"
+    )
+
     tokenizer_override = _prepare_tokenizer_for_lm_eval(
-        pretrained_path, work_root / "_tokenizer", pack.apply_chat_template
+        pretrained_path,
+        work_root / tokenizer_cache,
+        effective_apply_chat_template,
     )
     model_args = _format_model_args(
         pretrained_path,
@@ -338,6 +360,7 @@ def _run_pack(
         peft_adapter,
         tokenizer_override,
         model_cfg.tie_word_embeddings,
+        add_bos_token,
     )
 
     if model_cfg.peft_adapter and peft_adapter is None:
@@ -353,14 +376,9 @@ def _run_pack(
     task_manager_kwargs = pack.to_task_manager_kwargs()
     task_manager: TaskManager | None = None
     eval_kwargs.update(pack_kwargs)
-    eval_kwargs["apply_chat_template"] = pack.apply_chat_template
-
-    if pack_overrides:
-        evaluator_overrides, task_manager_overrides = _split_task_manager_kwargs(
-            pack_overrides
-        )
-        task_manager_kwargs.update(task_manager_overrides)
-        eval_kwargs.update(evaluator_overrides)
+    eval_kwargs["apply_chat_template"] = effective_apply_chat_template
+    task_manager_kwargs.update(task_manager_overrides)
+    eval_kwargs.update(evaluator_overrides)
 
     if eval_kwargs.get("use_cache") is not None:
         raise ValueError("lm-eval response caching is disabled")
@@ -384,13 +402,14 @@ def _run_pack(
 
     logger.info(
         "Running lm-eval %s task pack '%s' with tasks=%s, fewshot=%s, batch_size=%s, "
-        "apply_chat_template=%s",
+        "apply_chat_template=%s, add_bos_token=%s",
         task_pack_scope,
         pack_name,
         ",".join(pack.tasks),
         pack.fewshot,
         pack.batch_size,
-        pack.apply_chat_template,
+        effective_apply_chat_template,
+        add_bos_token,
     )
     if task_manager is not None:
         logger.info(
@@ -416,7 +435,8 @@ def _run_pack(
         "tasks": pack.tasks,
         "fewshot": pack.fewshot,
         "batch_size": pack.batch_size,
-        "apply_chat_template": pack.apply_chat_template,
+        "apply_chat_template": effective_apply_chat_template,
+        "add_bos_token": add_bos_token,
         "results": result.get("results", {}),
         "metrics": result.get("metrics", {}),
         "result_path": str(result_path),
