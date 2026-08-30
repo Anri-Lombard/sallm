@@ -333,10 +333,13 @@ class ClassificationEvaluator:
 
         prompt_len = input_ids.shape[1]
         gen_seq = outputs[0][prompt_len:]
-        generated_text = self.tokenizer.decode(
-            gen_seq,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=True,
+        generated_text = cast(
+            str,
+            self.tokenizer.decode(
+                gen_seq,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            ),
         )
 
         return self._extract_label(generated_text)

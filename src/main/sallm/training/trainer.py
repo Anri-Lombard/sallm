@@ -229,8 +229,9 @@ class CustomTrainer(Trainer):
 
         cast(Any, self.model).save_pretrained(out, safe_serialization=False)
 
-        if self.tokenizer is not None:
-            self.tokenizer.save_pretrained(out)
+        processing_class = getattr(self, "processing_class", None)
+        if processing_class is not None:
+            cast(Any, processing_class).save_pretrained(out)
 
 
 class CustomSFTTrainer(SFTTrainer):
@@ -415,5 +416,6 @@ class CustomSFTTrainer(SFTTrainer):
 
         cast(Any, self.model).save_pretrained(out, safe_serialization=False)
 
-        if self.tokenizer is not None:
-            self.tokenizer.save_pretrained(out)
+        processing_class = getattr(self, "processing_class", None)
+        if processing_class is not None:
+            cast(Any, processing_class).save_pretrained(out)

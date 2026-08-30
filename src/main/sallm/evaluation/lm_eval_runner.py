@@ -270,13 +270,16 @@ def _prepare_tokenizer_for_lm_eval(
         except Exception:
             return None
 
+    if tok is None:
+        return None
+
     needs_template = (
         require_chat_template and getattr(tok, "chat_template", None) is None
     )
     if needs_template:
         logger.info("Injecting fallback chat template for lm-eval tokenizer.")
         try:
-            tok.chat_template = _fallback_chat_template()  # type: ignore[attr-defined]
+            cast(Any, tok).chat_template = _fallback_chat_template()
         except Exception:
             pass
 
