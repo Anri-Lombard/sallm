@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from urllib.request import urlopen
+from time import sleep
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from datasets import Dataset, concatenate_datasets
 
@@ -9,7 +11,10 @@ from sallm.data.adapters.base import RawDatasetSplits, required_languages
 from sallm.data.loaders.base import VALIDATION_ALIASES
 
 MASAKHAPOS_DATASET = "masakhane/masakhapos"
-MASAKHAPOS_BASE_URL = "https://github.com/masakhane-io/masakhane-pos/raw/main/data"
+MASAKHAPOS_REVISION = "376f4161f0425584d4bd7664122b56fa026926d3"
+MASAKHAPOS_BASE_URL = (
+    "https://api.github.com/repos/masakhane-io/masakhane-pos/contents/data"
+)
 
 
 class MasakhaPOSAdapter:
@@ -96,10 +101,24 @@ def load_masakhapos_split(lang_code: str, split: str) -> Dataset:
     last_err: Exception | None = None
     for filename in masakhapos_split_candidates(split):
         try:
-            url = f"{MASAKHAPOS_BASE_URL}/{lang_code}/{filename}"
-            with urlopen(url, timeout=30) as response:
-                content = response.read().decode("utf-8")
-            return parse_masakhapos_conll(content, lang_code)
+            request = Request(
+                f"{MASAKHAPOS_BASE_URL}/{lang_code}/{filename}"
+                f"?ref={MASAKHAPOS_REVISION}",
+                headers={"Accept": "application/vnd.github.raw+json"},
+            )
+            for attempt in range(3):
+                try:
+                    with urlopen(request, timeout=30) as response:
+                        content = response.read().decode("utf-8")
+                    return parse_masakhapos_conll(content, lang_code)
+                except HTTPError as err:
+                    transient = err.code in {408, 429} or 500 <= err.code < 600
+                    if not transient or attempt == 2:
+                        raise
+                except (URLError, TimeoutError):
+                    if attempt == 2:
+                        raise
+                sleep(2**attempt)
         except Exception as err:  # noqa: BLE001 - try alternate filename candidates
             last_err = err
 
