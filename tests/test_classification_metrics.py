@@ -5,7 +5,9 @@ import pytest
 import torch
 import yaml
 from datasets import Dataset
+from sallm.config import FinetuneTaskType, RunMode
 from sallm.evaluation.classification_metrics import ClassificationEvaluator
+from sallm.training import factory as training_factory
 
 MULTILINGUAL_CLASSIFICATION_FAMILIES = (
     "injongointent_all",
@@ -38,6 +40,45 @@ def test_multilingual_classification_checkpoints_select_macro_f1(family) -> None
     assert config["training"]["metric_for_best_model"] == (
         "eval_classification/all_macro_f1"
     )
+
+
+def test_classification_factory_defaults_to_macro_f1(monkeypatch, tmp_path) -> None:
+    class StubTrainer:
+        def __init__(self, *, args, **_kwargs) -> None:
+            self.args = args
+            self.processing_class = None
+
+    monkeypatch.setattr(training_factory, "CustomSFTTrainer", StubTrainer)
+
+    config = SimpleNamespace(
+        mode=RunMode.FINETUNE,
+        training={
+            "early_stopping_patience": 2,
+            "eval_strategy": "steps",
+            "save_strategy": "steps",
+            "output_dir": str(tmp_path),
+            "report_to": [],
+        },
+        dataset=SimpleNamespace(
+            task=FinetuneTaskType.CLASSIFICATION,
+            max_seq_length=128,
+            packing=False,
+            assistant_only_loss=True,
+        ),
+        generation_decoding=None,
+    )
+    dataset = Dataset.from_list([{"lang": "xho", "messages": []}])
+
+    trainer = training_factory.build_trainer(
+        config=config,
+        model=MagicMock(),
+        tokenizer=MagicMock(),
+        train_dataset=dataset,
+        eval_dataset=dataset,
+    )
+
+    assert trainer.args.metric_for_best_model == ("eval_classification/all_macro_f1")
+    assert trainer.args.greater_is_better is True
 
 
 def test_multilingual_selection_metric_is_mean_language_macro_f1(monkeypatch) -> None:
