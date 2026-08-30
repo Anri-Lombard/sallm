@@ -106,7 +106,7 @@ def build_trainer(
         if not isinstance(metric_name, str) or not metric_name.strip():
             if task_type == FinetuneTaskType.CLASSIFICATION:
                 training_args_dict["metric_for_best_model"] = (
-                    "eval_classification/all_f1"
+                    "eval_classification/all_macro_f1"
                 )
                 training_args_dict.setdefault("greater_is_better", True)
             elif task_type in (FinetuneTaskType.NAMED_ENTITY_RECOGNITION,):

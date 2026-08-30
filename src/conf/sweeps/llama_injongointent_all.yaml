@@ -2,7 +2,7 @@ name: hpo-llama-injongointent-all
 project: sallm-ft
 method: bayes
 metric:
-  name: classification/all_f1
+  name: classification/all_macro_f1
   goal: maximize
 parameters:
   training.learning_rate:
