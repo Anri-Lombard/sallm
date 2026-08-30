@@ -17,10 +17,39 @@ HPO_MANIFEST_FIELDS = {
     "SALLM_HPO_STAGE": "stage",
     "SALLM_HPO_CANDIDATE": "candidate",
 }
+HPO_MANIFEST_CONFIG_FIELDS = {
+    "SALLM_HPO_LEARNING_RATE": ("learning_rate", float),
+    "SALLM_HPO_LORA_RANK": ("lora_rank", int),
+    "SALLM_HPO_LORA_ALPHA": ("lora_alpha", int),
+    "SALLM_HPO_LORA_DROPOUT": ("lora_dropout", float),
+    "SALLM_HPO_WARMUP_RATIO": ("warmup_ratio", float),
+}
 
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def write_sha256_sidecar(path: Path) -> str:
+    digest = sha256(path)
+    path.with_suffix(path.suffix + ".sha256").write_text(
+        f"{digest}  {path.name}\n", encoding="utf-8"
+    )
+    return digest
+
+
+def verify_sha256_sidecar(path: Path) -> str:
+    sidecar = path.with_suffix(path.suffix + ".sha256")
+    try:
+        expected, filename = sidecar.read_text(encoding="utf-8").split()
+    except (FileNotFoundError, ValueError) as error:
+        raise ValueError(f"invalid or missing SHA-256 sidecar: {sidecar}") from error
+    actual = sha256(path)
+    if filename != path.name or expected != actual:
+        raise ValueError(
+            f"SHA-256 sidecar mismatch for {path}: expected={expected}, actual={actual}"
+        )
+    return actual
 
 
 def load_registry(
@@ -95,6 +124,7 @@ def validate_candidate_stage(
 
 
 def validate_manifest_metadata(path: Path, metadata: dict[str, Any]) -> None:
+    verify_sha256_sidecar(path)
     manifest = json.loads(path.read_text(encoding="utf-8"))
     if manifest.get("schema") != "sallm_execution_manifest/v1":
         raise ValueError(f"{path}: unsupported execution manifest schema")
@@ -102,6 +132,25 @@ def validate_manifest_metadata(path: Path, metadata: dict[str, Any]) -> None:
     for variable, field in HPO_MANIFEST_FIELDS.items():
         expected = str(metadata[field])
         actual = variables.get(variable)
+        if actual != expected:
+            raise ValueError(
+                f"{path}: {variable} mismatch: expected {expected!r}, got {actual!r}"
+            )
+    numeric_fields = {
+        "SALLM_HPO_SEED": (metadata["seed"], int),
+        **{
+            variable: (metadata["candidate_config"][field], parser)
+            for variable, (field, parser) in HPO_MANIFEST_CONFIG_FIELDS.items()
+        },
+    }
+    for variable, (expected, parser) in numeric_fields.items():
+        raw = variables.get(variable)
+        try:
+            actual = parser(raw)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                f"{path}: missing or invalid {variable}: {raw!r}"
+            ) from error
         if actual != expected:
             raise ValueError(
                 f"{path}: {variable} mismatch: expected {expected!r}, got {actual!r}"
@@ -214,10 +263,48 @@ def trial_result(
     }
 
 
+def frozen_top_two(
+    path: Path,
+    *,
+    registry_hash: str,
+    model: str,
+    family: str,
+    direction: str,
+    candidates: dict[str, dict[str, Any]],
+) -> tuple[list[str], str]:
+    digest = verify_sha256_sidecar(path)
+    ranking = json.loads(path.read_text(encoding="utf-8"))
+    expected_metadata = {
+        "schema": "sallm_hpo_ranking/v1",
+        "selection_split": "validation",
+        "model": model,
+        "family": family,
+        "direction": direction,
+        "stage": "seed42",
+        "registry_sha256": registry_hash,
+    }
+    for field, expected in expected_metadata.items():
+        if ranking.get(field) != expected:
+            raise ValueError(
+                f"{path}: {field} mismatch: expected {expected!r}, "
+                f"got {ranking.get(field)!r}"
+            )
+    rows = ranking.get("ranking", [])
+    candidate_ids = [row.get("candidate") for row in rows]
+    if len(candidate_ids) != len(candidates) or set(candidate_ids) != set(candidates):
+        raise ValueError(f"{path}: seed42 ranking is not a complete candidate set")
+    for row in rows:
+        candidate_id = row["candidate"]
+        if row.get("candidate_config") != candidate_config(candidates[candidate_id]):
+            raise ValueError(f"{path}: {candidate_id} candidate config mismatch")
+    return candidate_ids[:2], digest
+
+
 def command_rank(args: argparse.Namespace) -> None:
     registry, candidates, candidate_stages = load_registry(args.registry)
+    registry_hash = sha256(args.registry)
     results = [
-        trial_result(path, sha256(args.registry), candidates, candidate_stages)
+        trial_result(path, registry_hash, candidates, candidate_stages)
         for path in args.trial_dirs
     ]
     contexts = {(result["model"], result["family"]) for result in results}
@@ -241,6 +328,33 @@ def command_rank(args: argparse.Namespace) -> None:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for result in results:
         grouped.setdefault(result["candidate"], []).append(result)
+    ranking_binding: dict[str, str] = {}
+    if args.stage == "seed42":
+        if set(grouped) != set(candidates):
+            raise ValueError(
+                "seed42 ranking requires the complete candidate set: "
+                f"expected {sorted(candidates)}, got {sorted(grouped)}"
+            )
+    else:
+        if args.seed42_ranking is None:
+            raise ValueError("confirmation ranking requires --seed42-ranking")
+        top_two, ranking_hash = frozen_top_two(
+            args.seed42_ranking,
+            registry_hash=registry_hash,
+            model=model,
+            family=family,
+            direction=args.direction,
+            candidates=candidates,
+        )
+        if set(grouped) != set(top_two):
+            raise ValueError(
+                f"confirmation candidates must equal frozen top two {top_two}, "
+                f"got {sorted(grouped)}"
+            )
+        ranking_binding = {
+            "seed42_ranking": str(args.seed42_ranking.resolve()),
+            "seed42_ranking_sha256": ranking_hash,
+        }
     rows = []
     for candidate_id, candidate_results in grouped.items():
         seeds = {result["seed"] for result in candidate_results}
@@ -273,19 +387,20 @@ def command_rank(args: argparse.Namespace) -> None:
             row["candidate"],
         )
     )
-    write_json(
-        args.output,
-        {
-            "schema": "sallm_hpo_ranking/v1",
-            "selection_split": "validation",
-            "model": model,
-            "family": family,
-            "direction": args.direction,
-            "stage": args.stage,
-            "registry_sha256": sha256(args.registry),
-            "ranking": rows,
-        },
-    )
+    payload = {
+        "schema": "sallm_hpo_ranking/v1",
+        "selection_split": "validation",
+        "model": model,
+        "family": family,
+        "direction": args.direction,
+        "stage": args.stage,
+        "registry_sha256": registry_hash,
+        "ranking": rows,
+        **ranking_binding,
+    }
+    write_json(args.output, payload)
+    if args.output is not None:
+        write_sha256_sidecar(args.output)
 
 
 def main() -> None:
@@ -319,6 +434,7 @@ def main() -> None:
     rank.add_argument("--registry", type=Path, required=True)
     rank.add_argument("--stage", choices=("seed42", "confirm"), required=True)
     rank.add_argument("--direction", choices=("max", "min"), required=True)
+    rank.add_argument("--seed42-ranking", type=Path)
     rank.add_argument("--output", type=Path)
     rank.add_argument("trial_dirs", type=Path, nargs="+")
     rank.set_defaults(func=command_rank)

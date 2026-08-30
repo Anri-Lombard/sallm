@@ -61,6 +61,19 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def verify_sha256_sidecar(path: Path) -> None:
+    sidecar = path.with_suffix(path.suffix + ".sha256")
+    try:
+        expected, filename = sidecar.read_text(encoding="utf-8").split()
+    except (FileNotFoundError, ValueError) as error:
+        raise SystemExit(f"Invalid or missing SHA-256 sidecar: {sidecar}") from error
+    actual = sha256_file(path)
+    if filename != path.name or expected != actual:
+        raise SystemExit(
+            f"SHA-256 sidecar mismatch for {path}: expected={expected}, actual={actual}"
+        )
+
+
 def source_files(repo_root: Path) -> list[Path]:
     paths: set[Path] = set()
     for relative_root in HASHED_ROOTS:
@@ -155,6 +168,7 @@ def create_manifest(args: argparse.Namespace) -> int:
 
 
 def verify_manifest(path: Path) -> int:
+    verify_sha256_sidecar(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("schema") != "sallm_execution_manifest/v1":
         raise SystemExit("Unsupported execution manifest schema")
