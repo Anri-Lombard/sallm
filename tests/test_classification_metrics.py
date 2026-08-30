@@ -58,6 +58,9 @@ def test_classification_factory_defaults_to_macro_f1(monkeypatch, tmp_path) -> N
             "save_strategy": "steps",
             "output_dir": str(tmp_path),
             "report_to": [],
+            "use_cpu": True,
+            "bf16": False,
+            "fp16": False,
         },
         dataset=SimpleNamespace(
             task=FinetuneTaskType.CLASSIFICATION,
