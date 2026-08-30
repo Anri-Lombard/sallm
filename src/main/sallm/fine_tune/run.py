@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import shutil
-import textwrap
 from pathlib import Path
 from typing import Any, cast
 
@@ -20,6 +19,7 @@ from sallm.data.factory import (
     resolve_eval_template_choice,
 )
 from sallm.models.factory import build_model, build_tokenizer
+from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 from sallm.training.factory import build_trainer
 from tokenizers import AddedToken
 
@@ -268,27 +268,7 @@ def run(config: ExperimentConfig) -> None:
                     model_any.lm_head.weight = model_any.backbone.embeddings.weight
 
     if tokenizer.chat_template is None:
-        # TODO: move this template to its own file
-        tokenizer.chat_template = textwrap.dedent(
-            """
-            {%- if system_message %}
-            <|system|>
-            {{ system_message }}{{ eos_token }}
-            {%- endif %}
-            {%- for message in messages %}
-                {%- if message['role'] == 'user' %}
-                    <|user|>
-                    {{ message['content'] }}{{ eos_token }}
-                {%- elif message['role'] == 'assistant' %}
-                    {%- generation -%}
-                    <|assistant|>
-                    {{ message['content'] }}{{ eos_token }}
-                    {%- endgeneration -%}
-                {%- endif %}
-            {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-            """
-        ).lstrip()
+        tokenizer.chat_template = DEFAULT_CHAT_TEMPLATE
 
         logger.info("Tokenizer chat template not found. Applying default template.")
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import textwrap
 from collections import defaultdict
 from enum import Enum
 from typing import Any, cast
@@ -13,6 +12,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from sallm.config import DecodingConfig
 from sallm.templates import registry as tmpl
+from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +297,7 @@ class ClassificationEvaluator:
             prompt_text,
             return_tensors="pt",
             padding=True,
+            add_special_tokens=False,
         ).to(device)
 
         input_ids = inputs["input_ids"]
@@ -520,8 +521,10 @@ class ClassificationEvaluator:
             continuation = context[-trailing_spaces:] + continuation
             context = context[:-trailing_spaces]
 
-        whole_ids = self.tokenizer.encode(context + continuation)
-        context_ids = self.tokenizer.encode(context)
+        whole_ids = self.tokenizer.encode(
+            context + continuation, add_special_tokens=False
+        )
+        context_ids = self.tokenizer.encode(context, add_special_tokens=False)
         continuation_ids = whole_ids[len(context_ids) :]
         if not continuation_ids:
             continuation_ids = self.tokenizer.encode(
@@ -575,23 +578,4 @@ class ClassificationEvaluator:
         """Get fallback chat template if tokenizer doesn't have one."""
         if getattr(self.tokenizer, "chat_template", None) is not None:
             return None
-        return textwrap.dedent(
-            """
-            {%- if system_message %}
-            <|system|>
-            {{ system_message }}{{ eos_token }}
-            {%- endif %}
-            {%- for message in messages %}
-                {%- if message['role'] == 'user' %}
-                    <|user|>
-                    {{ message['content'] }}{{ eos_token }}
-                {%- elif message['role'] == 'assistant' %}
-                    {%- generation -%}
-                    <|assistant|>
-                    {{ message['content'] }}{{ eos_token }}
-                    {%- endgeneration -%}
-                {%- endif %}
-            {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-            """
-        ).lstrip()
+        return DEFAULT_CHAT_TEMPLATE
