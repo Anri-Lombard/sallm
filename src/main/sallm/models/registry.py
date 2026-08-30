@@ -1,5 +1,7 @@
 from importlib import import_module
 
+from sallm.models.llama_compatibility import LlamaConfig, LlamaForCausalLM
+
 
 class LazyRegistry(dict):
     """Dict that lazily imports classes from transformers on first access."""
@@ -46,3 +48,6 @@ MODEL_CLASS_REGISTRY = LazyRegistry(
         "xlstm": "xLSTMForCausalLM",
     }
 )
+
+dict.__setitem__(MODEL_CONFIG_REGISTRY, "llama", LlamaConfig)
+dict.__setitem__(MODEL_CLASS_REGISTRY, "llama", LlamaForCausalLM)
