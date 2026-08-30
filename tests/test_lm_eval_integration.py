@@ -12,6 +12,10 @@ from sallm.evaluation.registry import (
     load_rerank_task_pack,
     load_task_pack,
 )
+from tokenizers import Tokenizer
+from tokenizers.models import WordLevel
+from tokenizers.pre_tokenizers import Whitespace
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
 def test_task_pack_keeps_task_manager_kwargs_out_of_evaluator_kwargs() -> None:
@@ -65,6 +69,30 @@ def test_resolve_include_paths_rejects_missing_paths(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError, match="lm-eval include path"):
         lm_eval_runner._resolve_include_paths(str(missing_path))
+
+
+def test_prepare_tokenizer_for_lm_eval_saves_transformers_tokenizer(
+    tmp_path: Path,
+) -> None:
+    backend = Tokenizer(WordLevel({"[UNK]": 0, "hello": 1}, unk_token="[UNK]"))
+    backend.pre_tokenizer = Whitespace()
+    tokenizer = PreTrainedTokenizerFast(
+        tokenizer_object=backend,
+        unk_token="[UNK]",
+    )
+    source = tmp_path / "source"
+    tokenizer.save_pretrained(source)
+
+    prepared = lm_eval_runner._prepare_tokenizer_for_lm_eval(
+        str(source),
+        tmp_path / "cache",
+        require_chat_template=True,
+    )
+
+    assert prepared is not None
+    loaded = AutoTokenizer.from_pretrained(prepared, local_files_only=True)
+    assert loaded is not None
+    assert loaded.chat_template == lm_eval_runner._fallback_chat_template()
 
 
 def test_load_task_pack_rejects_validation_packs_from_final_eval_scope() -> None:
@@ -127,3 +155,36 @@ def test_run_pack_passes_repo_task_paths_to_task_manager(
     assert summary["type"] == "lm_eval"
     assert summary["task_pack_scope"] == "rerank"
     assert (tmp_path / "out" / "masakhaner_xho_val" / "results.json").exists()
+
+
+def test_run_pack_rejects_lm_eval_response_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeTaskManager:
+        def __init__(self, **kwargs: Any) -> None:
+            self.include_path = kwargs.get("include_path")
+
+    monkeypatch.setattr(lm_eval_runner, "TaskManager", FakeTaskManager)
+    monkeypatch.setattr(
+        lm_eval_runner.evaluator,
+        "simple_evaluate",
+        lambda **kwargs: {"results": {}, "metrics": {}},
+    )
+    monkeypatch.setattr(
+        lm_eval_runner,
+        "_prepare_tokenizer_for_lm_eval",
+        lambda *args: None,
+    )
+
+    with pytest.raises(ValueError, match="response caching is disabled"):
+        lm_eval_runner._run_pack(
+            "masakhaner_xho_val",
+            ModelEvalConfig(checkpoint=str(tmp_path), device="cpu"),
+            tmp_path / "out",
+            tmp_path / "work",
+            {"use_cache": str(tmp_path / "cache")},
+            str(tmp_path),
+            None,
+            "rerank",
+        )

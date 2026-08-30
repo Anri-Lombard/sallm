@@ -270,13 +270,16 @@ def _prepare_tokenizer_for_lm_eval(
         except Exception:
             return None
 
+    if tok is None:
+        return None
+
     needs_template = (
         require_chat_template and getattr(tok, "chat_template", None) is None
     )
     if needs_template:
         logger.info("Injecting fallback chat template for lm-eval tokenizer.")
         try:
-            tok.chat_template = _fallback_chat_template()  # type: ignore[attr-defined]
+            cast(Any, tok).chat_template = _fallback_chat_template()
         except Exception:
             pass
 
@@ -358,6 +361,9 @@ def _run_pack(
         )
         task_manager_kwargs.update(task_manager_overrides)
         eval_kwargs.update(evaluator_overrides)
+
+    if eval_kwargs.get("use_cache") is not None:
+        raise ValueError("lm-eval response caching is disabled")
 
     if task_pack_scope == "rerank":
         task_manager_kwargs["include_path"] = _append_include_path(

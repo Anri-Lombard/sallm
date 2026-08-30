@@ -44,6 +44,9 @@ jobs:
           uv run pre-commit install --install-hooks
           uv run pre-commit run --all-files --show-diff-on-failure
 
+      - name: Enforce Grype ignore expiry policy
+        run: uv run python scripts/check_grype_ignore_expiry.py .grype.yaml
+
   security-scan:
     name: Grype vulnerability scan
     runs-on: ubuntu-latest
