@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 
-def test_grype_ignore_policy_rejects_expired_accepted_risk(tmp_path: Path) -> None:
+def test_grype_ignore_policy_treats_expiry_date_as_inclusive(tmp_path: Path) -> None:
     config = tmp_path / ".grype.yaml"
     config.write_text(
         """\
@@ -19,18 +19,31 @@ ignore:
         encoding="utf-8",
     )
 
-    result = subprocess.run(
+    on_expiry = subprocess.run(
         [
             sys.executable,
             "scripts/check_grype_ignore_expiry.py",
             str(config),
             "--today",
-            "2026-08-30",
+            "2026-04-16",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    after_expiry = subprocess.run(
+        [
+            sys.executable,
+            "scripts/check_grype_ignore_expiry.py",
+            str(config),
+            "--today",
+            "2026-04-17",
         ],
         check=False,
         capture_output=True,
         text=True,
     )
 
-    assert result.returncode == 1
-    assert "GHSA-example for example expired on 2026-04-16" in result.stderr
+    assert on_expiry.returncode == 0
+    assert after_expiry.returncode == 1
+    assert "GHSA-example for example expired on 2026-04-16" in after_expiry.stderr

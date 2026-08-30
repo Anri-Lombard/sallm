@@ -59,7 +59,7 @@ def main() -> int:
         except ValueError:
             errors.append(f"{label} has invalid expires date {raw_expiry!r}")
             continue
-        if args.today >= expiry:
+        if args.today > expiry:
             errors.append(f"{label} expired on {expiry.isoformat()}")
 
     if errors:
