@@ -13,12 +13,3 @@ ignore:
     reason: false-positive
     package:
       name: jaraco-context
-
-  # Accepted risk: sqlitedict insecure deserialization (CVE-2024-35515)
-  # Transitive dep from lm-eval for caching. Only loads our own cache files, no untrusted sources.
-  # No fix available yet. Monitor for updates.
-  - vulnerability: GHSA-g4r7-86gm-pgqc
-    reason: accepted-risk
-    package:
-      name: sqlitedict
-    expires: "2026-04-16"

@@ -155,3 +155,36 @@ def test_run_pack_passes_repo_task_paths_to_task_manager(
     assert summary["type"] == "lm_eval"
     assert summary["task_pack_scope"] == "rerank"
     assert (tmp_path / "out" / "masakhaner_xho_val" / "results.json").exists()
+
+
+def test_run_pack_rejects_lm_eval_response_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeTaskManager:
+        def __init__(self, **kwargs: Any) -> None:
+            self.include_path = kwargs.get("include_path")
+
+    monkeypatch.setattr(lm_eval_runner, "TaskManager", FakeTaskManager)
+    monkeypatch.setattr(
+        lm_eval_runner.evaluator,
+        "simple_evaluate",
+        lambda **kwargs: {"results": {}, "metrics": {}},
+    )
+    monkeypatch.setattr(
+        lm_eval_runner,
+        "_prepare_tokenizer_for_lm_eval",
+        lambda *args: None,
+    )
+
+    with pytest.raises(ValueError, match="response caching is disabled"):
+        lm_eval_runner._run_pack(
+            "masakhaner_xho_val",
+            ModelEvalConfig(checkpoint=str(tmp_path), device="cpu"),
+            tmp_path / "out",
+            tmp_path / "work",
+            {"use_cache": str(tmp_path / "cache")},
+            str(tmp_path),
+            None,
+            "rerank",
+        )

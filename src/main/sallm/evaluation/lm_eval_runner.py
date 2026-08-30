@@ -362,6 +362,9 @@ def _run_pack(
         task_manager_kwargs.update(task_manager_overrides)
         eval_kwargs.update(evaluator_overrides)
 
+    if eval_kwargs.get("use_cache") is not None:
+        raise ValueError("lm-eval response caching is disabled")
+
     if task_pack_scope == "rerank":
         task_manager_kwargs["include_path"] = _append_include_path(
             task_manager_kwargs.get("include_path"),
