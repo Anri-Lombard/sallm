@@ -1,4 +1,5 @@
 import pytest
+import torch
 from sallm.config import (
     ExperimentConfig,
     FinetuneDatasetConfig,
@@ -12,7 +13,7 @@ from sallm.fine_tune.run import (
     _configure_task_truncation,
 )
 from sallm.utils import RunMode
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import LlamaConfig, LlamaForCausalLM, xLSTMConfig, xLSTMForCausalLM
 
 
 def _experiment(*, repo_id: str) -> ExperimentConfig:
@@ -101,3 +102,98 @@ def test_apply_peft_trains_only_new_token_rows() -> None:
         name for name, param in adapted.named_parameters() if param.requires_grad
     ]
     assert any("token_adapter" in name for name in trainable_names)
+
+
+def test_apply_peft_combines_embedding_lora_with_new_token_rows() -> None:
+    model = LlamaForCausalLM(
+        LlamaConfig(
+            vocab_size=16,
+            hidden_size=16,
+            intermediate_size=32,
+            num_hidden_layers=1,
+            num_attention_heads=2,
+            num_key_value_heads=2,
+            tie_word_embeddings=True,
+        )
+    )
+    model.resize_token_embeddings(18)
+    peft_config = type(
+        "PeftConfig",
+        (),
+        {
+            "method": "lora",
+            "kwargs": {
+                "r": 2,
+                "lora_alpha": 4,
+                "target_modules": ["q_proj", "v_proj", "embed_tokens"],
+            },
+        },
+    )()
+
+    adapted = _apply_peft_if_needed(
+        model=model,
+        peft_cfg=peft_config,
+        trainable_token_indices=[16, 17],
+    )
+
+    config = adapted.peft_config["default"]
+    assert set(config.target_modules) == {"q_proj", "v_proj", "embed_tokens"}
+    assert config.trainable_token_indices is None
+    trainable_embedding_lora = [
+        parameter
+        for name, parameter in adapted.named_parameters()
+        if "embed_tokens" in name and "lora_embedding" in name
+    ]
+    assert trainable_embedding_lora
+    assert all(parameter.requires_grad for parameter in trainable_embedding_lora)
+
+    loss = adapted(
+        input_ids=torch.tensor([[16, 17, 16]]),
+        labels=torch.tensor([[16, 17, 16]]),
+    ).loss
+    loss.backward()
+    assert any(parameter.grad is not None for parameter in trainable_embedding_lora)
+
+
+def test_apply_peft_preserves_xlstm_embedding_lora_targets() -> None:
+    model = xLSTMForCausalLM(
+        xLSTMConfig(
+            vocab_size=16,
+            hidden_size=16,
+            embedding_dim=16,
+            num_hidden_layers=1,
+            num_heads=2,
+            mode="train",
+            chunk_size=4,
+            tie_word_embeddings=False,
+        )
+    )
+    model.resize_token_embeddings(18)
+    target_modules = ["q", "k", "v", "out_proj", "embeddings"]
+    peft_config = type(
+        "PeftConfig",
+        (),
+        {
+            "method": "lora",
+            "kwargs": {
+                "r": 2,
+                "lora_alpha": 4,
+                "target_modules": target_modules,
+            },
+        },
+    )()
+
+    adapted = _apply_peft_if_needed(
+        model=model,
+        peft_cfg=peft_config,
+        trainable_token_indices=[16, 17],
+    )
+
+    config = adapted.peft_config["default"]
+    assert set(config.target_modules) == set(target_modules)
+    assert config.trainable_token_indices is None
+    assert any(
+        "backbone.embeddings" in name and "lora_embedding" in name
+        for name, parameter in adapted.named_parameters()
+        if parameter.requires_grad
+    )

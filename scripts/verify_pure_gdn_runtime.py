@@ -128,13 +128,30 @@ def _exercise_model_backward(model: Any) -> None:
     if loss is None:
         logits = getattr(result, "logits", result[0])
         loss = logits.float().mean()
+    if not torch.isfinite(loss.detach()).all().item():
+        raise RuntimeError("Pure GatedDeltaNet BF16 forward produced non-finite loss.")
     loss.backward()
-    if not any(
-        parameter.grad is not None
-        for parameter in model.parameters()
+    missing = [
+        name
+        for name, parameter in model.named_parameters()
+        if parameter.requires_grad and parameter.grad is None
+    ]
+    if missing:
+        raise RuntimeError(
+            "Pure GatedDeltaNet BF16 backward produced missing gradients: "
+            + ", ".join(missing[:10])
+        )
+    nonfinite = [
+        name
+        for name, parameter in model.named_parameters()
         if parameter.requires_grad
-    ):
-        raise RuntimeError("Pure GatedDeltaNet BF16 backward produced no gradients.")
+        and not torch.isfinite(parameter.grad).all().item()
+    ]
+    if nonfinite:
+        raise RuntimeError(
+            "Pure GatedDeltaNet BF16 backward produced non-finite gradients: "
+            + ", ".join(nonfinite[:10])
+        )
 
 
 def _exercise_chunk_gated_delta_kernel() -> str:
@@ -320,6 +337,7 @@ def _post_checkpoint(args: argparse.Namespace) -> None:
             "Pure GatedDeltaNet post-checkpoint verification requires CUDA."
         )
     model.to(device=torch.device("cuda"), dtype=torch.bfloat16)
+    _exercise_model_backward(model)
     _assert_deterministic_greedy_generation(model)
     print(
         json.dumps(
@@ -328,6 +346,7 @@ def _post_checkpoint(args: argparse.Namespace) -> None:
                 "params": params,
                 "params_m": params / 1_000_000,
                 "save_load_integrity": True,
+                "bf16_forward_backward": True,
                 "deterministic_greedy_generation": True,
             },
             sort_keys=True,

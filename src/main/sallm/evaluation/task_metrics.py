@@ -23,6 +23,28 @@ UPOS_TAGS = {
     "X",
 }
 
+_NER_LABEL_ALIASES = {
+    "person": "PER",
+    "people": "PER",
+    "persons": "PER",
+    "per": "PER",
+    "location": "LOC",
+    "locations": "LOC",
+    "place": "LOC",
+    "places": "LOC",
+    "county": "LOC",
+    "counties": "LOC",
+    "country": "LOC",
+    "continent": "LOC",
+    "loc": "LOC",
+    "organization": "ORG",
+    "organisation": "ORG",
+    "company": "ORG",
+    "org": "ORG",
+    "time": "DATE",
+    "date": "DATE",
+}
+
 
 def compute_ner_span_f1(
     references: list[str],
@@ -155,7 +177,7 @@ def compute_pos_token_accuracy(
             for index in range(aligned)
             if str(ref_tags[index]) == str(pred_tags[index])
         )
-        scores.append(correct / len(ref_tags))
+        scores.append(correct / max(len(ref_tags), len(pred_tags)))
 
     return sum(scores) / len(scores) if scores else 0.0
 
@@ -219,7 +241,7 @@ def build_pos_debug_record(reference: str, prediction: str) -> dict[str, object]
         if str(ref_tags[index]) != str(pred_tags[index])
     ]
     correct = aligned - len(mismatches)
-    accuracy = correct / len(ref_tags) if ref_tags else 0.0
+    accuracy = correct / max(len(ref_tags), len(pred_tags)) if ref_tags else 0.0
     return {
         "reference_tags": ref_tags,
         "prediction_tags": pred_tags,
@@ -235,38 +257,37 @@ def build_pos_debug_record(reference: str, prediction: str) -> dict[str, object]
 
 
 def _normalize_ner_prediction(text: str) -> str:
-    label_dict = {
-        "person": "PER",
-        "location": "LOC",
-        "organization": "ORG",
-        "counties": "LOC",
-        "places": "LOC",
-        "people": "PER",
-        "persons": "PER",
-        "company": "ORG",
-        "country": "LOC",
-        "continent": "LOC",
-        "time": "DATE",
-        "date": "DATE",
-        "per": "PER",
-        "loc": "LOC",
-        "org": "ORG",
-    }
-    normalized = text.lower()
-    for key, value in label_dict.items():
-        normalized = normalized.replace(key, value)
+    return " $ ".join(
+        f"{label}: {entity}" for label, entity in _parse_ner_entities(text)
+    )
 
-    normalized = "$".join(item for item in normalized.split("$$"))
-    normalized = normalized.rstrip("$")
-    normalized = normalized.replace("\n", "$").strip()
 
-    matches = re.findall(r"\b(PER|LOC|ORG|DATE):\s*([^$]+)", normalized)
-    formatted_entities: list[str] = []
-    for label, values in matches:
-        for entity in (value.strip() for value in values.split(",")):
-            if entity.lower() != "none":
-                formatted_entities.append(f"{label.lower()}: {entity}")
-    return " $ ".join(formatted_entities)
+def _split_ner_segments(text: str) -> list[str]:
+    """Split only on the task's explicit entity delimiters.
+
+    Punctuation is part of entity text. In particular, periods in personal
+    names and commas in locations must not create new entities.
+    """
+
+    return [
+        segment.strip()
+        for segment in re.split(r"\s*(?:\$\$|\$|\r?\n)+\s*", text.strip())
+        if segment.strip()
+    ]
+
+
+def _parse_ner_entities(text: str) -> list[tuple[str, str]]:
+    entities: list[tuple[str, str]] = []
+    for segment in _split_ner_segments(text):
+        raw_label, separator, raw_entity = segment.partition(":")
+        if not separator:
+            continue
+        canonical_label = _NER_LABEL_ALIASES.get(raw_label.strip().casefold())
+        entity = raw_entity.strip()
+        if canonical_label is None or not entity or entity.casefold() == "none":
+            continue
+        entities.append((canonical_label, entity))
+    return entities
 
 
 def _span_f1_agg(items: list[tuple[str, str]]) -> float:
@@ -300,27 +321,11 @@ def _format_spans(spans: list[tuple[str, str]]) -> list[dict[str, str]]:
 
 
 def _tags_to_spans(tag_sequence: str, delimiter: str = "$$") -> list[tuple[str, str]]:
-    tag_sequence_split = [
-        item.strip()
-        for sub in tag_sequence.strip().split(delimiter)
-        for item in sub.split("$")
-        if item
+    del delimiter  # Kept for API compatibility; both '$' forms are contractual.
+    return [
+        (_normalize_span_text(label), _normalize_span_text(entity))
+        for label, entity in _parse_ner_entities(tag_sequence)
     ]
-    tag_sequence_split = [
-        item.strip()
-        for value in tag_sequence_split
-        for sub in value.split(". ")
-        for item in sub.split(", ")
-    ]
-    tags_entities: list[tuple[str, str]] = []
-    for tag_entity in tag_sequence_split:
-        tag_entity_split = tag_entity.split(": ")
-        if len(tag_entity_split) != 2:
-            continue
-        tag = _normalize_span_text(tag_entity_split[0].strip())
-        entity = _normalize_span_text(tag_entity_split[1].rstrip().lstrip())
-        tags_entities.append((tag, entity))
-    return tags_entities
 
 
 def _normalize_span_text(text: str) -> str:

@@ -11,6 +11,8 @@
 
 set -euo pipefail
 
+source_repo="${SALLM_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 index="${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID is required}"
 checkpoint="${SALLM_EVAL_CHECKPOINT:-anrilombard/sallm-llama-252m}"
 result_prefix="${SALLM_EVAL_RESULT_PREFIX:-llama_252m_base_0shot}"
@@ -71,6 +73,7 @@ if [[ -n "$pack" ]]; then
     "++eval.evaluation.overrides.${pack}.num_fewshot=${num_fewshot}"
     "++eval.evaluation.overrides.${pack}.batch_size=8"
     "++eval.evaluation.overrides.${pack}.max_batch_size=16"
+    "++eval.evaluation.overrides.${pack}.apply_chat_template=false"
   )
 fi
 
@@ -82,19 +85,25 @@ elif [[ "$label" == sa_general_all ]]; then
       "++eval.evaluation.overrides.${extra_pack}.num_fewshot=${num_fewshot}"
       "++eval.evaluation.overrides.${extra_pack}.batch_size=8"
       "++eval.evaluation.overrides.${extra_pack}.max_batch_size=16"
+      "++eval.evaluation.overrides.${extra_pack}.apply_chat_template=false"
     )
   done
 elif [[ "$label" == t2x_xho ]]; then
-  args+=("++eval.evaluation.generation_tasks.0.fewshot=0")
+  args+=(
+    "++eval.evaluation.generation_tasks.0.fewshot=0"
+    "++eval.evaluation.generation_tasks.0.prompt_format=raw"
+  )
 elif [[ "$label" == afrihg_all ]]; then
   args+=(
     "++eval.evaluation.generation_tasks.0.fewshot=0"
     "++eval.evaluation.generation_tasks.1.fewshot=0"
+    "++eval.evaluation.generation_tasks.0.prompt_format=raw"
+    "++eval.evaluation.generation_tasks.1.prompt_format=raw"
   )
 fi
 
 export SALLM_SKIP_MAMBA_KERNEL_CHECK=1
-command=(bash scripts/launch_evaluation.sh "eval/$config" "${args[@]}")
+command=(bash "$source_repo/scripts/launch_evaluation.sh" "eval/$config" "${args[@]}")
 if [[ "${DRY_RUN:-0}" == 1 ]]; then
   printf '%q ' "${command[@]}"
   printf '\n'

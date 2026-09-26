@@ -1,4 +1,6 @@
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import torch
 from datasets import Dataset
@@ -102,6 +104,30 @@ def test_encode_choice_pair_scores_only_uniform_label_tokens() -> None:
     assert all(tokenizer.eos_token_id not in ids for ids in continuation_ids)
 
 
+def test_encode_choice_pair_preserves_existing_trailing_whitespace() -> None:
+    tokenizer = AutoTokenizer.from_pretrained(
+        ROOT / "tokenizer" / "sallm_bpe_tokenizer",
+        local_files_only=True,
+    )
+    tokenizer.add_special_tokens(
+        {
+            "additional_special_tokens": [
+                "<|system|>",
+                "<|user|>",
+                "<|assistant|>",
+            ]
+        }
+    )
+    evaluator = ClassificationEvaluator(tokenizer)
+    context = "<|assistant|>\n        "
+
+    context_ids, continuation_ids = evaluator._encode_choice_pair(context, "business")
+
+    assert context_ids + continuation_ids == tokenizer.encode(
+        f"{context}business", add_special_tokens=False
+    )
+
+
 def test_xlstm_choice_inputs_pad_to_chunk_size() -> None:
     tokenizer = AutoTokenizer.from_pretrained(
         ROOT / "tokenizer" / "sallm_bpe_tokenizer",
@@ -121,3 +147,83 @@ def test_xlstm_choice_inputs_pad_to_chunk_size() -> None:
     assert input_ids.shape == attention_mask.shape
     assert input_ids.shape[1] % 64 == 0
     assert bool((attention_mask.sum(dim=1) < input_ids.shape[1]).all())
+
+
+def test_mamba_choice_scoring_forwards_one_label_at_a_time(monkeypatch) -> None:
+    evaluator = ClassificationEvaluator.__new__(ClassificationEvaluator)
+    evaluator.choice_score_mode = ChoiceScoreMode.MEAN
+    input_ids = torch.tensor(
+        [[1, 2, 3, 0], [1, 2, 4, 0], [1, 2, 5, 0]], dtype=torch.long
+    )
+    attention_mask = torch.tensor(
+        [[1, 1, 1, 0], [1, 1, 1, 0], [1, 1, 1, 0]], dtype=torch.long
+    )
+    monkeypatch.setattr(evaluator, "_build_prompt_text", lambda **_kwargs: "prompt")
+    monkeypatch.setattr(evaluator, "_resolve_pad_id", lambda *_args: 0)
+    monkeypatch.setattr(evaluator, "_get_model_ctx_limit", lambda _model: 4)
+    monkeypatch.setattr(evaluator, "_get_model_chunk_size", lambda _model: None)
+    monkeypatch.setattr(
+        evaluator,
+        "_build_choice_inputs",
+        lambda **_kwargs: (input_ids, attention_mask, [2, 2, 2]),
+    )
+
+    class MambaModel:
+        config = SimpleNamespace(model_type="mamba2")
+
+        def __init__(self) -> None:
+            self.batch_sizes: list[int] = []
+
+        def __call__(self, *, input_ids, attention_mask, use_cache):
+            del attention_mask, use_cache
+            self.batch_sizes.append(input_ids.shape[0])
+            logits = torch.zeros((input_ids.shape[0], input_ids.shape[1], 6))
+            for row, target in enumerate(input_ids[:, 2].tolist()):
+                logits[row, 1, target] = float(target)
+            return SimpleNamespace(logits=logits)
+
+    model = MambaModel()
+    prediction = evaluator._score_label_choices(
+        model=model,
+        prompt_messages=[],
+        label_choices=["a", "b", "c"],
+        device=torch.device("cpu"),
+        pad_id=0,
+        eos_id=0,
+        fallback_template=None,
+        system_message=None,
+    )
+
+    assert prediction == "c"
+    assert model.batch_sizes == [1, 1, 1]
+
+
+def test_evaluate_exposes_mean_per_language_macro_f1(monkeypatch) -> None:
+    evaluator = ClassificationEvaluator.__new__(ClassificationEvaluator)
+    evaluator.tokenizer = SimpleNamespace(pad_token_id=0, eos_token_id=2)
+    evaluator.max_samples_per_lang = None
+    monkeypatch.setattr(evaluator, "_get_fallback_template", lambda: None)
+    monkeypatch.setattr(evaluator, "_cap_dataset", lambda dataset, _lang: dataset)
+
+    def fake_subset(_model, dataset, *_args):
+        lang = dataset[0]["lang"]
+        return {
+            "accuracy": 0.5,
+            "f1": 0.8 if lang == "a" else 0.6,
+            "macro_f1": 0.3 if lang == "a" else 0.1,
+        }
+
+    monkeypatch.setattr(evaluator, "_evaluate_subset", fake_subset)
+    dataset = Dataset.from_list(
+        [
+            {"lang": "a", "messages": []},
+            {"lang": "b", "messages": []},
+        ]
+    )
+    model = MagicMock()
+    model.device = torch.device("cpu")
+
+    metrics = evaluator.evaluate(model, dataset)
+
+    assert metrics["classification/all_f1"] == 0.7
+    assert metrics["classification/all_macro_f1"] == 0.2

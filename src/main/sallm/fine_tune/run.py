@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import shutil
-import textwrap
 from pathlib import Path
 from typing import Any, cast
 
@@ -13,6 +12,7 @@ import torch
 import wandb
 from datasets import Dataset, IterableDataset
 from omegaconf import OmegaConf
+from sallm.chat_template import install_canonical_chat_template
 from sallm.config import ExperimentConfig, FinetuneTaskType, to_resolved_dict
 from sallm.data.factory import (
     build_conversation_dataset,
@@ -24,6 +24,13 @@ from sallm.training.factory import build_trainer
 from tokenizers import AddedToken
 
 logger = logging.getLogger(__name__)
+
+
+def _configure_chat_template(tokenizer: Any) -> bool:
+    installed = install_canonical_chat_template(tokenizer)
+    if installed:
+        logger.info("Tokenizer chat template not found. Applying default template.")
+    return installed
 
 
 def _is_hpo_run(config: ExperimentConfig) -> bool:
@@ -39,6 +46,26 @@ def _configure_task_truncation(*, tokenizer, task_type) -> None:
         FinetuneTaskType.INSTRUCTION,
     ):
         tokenizer.truncation_side = "left"
+
+
+def _targets_input_embedding(model: Any, target_modules: Any) -> bool:
+    """Return whether a PEFT target specification includes the input embedding."""
+    get_input_embeddings = getattr(model, "get_input_embeddings", None)
+    if not callable(get_input_embeddings):
+        return False
+    input_embedding = get_input_embeddings()
+    names = [
+        name
+        for name, module in model.named_modules()
+        if name and module is input_embedding
+    ]
+    if isinstance(target_modules, str):
+        return any(re.fullmatch(target_modules, name) is not None for name in names)
+    targets = set(target_modules or ())
+    return any(
+        name in targets or any(name.endswith(f".{target}") for target in targets)
+        for name in names
+    )
 
 
 # TODO: improve naming
@@ -66,15 +93,27 @@ def _apply_peft_if_needed(*, model, peft_cfg, trainable_token_indices):
                 "v_proj",
                 "o_proj",
             ]
+        target_modules = peft_kwargs.get("target_modules", default_target_modules)
+        effective_trainable_token_indices = peft_kwargs.get(
+            "trainable_token_indices",
+            trainable_token_indices,
+        )
+        if (
+            "trainable_token_indices" not in peft_kwargs
+            and effective_trainable_token_indices
+            and _targets_input_embedding(model, target_modules)
+        ):
+            logger.info(
+                "Input embeddings are already a LoRA target; skipping the "
+                "redundant automatic trainable-token wrapper."
+            )
+            effective_trainable_token_indices = None
         lora_conf = peft.LoraConfig(
             r=peft_kwargs.get("r", 64),
             lora_alpha=peft_kwargs.get("lora_alpha", 16),
             lora_dropout=peft_kwargs.get("lora_dropout", 0.05),
-            target_modules=peft_kwargs.get("target_modules", default_target_modules),
-            trainable_token_indices=peft_kwargs.get(
-                "trainable_token_indices",
-                trainable_token_indices,
-            ),
+            target_modules=target_modules,
+            trainable_token_indices=effective_trainable_token_indices,
             bias="none",
             task_type=peft.TaskType.CAUSAL_LM,
             modules_to_save=peft_kwargs.get("modules_to_save"),
@@ -306,30 +345,7 @@ def run(config: ExperimentConfig) -> None:
                 if hasattr(model_any.backbone, "embeddings"):
                     model_any.lm_head.weight = model_any.backbone.embeddings.weight
 
-    if tokenizer.chat_template is None:
-        # TODO: move this template to its own file
-        tokenizer.chat_template = textwrap.dedent(
-            """
-            {%- if system_message %}
-            <|system|>
-            {{ system_message }}{{ eos_token }}
-            {%- endif %}
-            {%- for message in messages %}
-                {%- if message['role'] == 'user' %}
-                    <|user|>
-                    {{ message['content'] }}{{ eos_token }}
-                {%- elif message['role'] == 'assistant' %}
-                    {%- generation -%}
-                    <|assistant|>
-                    {{ message['content'] }}{{ eos_token }}
-                    {%- endgeneration -%}
-                {%- endif %}
-            {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-            """
-        ).lstrip()
-
-        logger.info("Tokenizer chat template not found. Applying default template.")
+    _configure_chat_template(tokenizer)
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

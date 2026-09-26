@@ -1,5 +1,6 @@
 import inspect
 import logging
+import os
 from typing import Any, cast
 
 from datasets import Dataset, IterableDataset
@@ -19,11 +20,16 @@ from sallm.training.callbacks import (
     ClassificationMetricsCallback,
     EnsureStaticGraphCallback,
     GenerationMetricsCallback,
+    PosMetricsCallback,
     ShowCompletionsCallback,
 )
 from sallm.training.trainer import CustomSFTTrainer
 
 logger = logging.getLogger(__name__)
+
+
+def _task_metrics_enabled() -> bool:
+    return os.getenv("SALLM_DISABLE_TASK_METRICS", "0") != "1"
 
 
 class _DatasetEpochCallback(TrainerCallback):
@@ -106,7 +112,7 @@ def build_trainer(
         if not isinstance(metric_name, str) or not metric_name.strip():
             if task_type == FinetuneTaskType.CLASSIFICATION:
                 training_args_dict["metric_for_best_model"] = (
-                    "eval_classification/all_f1"
+                    "eval_classification/all_macro_f1"
                 )
                 training_args_dict.setdefault("greater_is_better", True)
             elif task_type in (FinetuneTaskType.NAMED_ENTITY_RECOGNITION,):
@@ -191,7 +197,7 @@ def build_trainer(
             )
             callbacks.append(completions_callback)
 
-        if task_type == FinetuneTaskType.CLASSIFICATION:
+        if _task_metrics_enabled() and task_type == FinetuneTaskType.CLASSIFICATION:
             callbacks.append(
                 ClassificationMetricsCallback(
                     eval_dataset=eval_hf_dataset,
@@ -201,10 +207,9 @@ def build_trainer(
                     decoding=config.generation_decoding,
                 )
             )
-        if task_type in (
+        if _task_metrics_enabled() and task_type in (
             FinetuneTaskType.INSTRUCTION,
             FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
-            FinetuneTaskType.POS_TAGGING,
         ):
             callbacks.append(
                 GenerationMetricsCallback(
@@ -214,6 +219,13 @@ def build_trainer(
                     max_samples_per_lang=None,
                     decoding=config.generation_decoding,
                     task_type=task_type,
+                )
+            )
+        if _task_metrics_enabled() and task_type == FinetuneTaskType.POS_TAGGING:
+            callbacks.append(
+                PosMetricsCallback(
+                    eval_dataset=eval_hf_dataset,
+                    tokenizer=tokenizer,
                 )
             )
 

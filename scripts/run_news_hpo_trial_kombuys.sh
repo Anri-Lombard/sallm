@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-architecture="${1:?Usage: $0 <llama252|gdn> <trial> [gpu] [microbatch] [gradient_accumulation]}"
-trial="${2:?Usage: $0 <llama252|gdn> <trial> [gpu] [microbatch] [gradient_accumulation]}"
+architecture="${1:?Usage: $0 <llama252|gdn|pure_gdn> <trial> [gpu] [microbatch] [gradient_accumulation]}"
+trial="${2:?Usage: $0 <llama252|gdn|pure_gdn> <trial> [gpu] [microbatch] [gradient_accumulation]}"
 gpu="${3:-0}"
 microbatch="${4:-8}"
 gradient_accumulation="${5:-4}"
@@ -17,6 +17,7 @@ fi
 case "$architecture" in
   llama252) config="finetune/llama_252m_news_all_hpo_r1" ;;
   gdn) config="finetune/gdn_news_all_hpo_r1" ;;
+  pure_gdn) config="finetune/gdn_pure_news_all_hpo_r1" ;;
   *) echo "Unknown architecture: $architecture" >&2; exit 1 ;;
 esac
 

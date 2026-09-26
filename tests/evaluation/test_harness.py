@@ -4,6 +4,14 @@ import torch
 from sallm.evaluation import harness
 
 
+def test_mamba_evaluation_disables_incompatible_generation_cache() -> None:
+    config = SimpleNamespace(model_type="mamba2", use_cache=True)
+
+    harness.prepare_model_config_for_evaluation(config)
+
+    assert config.use_cache is False
+
+
 def test_model_loading_registers_fla_before_auto_model(monkeypatch) -> None:
     events: list[str] = []
 
@@ -37,6 +45,16 @@ def test_model_loading_registers_fla_before_auto_model(monkeypatch) -> None:
         lambda: events.append("register") or True,
     )
     monkeypatch.setattr(
+        harness.torch,
+        "manual_seed",
+        lambda seed: events.append(f"seed:{seed}"),
+    )
+    monkeypatch.setattr(
+        harness.random,
+        "seed",
+        lambda seed: events.append(f"sample-seed:{seed}"),
+    )
+    monkeypatch.setattr(
         harness,
         "_load_tokenizer_and_pretrained",
         lambda *_args, **_kwargs: (Tokenizer(), "owner/model"),
@@ -57,4 +75,4 @@ def test_model_loading_registers_fla_before_auto_model(monkeypatch) -> None:
 
     harness.load_model_and_tokenizer(config)
 
-    assert events == ["register", "model"]
+    assert events == ["sample-seed:42", "seed:42", "register", "model"]

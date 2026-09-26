@@ -78,6 +78,12 @@ def test_pretraining_packing_defaults_to_false(monkeypatch) -> None:
     assert trainer.args.packing is False
 
 
+def test_task_metrics_can_be_disabled_for_loss_only_validation(monkeypatch) -> None:
+    monkeypatch.setenv("SALLM_DISABLE_TASK_METRICS", "1")
+
+    assert factory._task_metrics_enabled() is False
+
+
 def test_pretraining_non_flattening_packing_options_reach_sft_config(
     monkeypatch,
 ) -> None:

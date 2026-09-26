@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import textwrap
 from collections import defaultdict
 from enum import Enum
 from typing import Any, cast
@@ -11,6 +10,9 @@ from datasets import Dataset
 from torch.nn.utils.rnn import pad_sequence
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
+from sallm.chat_template import (
+    fallback_chat_template,
+)
 from sallm.config import DecodingConfig
 from sallm.templates import registry as tmpl
 
@@ -85,6 +87,7 @@ class ClassificationEvaluator:
         metrics: dict[str, float] = {}
         all_accuracies: list[float] = []
         all_f1s: list[float] = []
+        all_macro_f1s: list[float] = []
 
         for lang in unique_languages:
             if lang is None:
@@ -112,6 +115,8 @@ class ClassificationEvaluator:
                 all_accuracies.append(lang_metrics["accuracy"])
             if "f1" in lang_metrics:
                 all_f1s.append(lang_metrics["f1"])
+            if "macro_f1" in lang_metrics:
+                all_macro_f1s.append(lang_metrics["macro_f1"])
 
         # Add aggregate accuracy across all languages
         if all_accuracies:
@@ -120,6 +125,10 @@ class ClassificationEvaluator:
             )
         if all_f1s:
             metrics[f"{metric_prefix}/all_f1"] = sum(all_f1s) / len(all_f1s)
+        if all_macro_f1s:
+            metrics[f"{metric_prefix}/all_macro_f1"] = sum(all_macro_f1s) / len(
+                all_macro_f1s
+            )
 
         return metrics
 
@@ -253,18 +262,6 @@ class ClassificationEvaluator:
             pad_to_multiple_of=self._get_model_chunk_size(model),
         )
 
-        outputs = model(
-            input_ids=input_ids,
-            attention_mask=attn,
-            use_cache=False,
-        )
-        logits = outputs.logits[:, :-1, :]
-        target_ids = input_ids[:, 1:]
-        token_log_probs = _gather_target_log_probs(
-            logits=logits,
-            target_ids=target_ids,
-        )
-
         continuation_mask = torch.zeros_like(input_ids, dtype=torch.bool)
         seq_lens = attn.sum(dim=1)
         for idx, start in enumerate(choice_starts):
@@ -273,10 +270,29 @@ class ClassificationEvaluator:
                 continuation_mask[idx, start:seq_len] = True
 
         continuation_mask = continuation_mask[:, 1:] & attn[:, 1:].bool()
-        choice_scores = self._aggregate_choice_scores(
-            token_log_probs=token_log_probs,
-            continuation_mask=continuation_mask,
-        )
+        model_type = str(
+            getattr(getattr(model, "config", None), "model_type", "")
+        ).lower()
+        score_batch_size = 1 if "mamba" in model_type else len(label_choices)
+        score_chunks: list[torch.Tensor] = []
+        for start in range(0, len(label_choices), score_batch_size):
+            stop = start + score_batch_size
+            outputs = model(
+                input_ids=input_ids[start:stop],
+                attention_mask=attn[start:stop],
+                use_cache=False,
+            )
+            token_log_probs = _gather_target_log_probs(
+                logits=outputs.logits[:, :-1, :],
+                target_ids=input_ids[start:stop, 1:],
+            )
+            score_chunks.append(
+                self._aggregate_choice_scores(
+                    token_log_probs=token_log_probs,
+                    continuation_mask=continuation_mask[start:stop],
+                )
+            )
+        choice_scores = torch.cat(score_chunks)
         valid_choice = continuation_mask.sum(dim=1) > 0
         if not bool(valid_choice.any().item()):
             return label_choices[0]
@@ -563,13 +579,12 @@ class ClassificationEvaluator:
         context: str,
         continuation: str,
     ) -> tuple[list[int], list[int]]:
-        if continuation and not continuation[0].isspace():
-            continuation = f" {continuation}"
-
         trailing_spaces = len(context) - len(context.rstrip())
         if trailing_spaces:
             continuation = context[-trailing_spaces:] + continuation
             context = context[:-trailing_spaces]
+        elif continuation and not continuation[0].isspace():
+            continuation = f" {continuation}"
 
         whole_ids = self.tokenizer.encode(
             context + continuation,
@@ -630,25 +645,4 @@ class ClassificationEvaluator:
 
     def _get_fallback_template(self) -> str | None:
         """Get fallback chat template if tokenizer doesn't have one."""
-        if getattr(self.tokenizer, "chat_template", None) is not None:
-            return None
-        return textwrap.dedent(
-            """
-            {%- if system_message %}
-            <|system|>
-            {{ system_message }}{{ eos_token }}
-            {%- endif %}
-            {%- for message in messages %}
-                {%- if message['role'] == 'user' %}
-                    <|user|>
-                    {{ message['content'] }}{{ eos_token }}
-                {%- elif message['role'] == 'assistant' %}
-                    {%- generation -%}
-                    <|assistant|>
-                    {{ message['content'] }}{{ eos_token }}
-                    {%- endgeneration -%}
-                {%- endif %}
-            {%- endfor %}
-            {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-            """
-        ).lstrip()
+        return fallback_chat_template(self.tokenizer)

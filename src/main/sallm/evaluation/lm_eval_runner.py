@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import tempfile
-import textwrap
 from copy import deepcopy
 from datetime import date, datetime
 from hashlib import sha1
@@ -15,9 +14,11 @@ from typing import Any, cast
 import numpy as np
 import torch
 from lm_eval import evaluator
+from lm_eval import tasks as lm_eval_tasks
 from lm_eval.tasks import TaskManager
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
+from sallm.chat_template import CANONICAL_CHAT_TEMPLATE
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TaskPack
 from sallm.evaluation.harness import (
@@ -33,15 +34,13 @@ from sallm.evaluation.registry import (
 from sallm.models.optional import register_fla_gated_deltanet
 
 logger = logging.getLogger(__name__)
-LM_EVAL_TASKS_ROOT = (
-    Path(__file__).resolve().parents[4]
-    / ".venv"
-    / "lib"
-    / "python3.12"
-    / "site-packages"
-    / "lm_eval"
-    / "tasks"
-)
+
+
+def _lexical_lm_eval_tasks_root(module_file: str) -> Path:
+    return Path(module_file).parent
+
+
+LM_EVAL_TASKS_ROOT = _lexical_lm_eval_tasks_root(lm_eval_tasks.__file__)
 
 
 def _prepare_include_paths(include_path: str | list[str]) -> list[str]:
@@ -104,13 +103,14 @@ def _format_model_args(
     tokenizer_override: str | None = None,
     tie_word_embeddings: bool | None = None,
     extra_model_args: dict[str, Any] | None = None,
+    default_add_bos_token: bool = False,
 ) -> str:
     args: list[str] = [
         f"pretrained={pretrained_path}",
         "trust_remote_code=true",
     ]
     if "add_bos_token" not in (extra_model_args or {}):
-        args.append("add_bos_token=false")
+        args.append(f"add_bos_token={str(default_add_bos_token).lower()}")
     if dtype:
         args.append(f"dtype={dtype}")
     if peft_adapter:
@@ -333,26 +333,7 @@ def _resolve_ephemeral_eval_root() -> Path:
 
 
 def _fallback_chat_template() -> str:
-    return textwrap.dedent(
-        """
-        {%- if system_message %}
-        <|system|>
-        {{ system_message }}{{ eos_token }}
-        {%- endif %}
-        {%- for message in messages %}
-            {%- if message['role'] == 'user' %}
-                <|user|>
-                {{ message['content'] }}{{ eos_token }}
-            {%- elif message['role'] == 'assistant' %}
-                {%- generation -%}
-                <|assistant|>
-                {{ message['content'] }}{{ eos_token }}
-                {%- endgeneration -%}
-            {%- endif %}
-        {%- endfor %}
-        {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-        """
-    ).lstrip()
+    return CANONICAL_CHAT_TEMPLATE
 
 
 def _prepare_tokenizer_for_lm_eval(
@@ -361,7 +342,9 @@ def _prepare_tokenizer_for_lm_eval(
     require_chat_template: bool,
 ) -> str | None:
     cache_root.mkdir(parents=True, exist_ok=True)
-    tok_out = cache_root / "tokenizer"
+    tok_out = cache_root / (
+        "tokenizer_chat" if require_chat_template else "tokenizer_raw"
+    )
     if tok_out.exists():
         return str(tok_out)
 
@@ -431,8 +414,14 @@ def _run_pack(
     pack_out = output_dir / pack_name
     pack_out.mkdir(parents=True, exist_ok=True)
 
+    effective_apply_chat_template = pack.apply_chat_template
+    if pack_overrides and "apply_chat_template" in pack_overrides:
+        effective_apply_chat_template = bool(pack_overrides["apply_chat_template"])
+
     tokenizer_override = _prepare_tokenizer_for_lm_eval(
-        pretrained_path, work_root / "_tokenizer", pack.apply_chat_template
+        pretrained_path,
+        work_root / "_tokenizer",
+        effective_apply_chat_template,
     )
     model_args = _format_model_args(
         pretrained_path=pretrained_path,
@@ -441,6 +430,7 @@ def _run_pack(
         tokenizer_override=tokenizer_override,
         tie_word_embeddings=model_cfg.tie_word_embeddings,
         extra_model_args=model_cfg.lm_eval_model_args,
+        default_add_bos_token=not effective_apply_chat_template,
     )
 
     if model_cfg.peft_adapter and peft_adapter is None:
@@ -457,7 +447,7 @@ def _run_pack(
     include_path = pack_kwargs.pop("include_path", None)
     include_defaults = bool(pack_kwargs.pop("include_defaults", True))
     eval_kwargs.update(pack_kwargs)
-    eval_kwargs["apply_chat_template"] = pack.apply_chat_template
+    eval_kwargs["apply_chat_template"] = effective_apply_chat_template
 
     if pack_overrides:
         override_kwargs = dict(pack_overrides)
@@ -492,7 +482,7 @@ def _run_pack(
         ",".join(pack.tasks),
         effective_fewshot,
         eval_kwargs.get("batch_size", pack.batch_size),
-        pack.apply_chat_template,
+        effective_apply_chat_template,
     )
     if task_manager is not None:
         logger.info(
@@ -521,7 +511,7 @@ def _run_pack(
         "tasks": pack.tasks,
         "fewshot": effective_fewshot,
         "batch_size": pack.batch_size,
-        "apply_chat_template": pack.apply_chat_template,
+        "apply_chat_template": effective_apply_chat_template,
         "results": result.get("results", {}),
         "metrics": result.get("metrics", {}),
         "result_path": str(result_path),

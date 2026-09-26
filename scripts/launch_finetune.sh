@@ -36,6 +36,14 @@ for arg in "${EXTRA_ARGS[@]}"; do
   case "$arg" in
     -*) NORMALIZED_ARGS+=("$arg") ;;
     hydra.*|"$CONFIG_GROUP".*) NORMALIZED_ARGS+=("$arg") ;;
+    ++*)
+      arg_body="${arg#++}"
+      if [[ "$arg_body" == "$CONFIG_GROUP."* ]]; then
+        NORMALIZED_ARGS+=("$arg")
+      else
+        NORMALIZED_ARGS+=("++${CONFIG_GROUP}.${arg_body}")
+      fi
+      ;;
     +*)
       arg_body="${arg#+}"
       if [[ "$arg_body" == "$CONFIG_GROUP."* ]]; then
@@ -102,11 +110,17 @@ if command -v conda >/dev/null 2>&1; then
 fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
-cd "$SALLM_REPO_DIR"
-if command -v uv >/dev/null 2>&1; then
+cd "$SALLM_RUNTIME_REPO"
+if command -v uv >/dev/null 2>&1 && [[ "${SALLM_SKIP_UV_SYNC:-0}" != 1 ]]; then
     uv sync --frozen --inexact
 fi
 source .venv/bin/activate
+export PYTHONPATH="$SALLM_REPO_DIR/src/main:$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
+
+if [[ -n "${SALLM_EXECUTION_MANIFEST:-}" ]]; then
+    python "$SALLM_REPO_DIR/scripts/create_execution_manifest.py" \
+        --verify "$SALLM_EXECUTION_MANIFEST"
+fi
 
 if [[ "$CFG" == *mamba* && "${EXTRA_ARGS[*]}" != *gated_deltanet* ]]; then
     # Install/verify Mamba CUDA kernels only for Mamba jobs.
@@ -128,7 +142,7 @@ else
 fi
 echo "-------------------------------"
 
-if [[ "$CFG" == *gdn* || "$CFG" == *gated_deltanet* ]]; then
+if [[ "$CFG" == *gdn* || "$CFG" == *gated_deltanet* || "${EXTRA_ARGS[*]}" == *gated_deltanet* ]]; then
     echo "--- GatedDeltaNet CUDA kernel status ---"
     if ! python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" 2>/dev/null; then
         echo "ERROR: GatedDeltaNet fast kernels are unavailable. Aborting (torch fallback is too slow)."
@@ -145,7 +159,7 @@ export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
 
 # Determine number of processes to launch based on available GPUs
-NUM_PROCS="${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-}}"
+NUM_PROCS="${SALLM_NUM_PROCESSES_OVERRIDE:-${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-}}}"
 if [[ -z "$NUM_PROCS" || "$NUM_PROCS" -le 0 ]]; then
 	if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
 		NUM_PROCS=$(awk -F, '{print NF}' <<< "$CUDA_VISIBLE_DEVICES")
@@ -155,9 +169,17 @@ if [[ -z "$NUM_PROCS" || "$NUM_PROCS" -le 0 ]]; then
 		NUM_PROCS=1
 	fi
 fi
+if [[ ! "$NUM_PROCS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: invalid process count '$NUM_PROCS'." >&2
+    exit 1
+fi
 
 # Use dynamic port based on job ID to avoid conflicts when multiple jobs run on same node
-MASTER_PORT=$((29500 + (${SLURM_JOB_ID:-0} % 1000)))
+MASTER_PORT="${SALLM_MASTER_PORT_OVERRIDE:-$((29500 + (${SLURM_JOB_ID:-0} % 1000)))}"
+if [[ ! "$MASTER_PORT" =~ ^[0-9]+$ ]] || (( MASTER_PORT < 1024 || MASTER_PORT > 65535 )); then
+    echo "ERROR: invalid master port '$MASTER_PORT'." >&2
+    exit 1
+fi
 
 # pass explicit accelerate options to avoid its default-warning messages
 accelerate launch \

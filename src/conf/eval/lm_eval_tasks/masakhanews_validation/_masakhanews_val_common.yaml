@@ -1,4 +1,4 @@
-dataset_path: masakhane/masakhanews
+dataset_path: csv
 output_type: multiple_choice
 validation_split: validation
 doc_to_target: !function utils.doc_to_target

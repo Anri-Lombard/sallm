@@ -1,8 +1,10 @@
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import torch
 import yaml
 from datasets import IterableDataset
 from trl import pack_dataset
@@ -88,6 +90,104 @@ def test_chunk_kernel_probe_passes_fused_gate_inputs(monkeypatch) -> None:
     assert captured["kwargs"]["A_log"].dtype == "float32"
     assert captured["kwargs"]["dt_bias"].dtype == "float32"
     assert captured["kwargs"]["use_gate_in_kernel"] is True
+
+
+def test_post_checkpoint_exercises_loaded_model_backward(monkeypatch, capsys) -> None:
+    verifier = _load_verifier_module()
+    calls = []
+
+    class Config:
+        pass
+
+    model = SimpleNamespace()
+    monkeypatch.setattr(verifier, "register_fla_gated_deltanet", lambda: True)
+    monkeypatch.setattr(verifier, "_load_pure_gdn_spec", lambda path: ({}, 1, 2))
+    monkeypatch.setattr(verifier, "_fla_classes", lambda: (Config, object))
+    monkeypatch.setattr(
+        verifier.AutoConfig,
+        "from_pretrained",
+        lambda *args, **kwargs: Config(),
+    )
+    monkeypatch.setattr(
+        verifier.AutoModelForCausalLM,
+        "from_pretrained",
+        lambda *args, **kwargs: model,
+    )
+    monkeypatch.setattr(verifier, "_assert_pure_fla_model", lambda loaded: None)
+    monkeypatch.setattr(verifier, "_assert_parameter_gate", lambda *args: 1)
+    monkeypatch.setattr(verifier, "_save_and_reload_integrity", lambda loaded: None)
+    monkeypatch.setattr(
+        verifier,
+        "torch",
+        SimpleNamespace(
+            bfloat16="bfloat16",
+            cuda=SimpleNamespace(is_available=lambda: True),
+            device=lambda name: name,
+        ),
+    )
+    monkeypatch.setattr(
+        verifier,
+        "_exercise_model_backward",
+        lambda loaded: calls.append(("backward", loaded)),
+    )
+    monkeypatch.setattr(
+        verifier,
+        "_assert_deterministic_greedy_generation",
+        lambda loaded: calls.append(("generation", loaded)),
+    )
+    model.to = lambda **kwargs: None
+
+    verifier._post_checkpoint(
+        SimpleNamespace(
+            checkpoint=Path("checkpoint"),
+            config=Path("config"),
+            expected_params=1,
+        )
+    )
+
+    assert calls == [("backward", model), ("generation", model)]
+    assert json.loads(capsys.readouterr().out)["bf16_forward_backward"] is True
+
+
+def test_model_backward_rejects_nonfinite_loss(monkeypatch) -> None:
+    verifier = _load_verifier_module()
+    cpu = verifier.torch.device("cpu")
+    monkeypatch.setattr(verifier.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(verifier.torch, "device", lambda name: cpu)
+
+    class Model(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.config = SimpleNamespace(vocab_size=8)
+            self.weight = torch.nn.Parameter(torch.ones(()))
+
+        def forward(self, **kwargs):
+            return SimpleNamespace(loss=self.weight * torch.tensor(float("nan")))
+
+    with pytest.raises(RuntimeError, match="non-finite loss"):
+        verifier._exercise_model_backward(Model())
+
+
+def test_model_backward_requires_finite_gradients_for_all_trainable_parameters(
+    monkeypatch,
+) -> None:
+    verifier = _load_verifier_module()
+    cpu = verifier.torch.device("cpu")
+    monkeypatch.setattr(verifier.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(verifier.torch, "device", lambda name: cpu)
+
+    class Model(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.config = SimpleNamespace(vocab_size=8)
+            self.used = torch.nn.Parameter(torch.ones(()))
+            self.unused = torch.nn.Parameter(torch.ones(()))
+
+        def forward(self, **kwargs):
+            return SimpleNamespace(loss=self.used.square())
+
+    with pytest.raises(RuntimeError, match="missing gradients"):
+        verifier._exercise_model_backward(Model())
 
 
 @pytest.mark.parametrize(

@@ -110,11 +110,12 @@ if command -v module >/dev/null 2>&1; then
 fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
-cd "$SALLM_REPO_DIR"
+cd "$SALLM_RUNTIME_REPO"
 if command -v uv >/dev/null 2>&1; then
     uv sync --frozen --inexact
 fi
 source .venv/bin/activate
+export PYTHONPATH="$SALLM_REPO_DIR/src/main:${PYTHONPATH:-}"
 
 # Install CUDA kernels based on model type
 echo "--- CUDA kernel status ---"

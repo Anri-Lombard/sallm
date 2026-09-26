@@ -6,6 +6,7 @@ from sallm.evaluation import lm_eval_runner
 from sallm.evaluation.config import TaskPack
 from sallm.evaluation.lm_eval_runner import (
     _format_model_args,
+    _lexical_lm_eval_tasks_root,
     _materialize_model_for_lm_eval,
     _prepare_include_paths,
     _run_pack,
@@ -14,6 +15,19 @@ from sallm.evaluation.lm_eval_runner import (
     _use_exact_xlstm_head_dims,
 )
 from sallm.evaluation.registry import load_task_pack
+
+
+def test_lm_eval_tasks_root_preserves_symlinked_venv_path(tmp_path: Path) -> None:
+    physical = tmp_path / "physical" / "lm_eval" / "tasks"
+    physical.mkdir(parents=True)
+    lexical = tmp_path / "venv" / "lm_eval" / "tasks"
+    lexical.parent.mkdir(parents=True)
+    lexical.symlink_to(physical, target_is_directory=True)
+
+    root = _lexical_lm_eval_tasks_root(str(lexical / "__init__.py"))
+
+    assert root == lexical
+    assert root != lexical.resolve()
 
 
 def test_format_model_args_appends_extra_values() -> None:
@@ -41,6 +55,18 @@ def test_format_model_args_allows_add_bos_override() -> None:
         dtype=None,
         peft_adapter=None,
         extra_model_args={"add_bos_token": True},
+    )
+
+    assert model_args.endswith("add_bos_token=true")
+    assert model_args.count("add_bos_token=") == 1
+
+
+def test_format_model_args_enables_bos_for_raw_base_prompt() -> None:
+    model_args = _format_model_args(
+        pretrained_path="owner/model",
+        dtype=None,
+        peft_adapter=None,
+        default_add_bos_token=True,
     )
 
     assert model_args.endswith("add_bos_token=true")
@@ -88,13 +114,14 @@ def test_run_pack_summary_records_effective_fewshot(tmp_path, monkeypatch) -> No
         model_cfg,
         tmp_path,
         tmp_path / "work",
-        {"num_fewshot": 3},
+        {"num_fewshot": 3, "apply_chat_template": False},
         "owner/model",
         None,
         "eval",
     )
 
     assert summary["fewshot"] == 3
+    assert summary["apply_chat_template"] is False
 
 
 def test_xlstm_lm_eval_uses_inference_mode() -> None:

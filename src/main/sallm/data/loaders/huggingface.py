@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from time import sleep
 from typing import cast
-from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from datasets import (
     Dataset,
@@ -22,11 +24,20 @@ from sallm.data.transforms.language_filter import (
 )
 
 PARQUET_REVISION = "refs/convert/parquet"
+DATASET_REVISIONS = {
+    "masakhane/masakhanews": "fa3b5fff8a91d187bf0c5900a39c4271d08cf7fe",
+    "anrilombard/masakhaner-x-parquet": "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1",
+    "Davlan/sib200": "38977a667f6fc264d5c26ec57a01e16db040b358",
+}
 MASAKHAPOS_DATASET = "masakhane/masakhapos"
-MASAKHAPOS_BASE_URL = "https://github.com/masakhane-io/masakhane-pos/raw/main/data"
+MASAKHAPOS_REVISION = "376f4161f0425584d4bd7664122b56fa026926d3"
+MASAKHAPOS_BASE_URL = (
+    "https://api.github.com/repos/masakhane-io/masakhane-pos/contents/data"
+)
 INJONGOINTENT_DATASET = "masakhane/InjongoIntent"
 INJONGOINTENT_BASE_URL = (
-    "https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main"
+    "https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/"
+    "fe4be3882a1614161dfe231ec793197bb74f4b44"
 )
 MASAKHANER_DATASET = "masakhane/masakhaner2"
 MASAKHANER_PARQUET_DATASET = "anrilombard/masakhaner-x-parquet"
@@ -45,7 +56,9 @@ def _load_train_val_with_revision_fallback(
 ) -> tuple[Dataset, Dataset]:
     """Load train/val with normal revision first, then parquet fallback."""
     last_err: Exception | None = None
-    for revision in (None, PARQUET_REVISION):
+    pinned_revision = DATASET_REVISIONS.get(hf_name)
+    revisions = (pinned_revision,) if pinned_revision else (None, PARQUET_REVISION)
+    for revision in revisions:
         try:
             train_ds = cast(
                 Dataset,
@@ -129,14 +142,36 @@ def _parse_masakhapos_conll(content: str, lang_code: str) -> Dataset:
     )
 
 
+def _read_url(url: str | Request) -> bytes:
+    """Read a source file, retrying only transient transport failures."""
+    for attempt in range(3):
+        try:
+            with urlopen(url, timeout=30) as response:
+                return response.read()
+        except HTTPError as err:
+            if err.code not in {408, 429, 500, 502, 503, 504} or attempt == 2:
+                raise
+        except (URLError, TimeoutError):
+            if attempt == 2:
+                raise
+        sleep(2**attempt)
+    raise AssertionError("unreachable")
+
+
 def _load_masakhapos_split(lang_code: str, split: str) -> Dataset:
     """Load a masakhapos split directly from dataset files (no dataset script)."""
     last_err: Exception | None = None
     for filename in _masakhapos_split_candidates(split):
         try:
-            url = f"{MASAKHAPOS_BASE_URL}/{lang_code}/{filename}"
-            with urlopen(url, timeout=30) as response:
-                content = response.read().decode("utf-8")
+            url = (
+                f"{MASAKHAPOS_BASE_URL}/{lang_code}/{filename}"
+                f"?ref={MASAKHAPOS_REVISION}"
+            )
+            request = Request(
+                url,
+                headers={"Accept": "application/vnd.github.raw+json"},
+            )
+            content = _read_url(request).decode("utf-8")
             return _parse_masakhapos_conll(content, lang_code)
         except Exception as err:  # noqa: BLE001 - try alternate filename candidates
             last_err = err
@@ -189,15 +224,14 @@ def _load_injongointent_split(lang_code: str, split: str) -> Dataset:
     for filename in _injongointent_split_candidates(split):
         try:
             url = f"{INJONGOINTENT_BASE_URL}/{lang_code}/{filename}"
-            with urlopen(url, timeout=30) as response:
-                rows = [
-                    {
-                        **json.loads(line),
-                        "lang": lang_code,
-                    }
-                    for line in response.read().decode("utf-8").splitlines()
-                    if line.strip()
-                ]
+            rows = [
+                {
+                    **json.loads(line),
+                    "lang": lang_code,
+                }
+                for line in _read_url(url).decode("utf-8").splitlines()
+                if line.strip()
+            ]
             return Dataset.from_list(rows)
         except Exception as err:  # noqa: BLE001 - try alternate filename candidates
             last_err = err
@@ -298,11 +332,12 @@ def _load_masakhaner_dataset(
                 MASAKHANER_PARQUET_DATASET,
                 data_files=data_files,
                 split=splits["train"],
+                revision=DATASET_REVISIONS[MASAKHANER_PARQUET_DATASET],
             ),
         )
         val_ds = load_split_with_fallback(
             MASAKHANER_PARQUET_DATASET,
-            None,
+            DATASET_REVISIONS[MASAKHANER_PARQUET_DATASET],
             splits["val"],
             None,
             data_files=data_files,

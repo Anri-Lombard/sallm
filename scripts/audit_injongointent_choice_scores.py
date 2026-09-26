@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from hashlib import sha256
 from pathlib import Path
 from statistics import fmean, median
+from types import SimpleNamespace
 from typing import Any, cast
 
 import torch
@@ -64,7 +66,11 @@ def score_rows(
     rows: list[dict[str, Any]],
     *,
     include_scores: bool = True,
+    model_ctx_limit: int | None = None,
+    choice_batch_size: int | None = None,
 ) -> list[dict[str, Any]]:
+    if choice_batch_size is not None and choice_batch_size <= 0:
+        raise ValueError("choice_batch_size must be positive")
     model.eval()
     device = model.device
     pad_id = evaluator._resolve_pad_id(
@@ -85,19 +91,12 @@ def score_rows(
             input_ids, attention, starts = evaluator._build_choice_inputs(
                 prompt_text=prompt,
                 label_choices=labels,
-                model_ctx_limit=evaluator._get_model_ctx_limit(model),
+                model_ctx_limit=(
+                    model_ctx_limit or evaluator._get_model_ctx_limit(model)
+                ),
                 pad_token_id=pad_id,
                 device=device,
                 pad_to_multiple_of=evaluator._get_model_chunk_size(model),
-            )
-            logits = model(
-                input_ids=input_ids,
-                attention_mask=attention,
-                use_cache=False,
-            ).logits[:, :-1, :]
-            token_log_probs = _gather_target_log_probs(
-                logits=logits,
-                target_ids=input_ids[:, 1:],
             )
             mask = torch.zeros_like(input_ids, dtype=torch.bool)
             lengths = attention.sum(dim=1)
@@ -105,9 +104,28 @@ def score_rows(
                 mask[choice_index, start : int(lengths[choice_index])] = True
             mask = mask[:, 1:] & attention[:, 1:].bool()
             token_counts = mask.sum(dim=1)
-            scores = token_log_probs.masked_fill(~mask, 0).sum(
-                dim=1
-            ) / token_counts.clamp_min(1)
+            forward_batch_size = choice_batch_size or len(labels)
+            score_chunks = []
+            for choice_start in range(0, len(labels), forward_batch_size):
+                choice_end = min(choice_start + forward_batch_size, len(labels))
+                choice_logits = model(
+                    input_ids=input_ids[choice_start:choice_end],
+                    attention_mask=attention[choice_start:choice_end],
+                    use_cache=False,
+                ).logits[:, :-1, :]
+                choice_token_log_probs = _gather_target_log_probs(
+                    logits=choice_logits,
+                    target_ids=input_ids[choice_start:choice_end, 1:],
+                )
+                choice_mask = mask[choice_start:choice_end]
+                choice_counts = token_counts[choice_start:choice_end]
+                choice_scores = (
+                    choice_token_log_probs.masked_fill(~choice_mask, 0).sum(dim=1)
+                    / choice_counts.clamp_min(1)
+                )
+                score_chunks.append(choice_scores)
+                del choice_logits, choice_token_log_probs
+            scores = torch.cat(score_chunks)
             ranked = sorted(
                 zip(labels, scores.tolist(), token_counts.tolist(), strict=True),
                 key=lambda item: item[1],
@@ -119,14 +137,24 @@ def score_rows(
             )
             result_row = {
                 "row": index,
+                "example_id": str(row.get("id") or row.get("example_id") or index),
                 "lang": row["lang"],
                 "template_id": template_id,
                 "text": row.get("text") or messages[0]["content"],
+                "rendered_prompt_sha256": sha256(prompt.encode("utf-8")).hexdigest(),
                 "gold": gold,
                 "prediction": ranked[0][0],
                 "gold_rank": gold_rank,
                 "top_two_margin": ranked[0][1] - ranked[1][1],
             }
+            if "__validation_source_index" in row:
+                result_row["validation_source_index"] = int(
+                    row["__validation_source_index"]
+                )
+            if "__validation_row_sha256" in row:
+                result_row["validation_row_sha256"] = str(
+                    row["__validation_row_sha256"]
+                )
             if include_scores:
                 result_row["scores"] = [
                     {
@@ -171,6 +199,87 @@ def self_check() -> None:
     assert summary["accuracy"] == 0.5
     assert summary["mean_gold_rank"] == 1.5
     assert summary["winning_label_counts"] == {"a": 2}
+
+    class FakeModel:
+        device = torch.device("cpu")
+
+        def eval(self) -> None:
+            return None
+
+        def __call__(
+            self,
+            *,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
+            use_cache: bool,
+        ) -> SimpleNamespace:
+            del attention_mask, use_cache
+            vocabulary_scores = torch.arange(8, dtype=torch.float32) / 8
+            logits = vocabulary_scores.expand(*input_ids.shape, 8).clone()
+            return SimpleNamespace(logits=logits)
+
+    class FakeTokenizer:
+        pad_token_id = 0
+        eos_token_id = 2
+
+    class FakeEvaluator:
+        tokenizer = FakeTokenizer()
+
+        @staticmethod
+        def _resolve_pad_id(pad_token_id: int, eos_token_id: int) -> int:
+            del eos_token_id
+            return pad_token_id
+
+        @staticmethod
+        def _get_label_choices(template_id: str) -> list[str]:
+            del template_id
+            return ["a", "b", "c"]
+
+        @staticmethod
+        def _build_prompt_text(**kwargs: Any) -> str:
+            del kwargs
+            return "prompt"
+
+        @staticmethod
+        def _get_fallback_template() -> str:
+            return "fallback"
+
+        @staticmethod
+        def _get_model_ctx_limit(model: Any) -> int:
+            del model
+            return 8
+
+        @staticmethod
+        def _get_model_chunk_size(model: Any) -> None:
+            del model
+            return None
+
+        @staticmethod
+        def _build_choice_inputs(**kwargs: Any) -> tuple[
+            torch.Tensor, torch.Tensor, list[int]
+        ]:
+            del kwargs
+            input_ids = torch.tensor([[1, 3, 2], [1, 4, 2], [1, 5, 2]])
+            return input_ids, torch.ones_like(input_ids), [1, 1, 1]
+
+    choice_rows = [
+        {
+            "id": "self-check",
+            "lang": "eng",
+            "template_id": "p1",
+            "messages": [
+                {"role": "user", "content": "prompt"},
+                {"role": "assistant", "content": "c"},
+            ],
+        }
+    ]
+    unbatched = score_rows(
+        FakeModel(), FakeEvaluator(), choice_rows, choice_batch_size=None
+    )
+    single_choice = score_rows(
+        FakeModel(), FakeEvaluator(), choice_rows, choice_batch_size=1
+    )
+    assert unbatched == single_choice
 
 
 def main() -> None:

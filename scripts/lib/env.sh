@@ -6,11 +6,13 @@ set_sallm_cluster_env() {
   : "${SALLM_HOME_DIR:=${HOME}}"
   : "${SALLM_SCRATCH_DIR:=${SCRATCH:-/scratch/${user_name}}}"
   : "${SALLM_REPO_DIR:=${SALLM_HOME_DIR}/masters/sallm}"
+  : "${SALLM_RUNTIME_REPO:=${SALLM_REPO_DIR}}"
   : "${SALLM_SLURM_USER:=${user_name}}"
 
   export SALLM_HOME_DIR
   export SALLM_SCRATCH_DIR
   export SALLM_REPO_DIR
+  export SALLM_RUNTIME_REPO
   export SALLM_SLURM_USER
 
   export SCRATCH="${SALLM_SCRATCH_DIR}"

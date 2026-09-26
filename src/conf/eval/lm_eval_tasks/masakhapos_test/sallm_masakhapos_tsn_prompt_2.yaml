@@ -2,8 +2,8 @@ include: _masakhapos_test_common.yaml
 task: sallm_masakhapos_tsn_prompt_2
 dataset_kwargs:
   data_files:
-    train: https://github.com/masakhane-io/masakhane-pos/raw/main/data/tsn/train.txt
-    test: https://github.com/masakhane-io/masakhane-pos/raw/main/data/tsn/test.txt
+    train: https://github.com/masakhane-io/masakhane-pos/raw/376f4161f0425584d4bd7664122b56fa026926d3/data/tsn/train.txt
+    test: https://github.com/masakhane-io/masakhane-pos/raw/376f4161f0425584d4bd7664122b56fa026926d3/data/tsn/test.txt
 doc_to_text: |
   You are an expert in tagging words and sentences with the right POS tag.
 

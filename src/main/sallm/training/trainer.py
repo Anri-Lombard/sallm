@@ -1,5 +1,8 @@
+import hashlib
+import json
 import logging
 import math
+import os
 import time
 from collections.abc import Iterable
 from pathlib import Path
@@ -10,9 +13,24 @@ import torch
 import wandb
 from torch.utils.data import DataLoader
 from transformers import Trainer
+from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 from trl import SFTTrainer
 
+from sallm.training.general_validation import (
+    GENERAL_PROCESSED_ROWS,
+    GENERAL_SELECTION_PROTOCOL,
+    GENERAL_TASKS,
+    compute_equal_family_token_nll,
+    validate_general_coverage,
+)
+
 logger = logging.getLogger(__name__)
+
+
+MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.setdefault(
+    "gated_deltanet",
+    "GatedDeltaNetForCausalLM",
+)
 
 
 _MAMBA_NO_DECAY_SUFFIXES = ("A_log", "D")
@@ -242,6 +260,131 @@ class CustomSFTTrainer(SFTTrainer):
         decay_parameter_names = super().get_decay_parameter_names(model)
         return _filter_decay_parameter_names(model, decay_parameter_names)
 
+    def _evaluate_general_selection(
+        self,
+        eval_dataset: datasets.Dataset,
+        metric_key_prefix: str,
+    ) -> dict[str, Any]:
+        if int(getattr(self.args, "world_size", 1)) != 1:
+            raise ValueError(
+                "The frozen General selection contract currently requires one GPU."
+            )
+        coverage = validate_general_coverage(eval_dataset)
+        model = self.model
+        if model is None:
+            raise ValueError("Trainer: General evaluation requires a model.")
+        model_for_eval = cast(Any, model)
+        model_for_eval.eval()
+        if self._signature_columns is None:
+            raise RuntimeError("Could not find model signature columns.")
+        model_args = self._signature_columns
+
+        start_time = time.time()
+        summed_nll: dict[str, float] = {}
+        valid_token_counts: dict[str, int] = {}
+        evaluated_rows: dict[str, int] = {}
+        for task_name in GENERAL_TASKS:
+            task_dataset = eval_dataset.filter(
+                lambda row, _task=task_name: row["task_name"] == _task,
+                load_from_cache_file=False,
+            )
+            dataloader: DataLoader = self.get_eval_dataloader(cast(Any, task_dataset))
+            task_nll = 0.0
+            task_tokens = 0
+            task_rows = 0
+            with torch.no_grad():
+                for batch_index, batch in enumerate(dataloader):
+                    batch = self._prepare_inputs(batch)
+                    labels = batch.get("labels")
+                    if labels is None:
+                        raise ValueError(
+                            f"General {task_name} batch {batch_index} has no labels."
+                        )
+                    valid_tokens = int((labels[:, 1:] != -100).sum().item())
+                    if valid_tokens <= 0:
+                        raise ValueError(
+                            f"General {task_name} batch {batch_index} is masked-only."
+                        )
+                    model_inputs = {
+                        key: value for key, value in batch.items() if key in model_args
+                    }
+                    model_inputs["use_cache"] = False
+                    loss = model_for_eval(**model_inputs).loss
+                    loss_value = float(loss.item())
+                    if not math.isfinite(loss_value):
+                        raise ValueError(
+                            f"General {task_name} batch {batch_index} has "
+                            "non-finite loss."
+                        )
+                    task_nll += loss_value * valid_tokens
+                    task_tokens += valid_tokens
+                    task_rows += int(batch["input_ids"].shape[0])
+
+            expected_rows = GENERAL_PROCESSED_ROWS[task_name]
+            if task_rows != expected_rows:
+                raise ValueError(
+                    f"General {task_name} evaluated {task_rows} rows; "
+                    f"expected {expected_rows}."
+                )
+            summed_nll[task_name] = task_nll
+            valid_token_counts[task_name] = task_tokens
+            evaluated_rows[task_name] = task_rows
+
+        macro_nll, family_nll = compute_equal_family_token_nll(
+            summed_nll,
+            valid_token_counts,
+        )
+        runtime = time.time() - start_time
+        metrics: dict[str, Any] = {
+            f"{metric_key_prefix}_loss": macro_nll,
+            f"{metric_key_prefix}_runtime": runtime,
+            f"{metric_key_prefix}_samples_per_second": len(eval_dataset) / runtime,
+        }
+        for task_name in GENERAL_TASKS:
+            metrics[f"{metric_key_prefix}/{task_name}_nll"] = family_nll[task_name]
+            metrics[f"{metric_key_prefix}/{task_name}_valid_tokens"] = (
+                valid_token_counts[task_name]
+            )
+            metrics[f"{metric_key_prefix}/{task_name}_rows"] = evaluated_rows[task_name]
+
+        payload = {
+            "protocol": GENERAL_SELECTION_PROTOCOL,
+            "global_step": int(self.state.global_step),
+            "epoch": self.state.epoch,
+            "coverage": coverage,
+            "summed_assistant_token_nll": summed_nll,
+            "valid_assistant_token_counts": valid_token_counts,
+            "family_nll": family_nll,
+            "macro_nll": macro_nll,
+        }
+        encoded = (
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        ).encode("utf-8")
+        artifact_dir = (
+            Path(str(self.args.output_dir)) / "validation_artifacts" / "general"
+        )
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        path = artifact_dir / f"step-{int(self.state.global_step):08d}.json"
+        path.write_bytes(encoded)
+        digest = hashlib.sha256(encoded).hexdigest()
+        path.with_suffix(".json.sha256").write_text(
+            f"{digest}  {path.name}\n",
+            encoding="utf-8",
+        )
+        logger.info("Saved General validation artifact %s (%s)", path, digest)
+        if self.is_world_process_zero() and getattr(wandb, "run", None) is not None:
+            wandb.log(metrics, step=self.state.global_step)
+            wandb.save(str(path), policy="now")
+
+        self.log(metrics)
+        self.control = self.callback_handler.on_evaluate(
+            self.args,
+            self.state,
+            self.control,
+            metrics,
+        )
+        return metrics
+
     def evaluate(
         self,
         eval_dataset: Any = None,
@@ -253,6 +396,20 @@ class CustomSFTTrainer(SFTTrainer):
         )
         if resolved_eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")
+
+        general_protocol = os.getenv("SALLM_GENERAL_SELECTION_PROTOCOL")
+        if general_protocol:
+            if general_protocol != GENERAL_SELECTION_PROTOCOL:
+                raise ValueError(
+                    "Unsupported SALLM_GENERAL_SELECTION_PROTOCOL="
+                    f"{general_protocol!r}."
+                )
+            if not isinstance(resolved_eval_dataset, datasets.Dataset):
+                raise TypeError("General selection requires a Hugging Face Dataset.")
+            return self._evaluate_general_selection(
+                resolved_eval_dataset,
+                metric_key_prefix,
+            )
 
         if not isinstance(resolved_eval_dataset, datasets.Dataset):
             return super().evaluate(

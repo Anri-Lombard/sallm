@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import collections
+import hashlib
 import logging
 import os
 import random
-import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, cast
@@ -13,8 +13,13 @@ import torch
 from datasets import Dataset
 from evaluate import load as eval_load
 from rouge_score import rouge_scorer
+from sacrebleu.metrics import CHRF
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
+from sallm.chat_template import (
+    fallback_chat_template,
+    install_canonical_chat_template,
+)
 from sallm.config import (
     DecodingConfig,
     FinetuneTaskType,
@@ -58,14 +63,23 @@ class GenerationEvaluator:
         decoding: DecodingConfig | None = None,
         batch_size: int | str | None = None,
         task_type: FinetuneTaskType | None = None,
+        prompt_format: str = "chat",
     ) -> None:
         self.tokenizer = tokenizer
+        install_canonical_chat_template(self.tokenizer, force=True)
         self.max_new_tokens = max_new_tokens
         self.max_samples_per_lang = max_samples_per_lang
         self.sample_seed = sample_seed
+        max_input_tokens = os.getenv("SALLM_EVAL_MAX_INPUT_TOKENS")
+        self.max_input_tokens = int(max_input_tokens) if max_input_tokens else None
+        if self.max_input_tokens is not None and self.max_input_tokens < 1:
+            raise ValueError("SALLM_EVAL_MAX_INPUT_TOKENS must be positive.")
         self.skip_special_tokens = skip_special_tokens
         self.decoding_config = DecodingConfig.from_any(decoding)
         self.task_type = task_type
+        self.prompt_format = str(prompt_format).strip().lower()
+        if self.prompt_format not in {"chat", "raw"}:
+            raise ValueError("prompt_format must be either 'chat' or 'raw'.")
         if (
             self.decoding_config.num_return_sequences is not None
             and self.decoding_config.num_return_sequences != 1
@@ -113,10 +127,97 @@ class GenerationEvaluator:
 
         # Lazily initialise evaluation metrics once
         self._bleu: Any = eval_load("bleu")
-        self._chrf: Any = eval_load("chrf")
+        self._chrf = CHRF(
+            char_order=6,
+            word_order=0,
+            beta=2,
+            lowercase=False,
+            whitespace=False,
+            eps_smoothing=False,
+        )
         self._rouge_scorer = rouge_scorer.RougeScorer(
             ["rouge1", "rouge2", "rougeL"], use_stemmer=True
         )
+
+    def _render_generation_prompt(
+        self,
+        prompt_messages: list[dict[str, str]],
+        system_message: object,
+        fallback_template: str | None,
+    ) -> tuple[str, list[int]]:
+        bos_id = self.tokenizer.bos_token_id
+        eos_id = self.tokenizer.eos_token_id
+
+        if self.prompt_format == "raw":
+            bos_token = self.tokenizer.bos_token
+            if bos_id is None or not bos_token:
+                raise ValueError("Raw base prompts require a BOS token.")
+            parts: list[str] = []
+            if isinstance(system_message, str) and system_message.strip():
+                parts.append(system_message.strip())
+            parts.extend(
+                str(message.get("content", "")).strip()
+                for message in prompt_messages
+                if str(message.get("content", "")).strip()
+            )
+            prompt_text = f"{bos_token}{'\n\n'.join(parts)}"
+            prompt_ids = list(
+                cast(Any, self.tokenizer).encode(
+                    prompt_text,
+                    add_special_tokens=False,
+                )
+            )
+            if not prompt_ids or prompt_ids[0] != bos_id:
+                raise ValueError("Raw base prompt does not begin with BOS.")
+            if prompt_ids.count(bos_id) != 1:
+                raise ValueError("Raw base prompt must contain exactly one BOS.")
+        else:
+            template_kwargs: dict[str, str] = {}
+            if isinstance(system_message, str) and system_message.strip():
+                template_kwargs["system_message"] = system_message
+                template_kwargs["system_prompt"] = system_message
+            prompt_text = cast(
+                str,
+                cast(Any, self.tokenizer).apply_chat_template(
+                    prompt_messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    chat_template=fallback_template,
+                    **template_kwargs,
+                ),
+            )
+            direct_ids = list(
+                cast(
+                    list[int],
+                    cast(Any, self.tokenizer).apply_chat_template(
+                        prompt_messages,
+                        tokenize=True,
+                        add_generation_prompt=True,
+                        chat_template=fallback_template,
+                        **template_kwargs,
+                    ),
+                )
+            )
+            prompt_ids = list(
+                cast(Any, self.tokenizer).encode(
+                    prompt_text,
+                    add_special_tokens=False,
+                )
+            )
+            if prompt_ids != direct_ids:
+                raise ValueError(
+                    "Rendered prompt tokenization differs from direct chat-template "
+                    "tokenization. Generation is aborted to avoid evaluating a "
+                    "different prompt contract."
+                )
+            if bos_id is None or not prompt_ids or prompt_ids[0] != bos_id:
+                raise ValueError("Chat generation prompt does not begin with BOS.")
+            if prompt_ids.count(bos_id) != 1:
+                raise ValueError("Chat generation prompt must contain exactly one BOS.")
+
+        if eos_id is not None and prompt_ids and prompt_ids[-1] == eos_id:
+            raise ValueError("Generation prompt ends in EOS before completion.")
+        return prompt_text, prompt_ids
 
     @staticmethod
     def _is_oom_error(exc: RuntimeError) -> bool:
@@ -183,6 +284,7 @@ class GenerationEvaluator:
 
     def _prepare_generation_batch(
         self,
+        model: PreTrainedModel,
         batch_samples: list[dict[str, Any]],
         fallback_template: str | None,
         device: torch.device,
@@ -203,6 +305,7 @@ class GenerationEvaluator:
         prompt_messages_list: list[list[dict[str, str]]] = []
         reference_lists: list[list[str]] = []
         prompt_texts: list[str] = []
+        direct_prompt_ids: list[list[int]] = []
 
         for sample in batch_samples:
             messages = cast(list[dict[str, str]], sample["messages"])
@@ -211,26 +314,19 @@ class GenerationEvaluator:
                 prompt_messages_list.append([])
                 reference_lists.append([""])
                 prompt_texts.append("")
+                direct_prompt_ids.append([])
                 continue
             prompt_messages = messages[:-1]
             reference_texts = self._prepare_references(messages[-1]["content"])
-            template_kwargs: dict[str, str] = {}
-            if isinstance(system_message, str) and system_message.strip():
-                template_kwargs["system_message"] = system_message
-                template_kwargs["system_prompt"] = system_message
-            prompt_text = cast(
-                str,
-                cast(Any, self.tokenizer).apply_chat_template(
-                    prompt_messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
-                    chat_template=fallback_template,
-                    **template_kwargs,
-                ),
+            prompt_text, prompt_ids = self._render_generation_prompt(
+                prompt_messages,
+                system_message,
+                fallback_template,
             )
             prompt_messages_list.append(prompt_messages)
             reference_lists.append(reference_texts)
             prompt_texts.append(prompt_text)
+            direct_prompt_ids.append(prompt_ids)
 
         if not any(prompt_texts):
             return None
@@ -240,16 +336,27 @@ class GenerationEvaluator:
                 prompt_texts,
                 return_tensors="pt",
                 padding=True,
+                add_special_tokens=False,
             ).to(device)
 
         input_ids = tokenized["input_ids"]
         attn = tokenized.get("attention_mask")
         if attn is None:
             attn = (input_ids != pad_id).long()
+        for row_index, expected_ids in enumerate(direct_prompt_ids):
+            actual_ids = input_ids[row_index][attn[row_index].bool()].tolist()
+            if actual_ids != expected_ids:
+                raise ValueError(
+                    "Batched rendered-prompt tokenization differs from the verified "
+                    f"direct token IDs at row {row_index}."
+                )
         input_lengths = attn.sum(dim=1)
 
         max_input_len = int(input_lengths.max().item())
         window_len = max(1, model_ctx_limit - self.max_new_tokens - 1)
+        configured_input_cap = getattr(self, "max_input_tokens", None)
+        if configured_input_cap is not None:
+            window_len = min(window_len, configured_input_cap)
         if max_input_len >= window_len:
             input_ids = input_ids[:, -window_len:]
             attn = (input_ids != pad_id).long()
@@ -267,7 +374,9 @@ class GenerationEvaluator:
         generate_kwargs["max_new_tokens"] = eff_max_new
         generate_kwargs["pad_token_id"] = pad_id
         generate_kwargs["eos_token_id"] = eos_id
-        generate_kwargs.setdefault("use_cache", True)
+        generate_kwargs.setdefault(
+            "use_cache", bool(getattr(model.config, "use_cache", True))
+        )
 
         return (
             prompt_messages_list,
@@ -296,6 +405,7 @@ class GenerationEvaluator:
             end = min(start + candidate_bs, total)
             batch_samples = [dataset[i] for i in range(start, end)]
             prepared = self._prepare_generation_batch(
+                model,
                 batch_samples,
                 fallback_template,
                 device,
@@ -380,28 +490,7 @@ class GenerationEvaluator:
         collect_examples: bool = False,
         example_limit_per_lang: int | None = None,
     ) -> GenerationEvalResult:
-        fallback_template = None
-        if getattr(self.tokenizer, "chat_template", None) is None:
-            fallback_template = textwrap.dedent(
-                """
-                {%- if system_message %}
-                <|system|>
-                {{ system_message }}{{ eos_token }}
-                {%- endif %}
-                {%- for message in messages %}
-                    {%- if message['role'] == 'user' %}
-                        <|user|>
-                        {{ message['content'] }}{{ eos_token }}
-                    {%- elif message['role'] == 'assistant' %}
-                        {%- generation -%}
-                        <|assistant|>
-                        {{ message['content'] }}{{ eos_token }}
-                        {%- endgeneration -%}
-                    {%- endif %}
-                {%- endfor %}
-                {%- if add_generation_prompt %}<|assistant|>{%- endif %}
-                """
-            ).lstrip()
+        fallback_template = fallback_chat_template(self.tokenizer)
         pad_id = self.tokenizer.pad_token_id
         eos_id = self.tokenizer.eos_token_id
 
@@ -493,6 +582,7 @@ class GenerationEvaluator:
                     ]
 
                     prepared = self._prepare_generation_batch(
+                        model,
                         batch_samples,
                         fallback_template,
                         device,
@@ -546,6 +636,24 @@ class GenerationEvaluator:
                             clean_up_tokenization_spaces=True,
                         )
                         cleaned_prediction = self._clean_text(generated_text)
+                        padded_generated_token_ids = [
+                            int(token_id) for token_id in gen_seq.tolist()
+                        ]
+                        if eos_id is not None and eos_id in padded_generated_token_ids:
+                            eos_position = padded_generated_token_ids.index(eos_id)
+                            generated_token_ids = padded_generated_token_ids[
+                                : eos_position + 1
+                            ]
+                            ended_with_eos = True
+                        else:
+                            generated_token_ids = list(padded_generated_token_ids)
+                            while (
+                                generated_token_ids
+                                and generated_token_ids[-1] == pad_id
+                            ):
+                                generated_token_ids.pop()
+                            ended_with_eos = False
+                        generated_token_count = len(generated_token_ids)
 
                         preds.append(cleaned_prediction)
                         refs.append(reference_lists[b_idx])
@@ -566,10 +674,38 @@ class GenerationEvaluator:
                                     prediction=cleaned_prediction,
                                     reference=" | ".join(reference_lists[b_idx]),
                                     raw_prediction=generated_text,
-                                    debug=self._build_example_debug(
-                                        reference=reference,
-                                        prediction=cleaned_prediction,
-                                    ),
+                                    debug={
+                                        **self._build_example_debug(
+                                            reference=reference,
+                                            prediction=cleaned_prediction,
+                                        ),
+                                        "references": reference_lists[b_idx],
+                                        "input_token_count": int(
+                                            attn[b_idx].sum().item()
+                                        ),
+                                        "max_input_tokens": getattr(
+                                            self, "max_input_tokens", None
+                                        ),
+                                        "generated_token_count": generated_token_count,
+                                        "padded_generated_token_count": len(
+                                            padded_generated_token_ids
+                                        ),
+                                        "generated_token_ids": generated_token_ids,
+                                        "generated_tokens": (
+                                            self.tokenizer.convert_ids_to_tokens(
+                                                generated_token_ids
+                                            )
+                                        ),
+                                        "max_new_tokens": generate_kwargs[
+                                            "max_new_tokens"
+                                        ],
+                                        "ended_with_eos": ended_with_eos,
+                                        "hit_max_new_tokens": (
+                                            generated_token_count
+                                            >= generate_kwargs["max_new_tokens"]
+                                            and not ended_with_eos
+                                        ),
+                                    },
                                 )
                             )
                     start = end
@@ -635,7 +771,10 @@ class GenerationEvaluator:
             return list(range(population_size))
 
         if self.sample_seed is not None:
-            rng = random.Random(self.sample_seed + hash(lang_key))
+            lang_offset = int.from_bytes(
+                hashlib.sha256(lang_key.encode("utf-8")).digest()[:8], "big"
+            )
+            rng = random.Random(self.sample_seed + lang_offset)
             return sorted(rng.sample(range(population_size), sample_size))
 
         return sorted(random.sample(range(population_size), sample_size))
@@ -679,14 +818,13 @@ class GenerationEvaluator:
             except ZeroDivisionError:
                 logger.warning("BLEU computation failed (empty predictions), skipping.")
 
-        chrf_metrics = self._chrf.compute(
-            predictions=predictions, references=normalised_refs
-        )
-        chrf_score = (
-            chrf_metrics.get("score") if isinstance(chrf_metrics, dict) else None
-        )
-        if chrf_score is None and isinstance(chrf_metrics, dict):
-            chrf_score = chrf_metrics.get("chrf")
+        reference_streams = [
+            list(stream) for stream in zip(*normalised_refs, strict=True)
+        ]
+        chrf_score = self._chrf.corpus_score(
+            predictions,
+            reference_streams,
+        ).score
 
         out: dict[str, float] = {}
         if rouge_metrics.get("rouge1") is not None:

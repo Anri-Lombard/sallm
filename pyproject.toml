@@ -70,11 +70,18 @@ line-length = 88
 target-version = "py312"
 src = ["src", "tokenizer"]
 exclude = ["build", "dist", "trash", "__pycache__"]
+# scripts/ holds as-run research runners whose sha256 is recorded in the research
+# notes; scripts/paper is a verbatim copy of the paper's runners. Keep their bytes.
+extend-exclude = ["scripts/paper"]
+force-exclude = true
+
+[tool.ruff.format]
+exclude = ["scripts/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["E203"]
-per-file-ignores = {"__init__.py" = ["F401"]}
+per-file-ignores = {"__init__.py" = ["F401"], "scripts/**" = ["E501", "E702", "UP017"]}
 
 [tool.ty.environment]
 python-version = "3.12"

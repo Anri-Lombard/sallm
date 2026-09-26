@@ -144,13 +144,34 @@ class _CfgWrapper:
         self.dataset = ds_cfg
 
 
-def _process_component(comp_cfg: FinetuneDatasetConfig) -> tuple[Dataset, Dataset]:
+def _attach_task_name(dataset: Dataset, task_name: str) -> Dataset:
+    if "task_name" not in dataset.column_names:
+        return dataset.add_column("task_name", [task_name] * len(dataset))
+    observed = set(dataset["task_name"])
+    if observed != {task_name}:
+        raise ValueError(
+            f"Component {task_name!r} has conflicting task_name values {observed}."
+        )
+    return dataset
+
+
+def _process_component(
+    comp_cfg: FinetuneDatasetConfig,
+    eval_templates: list[TemplateRef] | None = None,
+) -> tuple[Dataset, Dataset]:
     """Load and process a mix component."""
     tr_raw, va_raw = _load_component_raw(comp_cfg)
     wrapper = _CfgWrapper(comp_cfg)
     tr = apply_templates(tr_raw, wrapper.dataset)
     val_cfg = comp_cfg
-    if (
+    if eval_templates is not None:
+        val_cfg = replace(
+            comp_cfg,
+            templates=eval_templates,
+            template_choice=TemplateChoice.ALL,
+            eval_template_choice=TemplateChoice.ALL,
+        )
+    elif (
         comp_cfg.eval_template_choice is not None
         and comp_cfg.eval_template_choice != comp_cfg.template_choice
     ):
@@ -197,7 +218,21 @@ def load_mix_dataset(
 
     for comp_yaml in components_yaml:
         comp_cfg = _component_to_config(comp_yaml, ds_cfg)
-        train_processed, val_processed = _process_component(comp_cfg)
+        eval_templates_yaml = comp_yaml.get("eval_templates")
+        eval_templates = (
+            [
+                TemplateRef(id=entry["id"], weight=entry.get("weight", 1.0))
+                for entry in eval_templates_yaml
+            ]
+            if eval_templates_yaml is not None
+            else None
+        )
+        train_processed, val_processed = _process_component(
+            comp_cfg,
+            eval_templates=eval_templates,
+        )
+        train_processed = _attach_task_name(train_processed, comp_yaml["name"])
+        val_processed = _attach_task_name(val_processed, comp_yaml["name"])
         train_components.append(
             TaskComponent(
                 name=comp_yaml["name"],

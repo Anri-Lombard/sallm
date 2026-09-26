@@ -499,6 +499,7 @@ class GenerationEvalTaskConfig:
     fewshot_token_budget: int | None = None
     prompt_headroom_tokens: int | None = None
     system_prompt: str | None = None
+    prompt_format: str = "chat"
 
 
 @dataclass
