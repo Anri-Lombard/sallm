@@ -102,9 +102,9 @@ checkpoints per run shipped Kombuys -> Mac -> HEX login node. Not worth it at ~0
 |---|---|
 | prep | copy weights + tokenizer, checks, protocols |
 | Base 0-shot | `base-gen` (untuned T2X/AfriHG test generation), `base-prompt` (News, Intent, SIB, Belebele, AfriXNLI, AfriMMLU, AfriMGSM official unit), `base-ner`, `base-pos` |
-| LR sweep | 3 LRs {3e-5, 1e-4, 3e-4} x 8 families: News/SIB/Intent/NER/POS/AfriHG on the Multi model, T2X on Mono xho, General on the six-family mixture |
+| LR sweep | 3 LRs {3e-5, 1e-4, 3e-4} x 7 families: News/SIB/Intent/NER/POS/AfriHG on the Multi model, T2X on Mono xho (General: no sweep, LR transferred, see below) |
 | selection | `select-<family>`: best (lr, epoch) on validation; if the best LR is 3e-5 or 3e-4, trains 1e-5 or 1e-3 and reselects |
-| Mono / seeds | 20 Mono runs at the family's selected LR (seed 42); seeds 43, 44 for T2X Mono and General |
+| Mono / seeds | 20 Mono runs at the family's selected LR (seed 42); seeds 43, 44 for T2X Mono; one General model (seed 42) |
 | test | `test-<family>-...` on the selected sweep checkpoint; Mono and seed runs test their own best epoch in-unit |
 
 Every training run: epochs = 10 if the tokenized train set has < 5000 rows else 4, one checkpoint per epoch in
@@ -125,10 +125,13 @@ it, because FLA 0.5.1's cache cannot be reordered across beams and transformers 
 `cache_params`; xLSTM runs at batch 1. Mamba-2 also decodes cache-free (the default in `BEAM_MODE`; no environment
 variable needed). The `collect-beam` unit re-collects after the beam units; `collect` does not wait for them.
 
-Order: General seeds 43/44 run last. They depend on `collect` (every seed-42 unit: Base, sweeps, selections, Mono,
-General seed 42, tests; Mono T2X seeds 43/44 stay in the main pass) and start only after every seed-42 beam unit has
-finished or failed (an ordering-only `after` list, so a failed beam never blocks them). `collect-beam` is the final
-collect and includes them.
+General regime, trimmed (user decision 26 Sep 2026, recorded before any Multi result was read): no General LR
+sweep and no General seeds 43/44 (nor their beam units). Each architecture trains ONE General model, seed 42, at the
+LR chosen most often across that architecture's Multi selections (News, SIB-200, Intent, NER, POS, AfriHG, including
+any edge-extension LR that won); ties go to the lower LR. `train-general-general-s42` therefore depends on all six
+`select-<family>` units and writes `keep/general/LR_TRANSFER.json` (the six chosen LRs and the result). Its per-epoch
+validation and epoch selection use the six-family mean on the fixed subsample; test runs in-unit, then
+`beam-general-s42`. Mono T2X seeds 43/44 stay.
 
 ## 3a. Checkpoints (kept) and the Kombuys archive
 

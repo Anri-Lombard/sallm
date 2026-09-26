@@ -171,6 +171,8 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
     if only:  # smoke of selected families only (e.g. the per-architecture T2X smoke)
         families = {f: v for f, v in families.items() if f in only}
     for fam, mono_langs in families.items():
+        if fam == "general":
+            continue  # one General model, below
         spec = FAMILIES[fam]
         lrs = (SMOKE["lrs"].get(fam, SMOKE["default_lrs"]) if smoke and not only else SMOKE["default_lrs"] if smoke else LRS)
         sweep_regime = spec["sweep"]
@@ -189,19 +191,20 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
             for lang in mono_langs:
                 units.append(unit(f"train-{fam}-mono-{lang}-s42", "train", [f"select-{fam}"], family=fam, regime="mono",
                                   langs=[lang], lr=None, seed=42, keep=False, test=True))
-        if fam in ("t2x", "general"):
+        if fam == "t2x":
             for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
                 units.append(unit(f"train-{fam}-{tag}-s{seed}", "train", [f"select-{fam}"], family=fam, regime=sweep_regime,
                                   langs=sweep_langs, lr=None, seed=seed, keep=False, test=True))
-    # General seeds 43/44 go last: they wait for collect and every seed-42 beam unit (user decision, 26 Sep)
-    late = [u for u in units if u.get("family") == "general" and u["kind"] == "train" and u.get("seed") in (*SEEDS_HEADLINE, *SMOKE["seeds"])]
-    late_ids = {u["id"] for u in late}
-    units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count" and u["id"] not in late_ids], light=True))
+    if "general" in families:
+        # General, trimmed (user decision, 26 Sep): no LR sweep and one seed. ONE model (seed 42) at the LR chosen most
+        # often across this architecture's Multi selections (ties -> lower LR); per-epoch validation and epoch selection
+        # on the six-family mean; test in-unit; beam below.
+        multis = [f for f in families if FAMILIES[f]["sweep"] == "multi"]
+        units.append(unit("train-general-general-s42", "train", ["prep"] + [f"select-{f}" for f in multis], family="general",
+                          regime="general", langs=[], lr=None, seed=42, keep=False, test=True, lr_from=multis))
+    units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count"], light=True))
     beams = beam_units(families, smoke)  # after collect in the DAG: a failed beam unit never blocks the main results
-    for u in late:
-        u["deps"] = sorted(set(u["deps"]) | {"collect"})
-        u["after"] = sorted(b["id"] for b in beams if not set(b["deps"]) & late_ids)  # ordering only: a failed beam never blocks
-    units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"] + sorted(late_ids), light=True)] if beams else []
+    units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"], light=True)] if beams else []
     if cross_eval:
         units += cross_eval_units(families)
     for u in units:
@@ -224,11 +227,9 @@ def beam_units(families: dict, smoke: bool) -> list[dict]:
         for lang in families["afrihg"]:
             src = f"train-afrihg-mono-{lang}-s42"
             out.append(unit(f"beam-afrihg-mono-{lang}", "beam", [src], src=src, family="afrihg", gen={"afrihg": [lang]}, seed=42))
-    if "general" in families:
-        for seed in seeds:
-            src = "test-general-general" if seed == 42 else f"train-general-general-s{seed}"
-            out.append(unit(f"beam-general-s{seed}", "beam", [src], src=src, family="general",
-                            gen={"t2x": ["xho"], "afrihg": list(FAMILIES["afrihg"]["langs"])}, seed=seed))
+    if "general" in families:  # seed 42 only
+        out.append(unit("beam-general-s42", "beam", ["train-general-general-s42"], src="train-general-general-s42", family="general",
+                        gen={"t2x": ["xho"], "afrihg": list(FAMILIES["afrihg"]["langs"])}, seed=42))
     return out
 
 
@@ -868,8 +869,22 @@ def mark_selected(ckpt: Path, unit_id: str) -> None:
     write_json(ckpt.with_name(ckpt.name + ".selected"), {"unit": unit_id, "tree_sha256": tree_sha256(ckpt), "time": time.time()})
 
 
+def transferred_lr(r: Run, u: dict) -> str:
+    """General LR: the LR chosen most often across the architecture's Multi selections; ties -> the lower LR."""
+    from collections import Counter
+    chosen = {f: selected_lr(r, f) for f in u["lr_from"]}
+    if not chosen:  # smoke subsets without a Multi family
+        lr = SMOKE["default_lrs"][0]
+    else:
+        counts = Counter(chosen.values())
+        lr = max(counts, key=lambda x: (counts[x], -float(x)))
+    write_json(r.out / "keep" / "general" / "LR_TRANSFER.json", {"chosen": chosen, "lr": lr,
+               "rule": "most frequent Multi-selected LR (news, sib, intent, ner, pos, afrihg); ties -> lower LR"})
+    return lr
+
+
 def do_train(r: Run, u: dict) -> dict:
-    lr = u["lr"] or selected_lr(r, u["family"])
+    lr = u["lr"] or (transferred_lr(r, u) if u.get("lr_from") is not None else selected_lr(r, u["family"]))
     done = train_run(r, u, lr)
     return {"run": run_id(u, lr), "lr": lr, "best_epoch": done["best_epoch"], "best_val": done["best_val"], "test": done.get("test")}
 
