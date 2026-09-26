@@ -5,6 +5,7 @@ import hashlib
 import logging
 import os
 import random
+import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, cast
@@ -787,7 +788,13 @@ class GenerationEvaluator:
         if not predictions or not references:
             return {}
 
-        cleaned_refs = [self._ensure_reference_list(refs) for refs in references]
+        # The tokenizer normalises to NFD, so decoded outputs come back decomposed
+        # while references are NFC; compare both in NFC.
+        predictions = [unicodedata.normalize("NFC", p) for p in predictions]
+        cleaned_refs = [
+            [unicodedata.normalize("NFC", r) for r in self._ensure_reference_list(refs)]
+            for refs in references
+        ]
         normalised_refs = self._normalize_reference_counts(cleaned_refs)
 
         rouge_totals = {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}

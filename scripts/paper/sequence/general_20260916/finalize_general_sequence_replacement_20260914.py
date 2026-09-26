@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import re
+import unicodedata
 from pathlib import Path
 from statistics import fmean
 from typing import Any
@@ -82,7 +83,9 @@ def normalize_span_text(value: Any) -> str:
     # including its unescaped hyphens.  It is the frozen metric contract used
     # by lm-eval for these immutable validation rows.
     punctuation = '!"$%&\'()*+,-./:;<=>?[\\]^_`{|}~•@.""-,`'
-    text = re.sub("[" + punctuation + "]+", " ", str(value))
+    # NFD model outputs vs NFC references: compare in NFC.
+    text = unicodedata.normalize("NFC", str(value))
+    text = re.sub("[" + punctuation + "]+", " ", text)
     text = re.sub(r"\b(a|an|the)\b", " ", text, flags=re.UNICODE)
     text = re.sub(r"\s{3,}|\t", "", text)
     return re.sub(r"\s+", " ", text).lower()

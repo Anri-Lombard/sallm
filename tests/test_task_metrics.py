@@ -81,3 +81,12 @@ def test_pos_prefix_plus_extra_label_is_not_full_credit() -> None:
     score = compute_pos_token_accuracy(["NOUN VERB"], ["NOUN VERB X"])
 
     assert score == 2 / 3
+
+
+def test_ner_span_f1_matches_nfd_prediction_to_nfc_reference() -> None:
+    import unicodedata
+
+    reference = "PER: Mošweu $$ LOC: Tšhwane"  # NFC, as in MasakhaNER
+    prediction = unicodedata.normalize("NFD", reference)  # as decoded by the tokenizer
+    assert prediction != reference
+    assert compute_ner_span_f1([reference], [prediction]) > 0.99
