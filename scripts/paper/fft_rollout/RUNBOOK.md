@@ -33,6 +33,15 @@ bash $R/code/fft_rollout/launch.sh gdn /scratch/lmbanr001/masters/sallm/results/
 # or fire it now and let Slurm hold the lanes until the pretraining job ends (zero idle time):
 AFTER=<pretraining jobid> bash $R/code/fft_rollout/launch.sh gdn <run dir> 4
 ```
+GPU budget: the per-user QOS limit is 10 L40S and the matched-pretraining runs (`mp-full-*`, 2 GPUs each, auto-resuming)
+have priority. Pick `CAP` so that pretraining GPUs + all rollout lanes <= 10 (e.g. the first base finishes -> its 2 GPUs
+-> `CAP=2`), and pass `NICE=1000` so a pending pretraining resubmit outranks pending lanes of the same user:
+
+```bash
+NICE=1000 bash $R/code/fft_rollout/launch.sh <arch> <run dir or weights dir> 2
+```
+Raise the cap later with `echo <n> > $R/runs/<name>/MAX_LANES` plus extra `sbatch ... lane.sbatch` (section 2).
+
 Arguments: `ARCH BASE_PATH [CAP=4] [NAME=ARCH]`. `CAP` = number of lane jobs = concurrent L40S for this
 architecture. The per-user QOS limit is 10 GPUs across everything (pretraining included), so keep the sum of
 all CAPs + pretraining GPUs <= 10. BASE_PATH may also be a plain weights dir (config.json + pytorch_model.bin).
@@ -65,6 +74,10 @@ Stop everything gracefully: `touch $R/runs/<name>/STOP`. Restart after a fix (re
 
 Lanes run at most 48 h; a lane that cannot fit the next unit in its remaining time resubmits itself.
 Idle GPU time is limited to the DAG's barriers (a lane waits while every runnable unit is taken).
+
+Kombuys RTX 5090: not used by the lanes. Every training unit scores each epoch on validation in the same job (node-local
+checkpoints), and all scoring must be on L40S, so a 5090 lane would need train/score split units plus ~5 GB of epoch
+checkpoints per run shipped Kombuys -> Mac -> HEX login node. Not worth it at ~0.5 GB/epoch; kept out on purpose.
 
 ## 3. What runs (per architecture; `rollout.py matrix` prints it, `job_matrix.csv` is the committed copy)
 

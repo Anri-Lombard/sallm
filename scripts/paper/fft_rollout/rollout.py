@@ -367,6 +367,8 @@ class Run:
             "SALLM_AFRIHG_CACHE_DIR": f"{GEN}/data/afrihg_cache", "HYDRA_FULL_ERROR": "1", "SCRATCH": "/scratch/lmbanr001",
             # commit-pinned MasakhaPOS/InjongoIntent files (GitHub API: 60 requests/h/IP; prefilled from the Mac)
             "SALLM_SOURCE_CACHE_DIR": f"{ROLLOUT}/assets/source_cache",
+            # persistent Triton kernel cache (FLA/GDN kernels otherwise recompile for minutes in every run)
+            "TRITON_CACHE_DIR": f"{ROLLOUT}/triton_cache/{self.arch}",
         })
         path = [str(SALLM / "src/main")]
         if self.arch == "mamba2":
@@ -490,6 +492,15 @@ def do_prep(r: Run, u: dict) -> dict:
     return {"base": str(dst), "tree_sha256": tree_sha256(dst), "load_check": json.loads(check.read_text())}
 
 
+def rebind_protocols(r: Run) -> None:
+    """code/sallm was re-synced (a fix): rebind the sequence protocols to its current manifest."""
+    proto = r.out / "protocols" / "seq_fft.json"
+    if proto.exists() and json.loads(proto.read_text())["source_snapshot"]["manifest_sha256"] != snapshot_manifest_sha():
+        with Lock(r.out / "protocols" / ".lock"):
+            write_protocols(r)
+            print("PROTOCOLS_REBOUND to the current code/sallm manifest", flush=True)
+
+
 def snapshot_manifest_sha() -> str:
     return sha256(SALLM / "SNAPSHOT_MANIFEST.sha256")
 
@@ -567,6 +578,7 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
             per[lang] = 100 * d["languages"][lang]["weighted_f1"]
             n[lang] = d["languages"][lang]["n_items"]
     elif family in ("ner", "pos"):
+        rebind_protocols(r)
         raw = out.with_suffix(".json")
         cmd = [py, f"{hs}/seq_eval.py", "--task", family, "--phase", kit_split, "--architecture", arch, "--checkpoint", model,
                "--protocol", r.out / "protocols" / "seq_fft.json", "--output", raw]
@@ -714,7 +726,10 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
             f"++finetune.training.gradient_accumulation_steps={16 // MICRO.get(u['family'], 16)}",
             f"++finetune.training.per_device_eval_batch_size={MICRO.get(u['family'], 16)}", "++finetune.training.num_train_epochs=4",
             "++finetune.training.max_grad_norm=1.0", "++finetune.training.bf16=true", "++finetune.training.gradient_checkpointing=false",
-            "++finetune.training.label_smoothing_factor=0.0", "++finetune.training.eval_strategy=epoch",
+            "++finetune.training.label_smoothing_factor=0.0",
+            # no trainer eval loss: selection uses the protocol scorers, and the loss pass over large validation sets
+            # (General 22k rows) cost ~10+ min per epoch in the smoke
+            "++finetune.training.eval_strategy=no",
             "++finetune.training.save_strategy=epoch", "++finetune.training.save_only_model=true", "++finetune.training.save_total_limit=null",
             "++finetune.training.load_best_model_at_end=false", "++finetune.training.metric_for_best_model=null",
             "++finetune.training.greater_is_better=null", "++finetune.training.early_stopping_patience=null",
@@ -728,7 +743,7 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
         if r.smoke:
             args.append(f"++finetune.training.max_steps={SMOKE['max_steps']}")
         # no HF offline flags: the MasakhaNER parquet cache is only found when its pinned revision resolves online
-        extra = {"FFT_EPOCHS": "auto", "SALLM_DISABLE_TASK_METRICS": "1", "TRITON_CACHE_DIR": f"{shm}/triton"}
+        extra = {"FFT_EPOCHS": "auto", "SALLM_DISABLE_TASK_METRICS": "1"}
         if u["family"] in ("t2x", "general"):
             extra.update(FFT_T2X_LOADER="1", SALLM_T2X_TRAIN_VALIDATION_ONLY="1",
                          SALLM_T2X_CACHE_DIR=f"{ROLLOUT}/assets/t2x_train_validation_only")
@@ -868,6 +883,7 @@ def do_base(r: Run, u: dict) -> dict:
     lim = 20 if r.smoke else None
     if g in ("ner", "pos"):
         raw = out.with_suffix(".json")
+        rebind_protocols(r)
         if not raw.exists():
             env = r.env({"PYTHONPATH_PREPEND": BUNDLE, **({"SEQ_BATCH1": "1"} if arch == "xlstm" else {})})
             r.sh([py, hs / "seq_eval_base.py", "--task", g, "--phase", "test", "--architecture", arch, "--checkpoint", r.base,
@@ -1059,11 +1075,7 @@ def cmd_lane(args) -> None:
     ensure_cross_eval(out)
     r = Run(out)
     units = r.units()
-    proto = r.out / "protocols" / "seq_fft.json"
-    if proto.exists() and json.loads(proto.read_text())["source_snapshot"]["manifest_sha256"] != snapshot_manifest_sha():
-        with Lock(r.state / ".lock"):  # code/sallm was re-synced (a fix): rebind the sequence protocols to it
-            write_protocols(r)
-            print("PROTOCOLS_REBOUND to the current code/sallm manifest", flush=True)
+    rebind_protocols(r)
     lane = os.environ.get("LANE", "0")
     import signal
     # scancel / wall time: leave the unit "running" (a stale heartbeat or relane.sh requeues it), not "failed"
@@ -1094,7 +1106,7 @@ def cmd_lane(args) -> None:
 
 def resubmit(out: Path, lane: str) -> None:
     cfg = json.loads((out / "config.json").read_text())
-    cmd = ["sbatch", "--parsable", f"--job-name={os.environ.get('SLURM_JOB_NAME', 'fft-lane')}", f"--time={cfg.get('lane_time', '48:00:00')}",
+    cmd = ["sbatch", "--parsable", f"--job-name={os.environ.get('SLURM_JOB_NAME', 'fft-lane')}", f"--time={cfg.get('lane_time', '48:00:00')}", f"--nice={cfg.get('nice', 0)}",
            f"--export=ALL,OUT={out},LANE={lane},LANE_HOURS={os.environ.get('LANE_HOURS', '47.5')}", str(HERE / "lane.sbatch")]
     res = subprocess.run(cmd, capture_output=True, text=True)
     print(f"LANE_RESUBMIT {res.stdout.strip()} {res.stderr.strip()}", flush=True)
