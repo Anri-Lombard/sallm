@@ -66,6 +66,14 @@ TOKENIZER_SHA = "446895905ea9b20c746317eefd0c6a3b097bcbbef71e8e44b0bf9772d664782
 LRS = ("3e-5", "1e-4", "3e-4")
 EDGE = {"3e-5": "1e-5", "3e-4": "1e-3"}  # one more point beyond an edge optimum
 SEEDS_HEADLINE = (43, 44)  # plus seed 42 (the sweep run)
+# Early stopping (user decision 26 Sep): stop once PATIENCE epochs pass without a strictly greater validation score
+# (protocol scorer, fixed subsample; General: six-family mean). Minimum epochs = PATIENCE + 1. Best epoch as before.
+PATIENCE = int(os.environ.get("FFT_ES_PATIENCE", "3"))
+TRANSIENT_MAX = 4  # lane deaths (stale heartbeat) a unit may survive; each resumes from its last epoch checkpoint
+
+
+class Diverged(RuntimeError):
+    """Training diverged (non-finite loss, or > 3x the first-epoch loss for 200 steps): FAILED_DIVERGED, never retried."""
 # Beam search (test only, reported beside greedy; greedy stays primary): the v1 settings of the V8 generation config
 # (T2X 5 beams, length penalty 1.0; AfriHG 5 beams, length penalty 0.7; early stopping). Transformers 4.57.3 reorders
 # beams through Cache.reorder_cache: FLA 0.5.1's cache layers keep their state in `.state`, so the reorder hits
@@ -150,6 +158,15 @@ def train_hours(arch: str, family: str, rows: int, epochs: int) -> float:
     tokens_per_micro = micro * TOK_PER_ROW[family]
     step = (16 // micro) * STEP_S[arch] * (1 + STEP_GROWTH[arch] * max(0.0, tokens_per_micro / 1630 - 1))
     return math.ceil(rows / 16) * epochs * step / 3600
+
+
+# Best epochs seen in the T2X pilot (Mono xho, lr 1e-4); elsewhere assume best epoch 4 -> early stop at 4 + PATIENCE.
+PILOT_BEST_EPOCH = {("mzansilm", "t2x"): 3, ("mamba2", "t2x"): 3, ("xlstm", "t2x"): 2, ("gdn", "t2x"): 4}
+
+
+def expected_epochs(arch: str, family: str, planned: int) -> int:
+    """Estimate only: epochs a run is expected to train under early stopping."""
+    return min(planned, max(PATIENCE + 1, PILOT_BEST_EPOCH.get((arch, family), 4) + PATIENCE))
 
 
 def epochs_for(rows: int) -> int:
@@ -279,7 +296,7 @@ def estimate(arch: str, u: dict, smoke: bool) -> float:
                 "pos": POS_TEST_MIN[arch] / 60}[u["group"]]
     if u["kind"] == "train":
         rows = rows_for(u)
-        ep = epochs_for(rows)
+        ep = expected_epochs(arch, u["family"], epochs_for(rows))
         h = train_hours(arch, u["family"], rows, ep) + ep * family_minutes(arch, u, "val") / 60 + 0.1
         return h + (family_minutes(arch, u, "test") / 60 if u["test"] else 0)
     if u["kind"] == "select":  # expected cost: an edge extension about half the time
@@ -443,6 +460,14 @@ class Run:
             tail = "".join(log.read_text(errors="replace").splitlines(True)[-40:])
             raise RuntimeError(f"command failed rc={rc}: {' '.join(map(str, cmd))[:300]}\n--- {log} tail ---\n{tail}")
         return time.time() - t0
+
+
+def alert(r: "Run", unit_id: str, msg: str) -> None:
+    """One line in OUT/ALERTS.txt (rebalance.py copies new lines to ~/.sallm_fire/alerts.log on the Mac)."""
+    line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} {r.arch} {unit_id} {msg}".replace("\n", " ")
+    with open(r.out / "ALERTS.txt", "a") as fh:
+        fh.write(line + "\n")
+    print(f"ALERT {line}", flush=True)
 
 
 def sha256(path: Path) -> str:
@@ -692,8 +717,130 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
            "mean": sum(per.values()) / len(per), "secs": round(time.time() - t0, 1), "limit": lim, "gpu": gpu_name(),
            "val_subsample_sha256": hashlib.sha256((HERE / "val_subsample.json").read_bytes()).hexdigest() if split == "val" else None,
            "decoding": ("beam" + ("" if BEAM_MODE[arch] == "cache" else " (no cache)")) if beam else "greedy"}
+    rec["sanity"] = run_sanity(r, rec, out)
     write_json(done, rec)
     return rec
+
+
+# ------------------------------------------------------------------------------------------------ sanity checks
+def majority_weighted_f1(gold: list) -> float:
+    """Weighted F1 (points) of always predicting the most frequent gold label: p * 2p / (1 + p)."""
+    from collections import Counter
+    p = Counter(gold).most_common(1)[0][1] / len(gold)
+    return 100 * p * 2 * p / (1 + p)
+
+
+def loop_4gram(text: str) -> bool:
+    from collections import Counter
+    w = text.split()
+    return any(c >= 4 for c in Counter(tuple(w[i:i + 4]) for i in range(len(w) - 3)).values())
+
+
+def sanity_flags(family: str, per_lang: dict, items: dict) -> dict:
+    """items[lang] = {"gold": [...], "pred": [...]} (classification, POS tags), or {"pred": [texts]} (NER, generation)."""
+    from collections import Counter
+    out = {}
+    for lang, it in items.items():
+        flags, pred = [], it["pred"]
+        if not pred:
+            out[lang] = {"n": 0, "flags": ["no items"]}
+            continue
+        score = per_lang.get(lang)
+        stats = {"n": len(pred)}
+        if family in ("news", "sib", "intent", "belebele"):
+            top = Counter(map(str, pred)).most_common(1)[0]
+            stats["top_prediction_share"] = round(top[1] / len(pred), 4)
+            if top[1] / len(pred) > 0.8:
+                flags.append(f"one label ({top[0]}) is {100 * top[1] / len(pred):.0f}% of predictions")
+            base = 100 * Counter(it["gold"]).most_common(1)[0][1] / len(it["gold"]) if family == "belebele" else majority_weighted_f1(it["gold"])
+            stats["majority_baseline"] = round(base, 3)
+            if score is not None and score <= base:
+                flags.append(f"score {score:.2f} <= majority baseline {base:.2f}")
+        elif family in ("ner", "pos"):
+            empty = sum(1 for x in pred if not x or (isinstance(x, str) and not x.strip())) / len(pred)
+            stats["empty_share"] = round(empty, 4)
+            if empty > 0.2:
+                flags.append(f"{100 * empty:.0f}% empty or unparseable outputs")
+            if family == "ner":
+                base = 0.0  # all-O: no entity spans
+            else:
+                tags = [t for g in it["gold"] for t in g]
+                base = 100 * Counter(tags).most_common(1)[0][1] / len(tags)
+            stats["trivial_baseline"] = round(base, 3)
+            if score is not None and score <= base:
+                flags.append(f"score {score:.2f} <= trivial baseline {base:.2f}")
+        elif family in ("t2x", "afrihg"):
+            empty = sum(1 for x in pred if not x.strip()) / len(pred)
+            loops = sum(1 for x in pred if loop_4gram(x)) / len(pred)
+            stats.update(empty_share=round(empty, 4), loop_share=round(loops, 4))
+            if empty > 0.2:
+                flags.append(f"{100 * empty:.0f}% empty outputs")
+            if loops > 0.3:
+                flags.append(f"{100 * loops:.0f}% of outputs repeat a 4-gram 4+ times")
+        out[lang] = {**stats, "flags": flags}
+    return out
+
+
+def sanity_items(family: str, out: Path) -> dict:
+    items: dict = {}
+    if family in ("news", "sib"):
+        for x in json.loads(out.with_suffix(".json").read_text())["rows"]:
+            d = items.setdefault(x["language"], {"gold": [], "pred": []})
+            d["gold"].append(x["gold"])
+            d["pred"].append(x["prediction"])
+    elif family == "intent":
+        res = json.loads((out / "injongointent_all" / "results.json").read_text())
+        for task, samples in res["samples"].items():
+            lang = task.split("_")[1]
+            choices = res["configs"][task]["doc_to_choice"]
+            d = items.setdefault(lang, {"gold": [], "pred": []})
+            for smp in samples:
+                lls = [float(v[0]) for v in smp["filtered_resps"]]
+                d["pred"].append(choices[max(range(len(lls)), key=lls.__getitem__)])
+                d["gold"].append(smp["doc"]["intent"])
+    elif family == "belebele":
+        for res_path in out.glob("belebele_*/results.json"):
+            res = json.loads(res_path.read_text())
+            for task, samples in res["samples"].items():
+                d = items.setdefault(task.split("_")[1], {"gold": [], "pred": []})
+                for smp in samples:
+                    lls = [float(v[0]) for v in smp["filtered_resps"]]
+                    d["pred"].append(max(range(len(lls)), key=lls.__getitem__))
+                    d["gold"].append(smp["target"])
+    elif family == "ner":
+        d = json.loads(out.with_suffix(".json").read_text())
+        lang_of = {name: ev["language"] for name, ev in d["task_evidence"].items()}
+        for row in d["rows"]:
+            items.setdefault(lang_of[row["task"]], {"pred": []})["pred"].append(row["prediction"])
+    elif family == "pos":
+        for row in json.loads(out.with_suffix(".json").read_text())["rows"]:
+            d = items.setdefault(row["language"], {"gold": [], "pred": []})
+            d["gold"].append(row["gold"])
+            d["pred"].append(row["prediction"])
+    elif family in ("t2x", "afrihg"):
+        for ex_path in out.glob("*/examples.jsonl"):
+            lang = ex_path.parent.name.split("_")[-1]
+            items.setdefault(lang, {"pred": []})["pred"] += [json.loads(line)["prediction"] for line in ex_path.open()]
+    return items
+
+
+def run_sanity(r: "Run", rec: dict, out: Path) -> dict:
+    """Per-score sanity flags -> rec, sanity/<unit>.json (SANITY per unit) and ALERTS.txt. Never fails the unit."""
+    unit_id = os.environ.get("FFT_UNIT", "manual")
+    try:
+        res = sanity_flags(rec["family"], rec["per_lang"], sanity_items(rec["family"], out)) if rec["family"] != "transfer" else {}
+    except Exception as exc:  # noqa: BLE001
+        res = {"error": f"{type(exc).__name__}: {exc}"[:300]}
+    entry = {"family": rec["family"], "split": rec["split"], "model": rec["model"], "raw": str(out), "checks": res, "time": time.time()}
+    path = r.out / "sanity" / f"{unit_id}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with Lock(path.with_suffix(".lock")):
+        prev = json.loads(path.read_text()) if path.exists() else []
+        write_json(path, prev + [entry])
+    for lang, v in res.items():
+        for f in (v.get("flags") or []) if isinstance(v, dict) else []:
+            alert(r, unit_id, f"SANITY {rec['family']}/{lang} {rec['split']} ({Path(rec['model']).name}): {f}")
+    return res
 
 
 def read_seq(d: dict, family: str) -> tuple[dict, dict]:
@@ -757,9 +904,12 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
     run = r.out / "runs" / rid
     if (run / "RUN_DONE.json").exists():
         return json.loads((run / "RUN_DONE.json").read_text())
-    if run.exists():
+    if (run / "DIVERGED.json").exists():
+        raise Diverged(f"FAILED_DIVERGED earlier: {(run / 'DIVERGED.json').read_text()[:300]}")
+    resume = sorted((run / "resume").glob("checkpoint-*")) if (run / "resume").is_dir() else []
+    if run.exists() and not resume:
         shutil.move(str(run), str(r.out / "runs" / f".{rid}.aborted{int(time.time())}"))
-    run.mkdir(parents=True)
+    run.mkdir(parents=True, exist_ok=True)
     jid = os.environ.get("SLURM_JOB_ID", "local")
     shm = Path(f"/dev/shm/fft_{jid}_{rid}")
     shutil.rmtree(shm, ignore_errors=True)
@@ -791,6 +941,7 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
             "++finetune.training.load_best_model_at_end=false", "++finetune.training.metric_for_best_model=null",
             "++finetune.training.greater_is_better=null", "++finetune.training.early_stopping_patience=null",
             f"++finetune.training.seed={u['seed']}", f"++finetune.training.data_seed={u['seed']}", "++finetune.training.logging_steps=10",
+            f"++finetune.training.resume_from_checkpoint={resume[-1] if resume else 'null'}",
             "++finetune.training.dataloader_num_workers=2",
         ]
         if u["family"] == "t2x":
@@ -800,7 +951,10 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
         if r.smoke:
             args.append(f"++finetune.training.max_steps={SMOKE['max_steps']}")
         # no HF offline flags: the MasakhaNER parquet cache is only found when its pinned revision resolves online
-        extra = {"FFT_EPOCHS": "auto", "SALLM_DISABLE_TASK_METRICS": "1"}
+        extra = {"FFT_EPOCHS": "auto", "SALLM_DISABLE_TASK_METRICS": "1", "FFT_UNIT": os.environ.get("FFT_UNIT", u["id"]),
+                 "FFT_CTRL": json.dumps({"out": str(r.out), "run": str(run), "unit": u, "patience": PATIENCE})}
+        if resume:
+            print(f"RESUME {rid} from {resume[-1].name}", flush=True)
         if u["family"] in ("t2x", "general"):
             extra.update(FFT_T2X_LOADER="1", SALLM_T2X_TRAIN_VALIDATION_ONLY="1",
                          SALLM_T2X_CACHE_DIR=f"{ROLLOUT}/assets/t2x_train_validation_only")
@@ -812,48 +966,54 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
         if re.search(r"(^|\s)(test|test_split)\s*:", resolved.split("finetune:", 1)[-1]):
             raise RuntimeError("held-out field in the resolved config")
         smi = subprocess.Popen(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader", "-lms", "10000"],
-                               stdout=(run / "nvidia_smi_mem.log").open("w"), stderr=subprocess.DEVNULL)
+                               stdout=(run / "nvidia_smi_mem.log").open("a"), stderr=subprocess.DEVNULL)
         try:
             train_s = r.sh([r.a["py"], HERE / "train_fft.py", *args], run / "train.log", {**env, "FFT_RUN_INFO": str(run / "run_info.json")})
+        except RuntimeError as exc:
+            log = (run / "train.log").read_text(errors="replace") if (run / "train.log").exists() else ""
+            if (run / "DIVERGED.json").exists() or re.search(r"returned nan values|FAILED_DIVERGED", log):
+                if not (run / "DIVERGED.json").exists():
+                    write_json(run / "DIVERGED.json", {"reason": "non-finite values in backward (anomaly detection)", "time": time.time()})
+                raise Diverged(f"FAILED_DIVERGED {rid}: {(run / 'DIVERGED.json').read_text()[:300]}") from exc
+            raise
         finally:
             smi.terminate()
         log = (run / "train.log").read_text(errors="replace")
         if re.search(r"'loss': nan|loss=nan|non-finite|returned nan values", log):
-            raise RuntimeError(f"non-finite values in training ({run}/train.log)")
-        ckpts = sorted(shm.glob("checkpoint-*"), key=lambda p: int(p.name.split("-")[1]))
+            write_json(run / "DIVERGED.json", {"reason": "non-finite values in the training log", "time": time.time()})
+            raise Diverged(f"FAILED_DIVERGED {rid}: non-finite values in training ({run}/train.log)")
         info = json.loads((run / "run_info.json").read_text())
-        expected = 1 if r.smoke else info["num_train_epochs"]
-        if len(ckpts) != expected:
-            raise RuntimeError(f"expected {expected} epoch checkpoints, found {[c.name for c in ckpts]}")
-        shutil.copy2(ckpts[-1] / "trainer_state.json", run / "trainer_state.json")
-        epochs = []
-        for e, ck in enumerate(ckpts, 1):
-            t0 = time.time()
-            v = val_score(r, u, ck, run / "val" / f"e{e}")
-            epochs.append({"epoch": e, "checkpoint": ck.name, "val": v["score"], "detail": v, "val_secs": round(time.time() - t0, 1)})
-            write_json(run / "val_epochs.json", epochs)
-        best = max(epochs, key=lambda x: (x["val"], -x["epoch"]))  # ties -> earlier epoch
-        best_ck = shm / best["checkpoint"]
-        tree = tree_sha256(best_ck)
+        epochs = json.loads((run / "val_epochs.json").read_text())
+        es = json.loads((run / "early_stop.json").read_text())
+        best = json.loads((run / "best" / "BEST.json").read_text())
+        planned = 1 if r.smoke else es["planned_epochs"]
+        ran = es["epochs_run"]
+        if [e["epoch"] for e in epochs] != list(range(1, ran + 1)) or (not es["stopped_early"] and ran != planned):
+            raise RuntimeError(f"epoch record incomplete: ran {ran} of {planned}, scored {[e['epoch'] for e in epochs]}")
+        assert best["epoch"] == es["best_epoch"], (best, es)
+        best_dir = run / "best"
+        tree = tree_sha256(best_dir)
         done = {"arch": r.arch, "unit": u["id"], "family": u["family"], "regime": u["regime"], "langs": u["langs"], "lr": lr,
                 "seed": u["seed"], "epochs": epochs, "best_epoch": best["epoch"], "best_val": best["val"], "best_tree_sha256": tree,
-                "train_wall_s": round(train_s, 1), "run_info": info, "gpu": gpu_name(), "host": socket.gethostname(),
-                "job": jid, "global_step": json.loads((run / "trainer_state.json").read_text()).get("global_step")}
+                "stopped_early": es["stopped_early"], "stop_epoch": es["stop_epoch"], "epochs_run": ran, "planned_epochs": planned,
+                "patience": es["patience"], "train_wall_s": round(train_s, 1), "run_info": info, "gpu": gpu_name(),
+                "host": socket.gethostname(), "job": jid, "resumed": bool(resume)}
         if u.get("test"):
             t0 = time.time()
-            done["test"] = test_scores(r, u, best_ck, r.out / "test" / rid)
+            done["test"] = test_scores(r, u, best_dir, r.out / "test" / rid)
             done["test_secs"] = round(time.time() - t0, 1)
         # best epoch kept (weights only). Sweep runs: until LR selection; every other run's best epoch is selected.
         dest = r.out / "keep" / u["family"] / f"{rid}_e{best['epoch']}"
         shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(best_ck, dest.with_name(dest.name + ".tmp"),
-                        ignore=shutil.ignore_patterns("optimizer.pt", "scheduler.pt", "rng_state*.pth", "training_args.bin"))
+        shutil.copytree(best_dir, dest.with_name(dest.name + ".tmp"), ignore=shutil.ignore_patterns("BEST.json"))
         os.replace(dest.with_name(dest.name + ".tmp"), dest)
         write_manifest(dest)
         done["kept"] = str(dest)
         if not u.get("keep"):
             mark_selected(dest, u["id"])
         write_json(run / "RUN_DONE.json", done)
+        shutil.rmtree(run / "best", ignore_errors=True)
+        shutil.rmtree(run / "resume", ignore_errors=True)
         return done
     finally:
         shutil.rmtree(shm, ignore_errors=True)
@@ -1072,8 +1232,14 @@ def claim(r: Run, units: list[dict], hours_left: float, lane: str) -> tuple[dict
             if st["state"] == "running":
                 hb = r.state / f"{uid}.hb"
                 if now - (hb.stat().st_mtime if hb.exists() else st["t0"]) > STALE_S:
-                    st.update(state="failed" if st.get("attempts", 1) >= 2 else "pending", msg=f"stale heartbeat (lane {st.get('lane')})")
+                    # the lane died (node failure, preemption, wall time): not the unit's fault, so it does not use up
+                    # the one retry; training units resume from their last epoch checkpoint (runs/<run>/resume)
+                    st["transient"] = st.get("transient", 0) + 1
+                    st["attempts"] = max(0, st.get("attempts", 1) - 1)
+                    failed = st["transient"] > TRANSIENT_MAX
+                    st.update(state="failed" if failed else "pending", msg=f"stale heartbeat (lane {st.get('lane')}, job {st.get('job')})")
                     write_json(r.state / f"{uid}.json", st)
+                    alert(r, uid, f"{'FAILED after' if failed else 'requeued after'} lane death #{st['transient']} (job {st.get('job')})")
         states = read_states(r)
         by_id = {u["id"]: u for u in units}
         changed = True
@@ -1115,6 +1281,7 @@ def execute(r: Run, u: dict, lane: str) -> None:
     stop = threading.Event()
     threading.Thread(target=heartbeat, args=(r.state / f"{u['id']}.hb", stop), daemon=True).start()
     t0 = time.time()
+    os.environ["FFT_UNIT"] = u["id"]  # sanity records of this unit (also inherited by the training subprocess)
     try:
         if u["kind"] == "collect":
             result = collect(r)
@@ -1123,8 +1290,13 @@ def execute(r: Run, u: dict, lane: str) -> None:
         rec.update(state="done", result=result)
     except Exception as exc:  # noqa: BLE001 - recorded, lanes continue with other units
         import traceback
-        rec.update(state="pending" if rec.get("attempts", 1) < 2 and not isinstance(exc, (AssertionError, KeyError)) else "failed",
-                   msg=f"{type(exc).__name__}: {exc}"[-3000:], trace=traceback.format_exc()[-4000:])
+        # a Python error is retried once, then FAILED; divergence is FAILED_DIVERGED at once (never retried)
+        retry = rec.get("attempts", 1) < 2 and not isinstance(exc, (AssertionError, KeyError, Diverged))
+        rec.update(state="pending" if retry else "failed", msg=f"{type(exc).__name__}: {exc}"[-3000:], trace=traceback.format_exc()[-4000:])
+        if isinstance(exc, Diverged):
+            rec["failure"] = "FAILED_DIVERGED"
+        if not retry:
+            alert(r, u["id"], f"{rec.get('failure', 'FAILED')}: {type(exc).__name__}: {str(exc)[:300]}")
         print(f"UNIT_FAILED {u['id']}: {exc}", flush=True)
     finally:
         stop.set()
@@ -1173,7 +1345,10 @@ def cmd_lane(args) -> None:
     print(f"LANE {lane} job={os.environ.get('SLURM_JOB_ID')} host={socket.gethostname()} gpu={gpu_name()} arch={r.arch} out={out}", flush=True)
     while True:
         cap = (out / "MAX_LANES").read_text().strip() if (out / "MAX_LANES").exists() else None
-        if (out / "STOP").exists() or (cap is not None and int(lane) >= int(cap)):
+        stop_txt = (out / "STOP").read_text() if (out / "STOP").exists() else None
+        # "jobs <id> <id> ..." in STOP stops only those lane jobs (retiring lanes that run older code); any other STOP stops all
+        stop_me = stop_txt is not None and (not stop_txt.startswith("jobs ") or os.environ.get("SLURM_JOB_ID", "") in stop_txt.split()[1:])
+        if stop_me or (cap is not None and int(lane) >= int(cap)):
             print("LANE_STOP (STOP file or MAX_LANES)", flush=True)
             break
         u, why = claim(r, units, hours - (time.time() - start) / 3600, lane)

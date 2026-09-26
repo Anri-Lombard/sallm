@@ -110,7 +110,126 @@ def _build_trainer_and_record(*args, **kwargs):
     return trainer
 
 
-fine_tune_run.build_trainer = _build_trainer_and_record
+# ---------------------------------------------------------------------------------------------------------------
+# Rollout control (env FFT_CTRL = JSON {"out", "run", "unit", "patience"}; absent -> plain training as before).
+# Per epoch (on_save, after the epoch checkpoint is written): score validation in this process with the rollout's
+# protocol scorer (rollout.val_score, fixed subsample), keep the best epoch's weights in RUN/best (strictly greater
+# only; ties keep the earlier epoch), keep the latest full checkpoint in RUN/resume (resume after a lane dies), and stop
+# once `patience` epochs pass without a strictly better score. Divergence: a non-finite logged loss, or a loss above
+# 3x the first-epoch mean for 200 consecutive steps, writes RUN/DIVERGED.json and aborts the unit (never retried).
+CTRL = json.loads(os.environ["FFT_CTRL"]) if os.environ.get("FFT_CTRL") else None
+WEIGHT_FILES = ("config.json", "generation_config.json", "model.safetensors", "pytorch_model.bin")
+
+
+def early_stop_decision(vals: list[float], patience: int) -> tuple[int, bool]:
+    """(best epoch, stop?) for per-epoch validation scores vals[0] = epoch 1. Improvement = strictly greater."""
+    best = max(range(len(vals)), key=lambda i: (vals[i], -i)) + 1
+    return best, patience > 0 and len(vals) - best >= patience
+
+
+if CTRL:
+    import math
+    import shutil
+    import sys
+
+    from transformers import TrainerCallback
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    RUN = Path(CTRL["run"])
+
+    def _write(path: Path, value) -> None:
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(value, indent=1) + "\n")
+        os.replace(tmp, path)
+
+    def _replace_dir(src_files: list[Path], dst: Path) -> None:
+        tmp = dst.with_name(dst.name + ".tmp")
+        shutil.rmtree(tmp, ignore_errors=True)
+        tmp.mkdir(parents=True)
+        for f in src_files:
+            (shutil.copytree if f.is_dir() else shutil.copy2)(f, tmp / f.name)
+        old = dst.with_name(dst.name + ".old")
+        shutil.rmtree(old, ignore_errors=True)
+        if dst.exists():
+            os.replace(dst, old)
+        os.replace(tmp, dst)
+        shutil.rmtree(old, ignore_errors=True)
+
+    class RolloutControl(TrainerCallback):
+        def __init__(self):
+            ref = RUN / "loss_ref.json"
+            self.ref = json.loads(ref.read_text()) if ref.exists() else {"first_epoch": [], "first_mean": None}
+            self.high = 0
+
+        def _diverged(self, why: str, step: int):
+            _write(RUN / "DIVERGED.json", {"reason": why, "step": step, "time": time.time()})
+            raise RuntimeError(f"FAILED_DIVERGED: {why} at step {step}")
+
+        def on_log(self, args, state, control, logs=None, **kw):
+            loss = (logs or {}).get("loss")
+            if loss is None:
+                return
+            if not math.isfinite(loss):
+                self._diverged(f"non-finite loss {loss}", state.global_step)
+            if state.epoch is not None and state.epoch <= 1.0 and self.ref["first_mean"] is None:
+                self.ref["first_epoch"].append(loss)
+                return
+            if self.ref["first_mean"] is None and self.ref["first_epoch"]:
+                self.ref["first_mean"] = sum(self.ref["first_epoch"]) / len(self.ref["first_epoch"])
+                _write(RUN / "loss_ref.json", self.ref)
+            m = self.ref["first_mean"]
+            self.high = self.high + args.logging_steps if m is not None and loss > 3 * m else 0
+            if self.high >= 200:
+                self._diverged(f"loss above 3x the first-epoch mean ({m:.4f}) for {self.high} steps", state.global_step)
+
+        def on_save(self, args, state, control, **kw):
+            import rollout
+
+            ckpt = Path(args.output_dir) / f"checkpoint-{state.global_step}"
+            epoch = int(round(state.epoch or 0)) or 1
+            torch.cuda.empty_cache()  # the scorer runs in a subprocess on this GPU while training waits
+            r = rollout.Run(Path(CTRL["out"]))
+            t0 = time.time()
+            v = rollout.val_score(r, CTRL["unit"], ckpt, RUN / "val" / f"e{epoch}")
+            ep_path = RUN / "val_epochs.json"
+            epochs = [e for e in (json.loads(ep_path.read_text()) if ep_path.exists() else []) if e["epoch"] < epoch]
+            epochs.append({"epoch": epoch, "checkpoint": ckpt.name, "global_step": state.global_step, "val": v["score"], "detail": v,
+                           "val_secs": round(time.time() - t0, 1)})
+            _write(ep_path, epochs)
+            if self.ref["first_mean"] is None and self.ref["first_epoch"]:
+                self.ref["first_mean"] = sum(self.ref["first_epoch"]) / len(self.ref["first_epoch"])
+                _write(RUN / "loss_ref.json", self.ref)
+            best, stop = early_stop_decision([e["val"] for e in epochs], int(CTRL["patience"]))
+            if best == epoch:  # weights only
+                _replace_dir([ckpt / n for n in WEIGHT_FILES if (ckpt / n).exists()], RUN / "best")
+                _write(RUN / "best" / "BEST.json", {"epoch": epoch, "val": v["score"], "checkpoint": ckpt.name})
+            planned = int(args.num_train_epochs)
+            stopped = stop and epoch < planned
+            _write(RUN / "early_stop.json", {"patience": int(CTRL["patience"]), "planned_epochs": planned, "epochs_run": epoch,
+                                              "stopped_early": stopped, "stop_epoch": epoch if stopped else None,
+                                              "best_epoch": best, "best_val": epochs[best - 1]["val"],
+                                              "rule": "stop after `patience` epochs without a strictly greater validation score"})
+            if epoch < planned and not stopped:  # full checkpoint to resume from if the lane dies
+                _replace_dir(sorted(ckpt.iterdir()), RUN / "resume" / ckpt.name)
+                for other in (RUN / "resume").iterdir():
+                    if other.name != ckpt.name:
+                        shutil.rmtree(other, ignore_errors=True)
+            if os.environ.get("FFT_TEST_DIE_AFTER_EPOCH") == str(epoch):  # smoke test of the resume path only
+                os._exit(75)
+            if stopped:
+                control.should_training_stop = True
+            shutil.rmtree(ckpt, ignore_errors=True)  # scored and persisted; /dev/shm holds one epoch at a time
+            return control
+
+
+def _build_trainer_and_control(*args, **kwargs):
+    trainer = _build_trainer_and_record(*args, **kwargs)
+    if CTRL:
+        trainer.add_callback(RolloutControl())
+    return trainer
+
+
+fine_tune_run.build_trainer = _build_trainer_and_control
 
 start = time.time()
 try:

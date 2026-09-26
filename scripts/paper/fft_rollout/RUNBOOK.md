@@ -140,6 +140,33 @@ it, because FLA 0.5.1's cache cannot be reordered across beams and transformers 
 `cache_params`; xLSTM runs at batch 1. Mamba-2 also decodes cache-free (the default in `BEAM_MODE`; no environment
 variable needed). The `collect-beam` unit re-collects after the beam units; `collect` does not wait for them.
 
+Early stopping (user decision 26 Sep 2026, recorded before any unit ran with it; goes into the paper): after each
+epoch's validation scoring with the protocol scorer on the fixed validation subsample, training stops once 3
+consecutive epochs pass without a strictly greater selection score (ties are not improvement; General: the
+six-family mean). So at least 4 epochs run (patience + 1). The best epoch is selected exactly as before (maximum
+score, ties to the earlier epoch). Each run's RUN_DONE.json and `runs/<run>/early_stop.json` record `stopped_early`,
+`stop_epoch`, `epochs_run`, `planned_epochs` and `best_epoch`. Mechanism: a callback in `train_fft.py` (the training
+subprocess) scores each epoch checkpoint in-process through `rollout.val_score` while training waits (CUDA cache
+emptied first), keeps the best epoch's weights in `runs/<run>/best/` and sets `should_training_stop`; the Trainer's
+eval loss is not used. Units that were already running when this was synced (22:45, 26 Sep) finished with full epochs.
+
+Safeguards (no protocol change):
+- Sanity checks after every validation/test score: `sanity/<unit>.json` (SANITY per unit); failures go to
+  `ALERTS.txt` in the run and, through `rebalance.py`, to `~/.sallm_fire/alerts.log` on the Mac (one file to watch).
+  Classification (News/SIB/Intent/Belebele): one predicted label > 80% of predictions, or score <= the majority
+  baseline (weighted F1 of always predicting the majority class; Belebele: majority-answer accuracy). NER/POS: > 20%
+  empty outputs, or score <= a trivial baseline (NER all-O = 0; POS majority tag accuracy). T2X/AfriHG: > 20% empty,
+  or > 30% of outputs repeating one 4-gram 4+ times.
+- Divergence abort in training: a non-finite logged loss, or a loss above 3x the first-epoch mean for 200
+  consecutive steps (anomaly-detection NaNs in backward count too) -> `runs/<run>/DIVERGED.json`, unit FAILED_DIVERGED,
+  alert, never retried.
+- Resume: every epoch's full checkpoint (with optimizer/scheduler/RNG) replaces `runs/<run>/resume/` on scratch; a lane
+  that dies (stale heartbeat after 20 min) puts its unit back to pending without using up the retry, and the next lane
+  resumes training from that checkpoint (already-scored epochs and the best weights persist). After 4 lane deaths the
+  unit is FAILED and alerted. A Python error is retried once, then FAILED and alerted.
+- Retiring lanes that run older code: `echo "jobs <id> <id>" > $R/runs/<name>/STOP` stops only those lane jobs after
+  their current unit; any other STOP content stops every lane. `python3 selfcheck.py` checks the rules offline.
+
 General regime, trimmed (user decision 26 Sep 2026, recorded before any Multi result was read): no General LR
 sweep and no General seeds 43/44 (nor their beam units). Each architecture trains ONE General model, seed 42, at the
 LR chosen most often across that architecture's Multi selections (News, SIB-200, Intent, NER, POS, AfriHG, including

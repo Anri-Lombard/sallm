@@ -8,6 +8,7 @@ included. Nothing is added while any mp-full-* job is pending (pretraining first
 has finished but whose rollout has not been fired yet keeps 2 GPUs reserved for fire_when_ready.sh.
 Readiness is computed here from units.json + state/*.json (the head node only runs cat/squeue/sbatch): a unit is
 ready when it has not started and its deps are done (and its ordering-only `after` units are terminal).
+New lines of each run's ALERTS.txt are appended to ~/.sallm_fire/alerts.log.
 It never cancels anything and never lowers MAX_LANES: lanes free their GPU by themselves (LANE_IDLE_EXIT after
 IDLE_EXIT_MIN minutes with nothing runnable, or LANE_FINISHED). Lanes are added with addlane.sh, NICE=1000.
 A run with work left but no lane at all (e.g. every lane idled out while a stale unit waited) gets one lane first.
@@ -17,6 +18,7 @@ import json
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 R = "/scratch/lmbanr001/masters/sallm/results/fft_rollout_20260926"
 ARCHS = ("mzansilm", "mamba2", "xlstm", "gdn")
@@ -41,13 +43,33 @@ def gpus(tres: str) -> int:
     return int(last) if last.isdigit() else 1
 
 
+ALERT_LOG = Path.home() / ".sallm_fire" / "alerts.log"
+ALERT_SEEN = Path.home() / ".sallm_fire" / "alerts.seen"
+
+
+def forward_alerts(lines: list[str]) -> None:
+    """Append rollout ALERTS.txt lines not seen before to ~/.sallm_fire/alerts.log (the one file to watch)."""
+    seen = set(ALERT_SEEN.read_text().splitlines()) if ALERT_SEEN.exists() else set()
+    new = [x for x in lines if x not in seen]
+    if new:
+        with ALERT_LOG.open("a") as fh:
+            fh.write("".join(x + "\n" for x in new))
+        with ALERT_SEEN.open("a") as fh:
+            fh.write("".join(x + "\n" for x in new))
+        print(f"{time.strftime('%F %T')} {len(new)} new alert(s) -> {ALERT_LOG}", flush=True)
+
+
 def snapshot() -> tuple[list[tuple[str, str, int]], dict]:
     script = (f'squeue -u $USER -h -o "%j|%T|%b"; echo "@@RUNS"; '
               f'for a in {" ".join(ARCHS)}; do O={R}/runs/$a; [ -e $O/units.json ] || continue; '
               f'echo "@@RUN $a"; cat $O/units.json; echo "@@STATES"; '
-              f'for f in $O/state/*.json; do [ -e "$f" ] || continue; echo "@@S $(basename $f .json)"; cat "$f"; done; echo "@@END"; done')
+              f'for f in $O/state/*.json; do [ -e "$f" ] || continue; echo "@@S $(basename $f .json)"; cat "$f"; done; echo "@@END"; done; '
+              f'for a in {" ".join(ARCHS)}; do [ -s {R}/runs/$a/ALERTS.txt ] && sed "s/^/@@ALERT /" {R}/runs/$a/ALERTS.txt; done; true')
     out = hex_(script)
     jobs, runs = [], {}
+    alerts = [line[len("@@ALERT "):] for line in out.splitlines() if line.startswith("@@ALERT ")]
+    forward_alerts(alerts)
+    out = "\n".join(line for line in out.splitlines() if not line.startswith("@@ALERT "))
     head, _, rest = out.partition("@@RUNS")
     for line in head.splitlines():
         parts = line.strip().split("|")
