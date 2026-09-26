@@ -11,7 +11,7 @@ R=/scratch/lmbanr001/masters/sallm/results/fft_rollout_20260926
 q() { grep -v -E '^\*\*|^ *\*|AUP|agree|^$' || true; }
 while true; do
   run=$(ssh -o ConnectTimeout=20 hex "ls -d $M/full_${ARCH}_wsd_lr* 2>/dev/null" 2>/dev/null | q)
-  if [[ $(wc -w <<< "$run") == 1 ]]; then
+  if (( $(wc -w <<< "$run") == 1 )); then
     final=$(ssh -o ConnectTimeout=20 hex "t=\$(grep -o '\"total_steps\": [0-9]*' $run/run_meta.json | grep -o '[0-9]*\$'); \
       ls -d $run/weights/step\$(printf %06d \$t)_tok* 2>/dev/null | grep -v '\.tmp\$'" 2>/dev/null | q)
     pending=$(ssh -o ConnectTimeout=20 hex 'squeue -u $USER -h -t PD -o %j' 2>/dev/null | grep -c '^mp-full-' || true)
