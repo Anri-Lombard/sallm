@@ -10,10 +10,10 @@ M=/scratch/lmbanr001/masters/sallm/results/matched_pretrain_20260926/runs
 R=/scratch/lmbanr001/masters/sallm/results/fft_rollout_20260926
 q() { grep -v -E '^\*\*|^ *\*|AUP|agree|^$' || true; }
 while true; do
-  run=$(ssh -o ConnectTimeout=20 hex "ls -d $M/full_${ARCH}_wsd_lr* 2>/dev/null" 2>/dev/null | q)
+  run=$(ssh -o ConnectTimeout=20 hex "ls -d $M/full_${ARCH}_wsd_lr* 2>/dev/null" 2>/dev/null | q) || run=""
   if (( $(wc -w <<< "$run") == 1 )); then
     final=$(ssh -o ConnectTimeout=20 hex "t=\$(grep -o '\"total_steps\": [0-9]*' $run/run_meta.json | grep -o '[0-9]*\$'); \
-      ls -d $run/weights/step\$(printf %06d \$t)_tok* 2>/dev/null | grep -v '\.tmp\$'" 2>/dev/null | q)
+      ls -d $run/weights/step\$(printf %06d \$t)_tok* 2>/dev/null | grep -v '\.tmp\$'" 2>/dev/null | q) || final=""
     pending=$(ssh -o ConnectTimeout=20 hex 'squeue -u $USER -h -t PD -o %j' 2>/dev/null | grep -c '^mp-full-' || true)
     if [[ -n "$final" && -e ~/.sallm_fire/HOLD ]]; then
       echo "$(date '+%F %T') final weights ready but ~/.sallm_fire/HOLD exists; waiting"
