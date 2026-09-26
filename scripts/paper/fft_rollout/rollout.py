@@ -66,6 +66,15 @@ TOKENIZER_SHA = "446895905ea9b20c746317eefd0c6a3b097bcbbef71e8e44b0bf9772d664782
 LRS = ("3e-5", "1e-4", "3e-4")
 EDGE = {"3e-5": "1e-5", "3e-4": "1e-3"}  # one more point beyond an edge optimum
 SEEDS_HEADLINE = (43, 44)  # plus seed 42 (the sweep run)
+# Beam search (test only, reported beside greedy; greedy stays primary): the v1 settings of the V8 generation config
+# (T2X 5 beams, length penalty 1.0; AfriHG 5 beams, length penalty 0.7; early stopping). Transformers 4.57.3 reorders
+# beams through Cache.reorder_cache: FLA 0.5.1's cache layers keep their state in `.state`, so the reorder hits
+# `.keys = None` (GDN, Mamba-2: AttributeError), and HF xLSTM keeps `cache_params`, which beam search never reorders
+# (silently wrong beams). Those decode without the generation cache (exact, slower). Mamba-2 beam is recorded as
+# "not supported by the implementation" unless BEAM_MAMBA2_NOCACHE=1 (same cache-free path as GDN).
+BEAM_MODE = {"mzansilm": "cache", "gdn": "nocache", "xlstm": "nocache",
+             "mamba2": "nocache" if os.environ.get("BEAM_MAMBA2_NOCACHE") == "1" else "unsupported"}
+BEAM_FACTOR = {"cache": 3.0, "nocache": 12.0}  # beam s/row over greedy s/row; provisional until the beam canary measures it
 ARCHS = {
     #          Hydra model key     python     eval interface (dtype, merge_lora, tie_word_embeddings)
     "mzansilm": dict(key="llama", py=MAIN_PY, dtype="bfloat16", merge=False, tie=None),
@@ -120,7 +129,7 @@ GEN_S_PER_ROW = {"mzansilm": 0.076, "mamba2": 0.35, "xlstm": 0.28, "gdn": 0.26} 
 # the General runs: POS test 45/124/108/97 min, NER test 11/15/11/13 min for mzansilm/mamba2/xlstm/gdn).
 POS_TEST_MIN = {"mzansilm": 45, "mamba2": 124, "xlstm": 108, "gdn": 97}
 NER_TEST_MIN = {"mzansilm": 11, "mamba2": 15, "xlstm": 25, "gdn": 13}
-VAL_ROWS = {"t2x": 460, "afrihg": 2 * 1100}
+VAL_ROWS = {"t2x": 460, "afrihg": 2 * 500}  # fixed selection subsample (val_subsample.json): AfriHG dev 1305/1777 -> 500 each
 TEST_ROWS = {"t2x": 378, "afrihg": 1305 + 1776}
 
 
@@ -130,7 +139,8 @@ def score_minutes(arch: str, family: str, split: str, n_langs_frac: float = 1.0)
         per = GEN_S_PER_ROW[arch] * (1.5 if family == "afrihg" else 1.0)
         return (rows * per / 60 + 1.5) * n_langs_frac
     base = {"news": 4 if split == "val" else 5, "sib": 1.5 if split == "val" else 2.5, "intent": 3 if split == "val" else 8,
-            "ner": NER_TEST_MIN[arch], "pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0),
+            "ner": NER_TEST_MIN[arch] * (1499 / 2152 if split == "val" else 1.0),  # val subsample 499+500+500 of 2152
+            "pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0),
             "belebele": 15, "transfer": 45 if arch != "xlstm" else 120}[family]
     slow = 1.6 if arch in ("mamba2", "xlstm") and family in ("news", "sib", "intent", "belebele") else 1.0
     return (base * slow + 1.0) * n_langs_frac
@@ -185,11 +195,36 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
                 units.append(unit(f"train-{fam}-{tag}-s{seed}", "train", [f"select-{fam}"], family=fam, regime=sweep_regime,
                                   langs=sweep_langs, lr=None, seed=seed, keep=False, test=True))
     units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count"], light=True))
+    beams = beam_units(families, smoke)  # after collect in the DAG: a failed beam unit never blocks the main results
+    units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"], light=True)] if beams else []
     if cross_eval:
         units += cross_eval_units(families)
     for u in units:
         u["est_hours"] = round(estimate(arch, u, smoke), 3)
     return units
+
+
+def beam_units(families: dict, smoke: bool) -> list[dict]:
+    """Test-only beam decoding of every selected generation checkpoint (T2X, AfriHG, and the General model's two)."""
+    out = []
+    seeds = (42, *(SMOKE["seeds"] if smoke else SEEDS_HEADLINE))
+    if "t2x" in families:
+        tag = "mono-" + "-".join(FAMILIES["t2x"]["langs"])
+        for seed in seeds:
+            src = f"test-t2x-{tag}" if seed == 42 else f"train-t2x-{tag}-s{seed}"
+            out.append(unit(f"beam-t2x-{tag}-s{seed}", "beam", [src], src=src, family="t2x", gen={"t2x": ["xho"]}, seed=seed))
+    if "afrihg" in families:
+        out.append(unit("beam-afrihg-multi", "beam", ["test-afrihg-multi"], src="test-afrihg-multi", family="afrihg",
+                        gen={"afrihg": list(FAMILIES["afrihg"]["langs"])}, seed=42))
+        for lang in families["afrihg"]:
+            src = f"train-afrihg-mono-{lang}-s42"
+            out.append(unit(f"beam-afrihg-mono-{lang}", "beam", [src], src=src, family="afrihg", gen={"afrihg": [lang]}, seed=42))
+    if "general" in families:
+        for seed in seeds:
+            src = "test-general-general" if seed == 42 else f"train-general-general-s{seed}"
+            out.append(unit(f"beam-general-s{seed}", "beam", [src], src=src, family="general",
+                            gen={"t2x": ["xho"], "afrihg": list(FAMILIES["afrihg"]["langs"])}, seed=seed))
+    return out
 
 
 def cross_eval_units(families: dict) -> list[dict]:
@@ -228,7 +263,7 @@ def family_minutes(arch: str, u: dict, split: str) -> float:
 
 def estimate(arch: str, u: dict, smoke: bool) -> float:
     if smoke:
-        return {"prep": 0.05, "count": 0.3, "base": 0.15, "train": 0.2, "select": 0.05, "test": 0.2, "collect": 0.02, "xeval": 0.1}[u["kind"]]
+        return {"prep": 0.05, "count": 0.3, "base": 0.15, "train": 0.2, "select": 0.05, "test": 0.2, "collect": 0.02, "xeval": 0.1, "beam": 0.1}[u["kind"]]
     if u["kind"] == "prep":
         return 0.1
     if u["kind"] == "base":
@@ -247,6 +282,12 @@ def estimate(arch: str, u: dict, smoke: bool) -> float:
         return 0.5 * estimate(arch, probe, smoke) if u["edge"] else 0.01
     if u["kind"] == "test":
         return family_minutes(arch, u, "test") / 60 + 0.05
+    if u["kind"] == "beam":
+        mode = BEAM_MODE[arch]
+        if mode == "unsupported":
+            return 0.01
+        rows = sum(TEST_ROWS["t2x"] if f == "t2x" else TEST_ROWS["afrihg"] * len(ls) / 2 for f, ls in u["gen"].items())
+        return rows * GEN_S_PER_ROW[arch] * BEAM_FACTOR[mode] / 3600 + 0.05
     if u["kind"] == "xeval":
         return score_minutes(arch, u["family"], "test", len(u["targets"]) / len(FAMILIES[u["family"]]["langs"])) / 60 + 0.05
     return 0.05
@@ -260,7 +301,7 @@ def cmd_matrix(args) -> None:
             lr = u.get("lr") or ("selected" if u["kind"] == "train" else "")
             ep = epochs_for(rows_for(u)) if u["kind"] == "train" else ""
             rows.append({"arch": arch, "unit": u["id"], "kind": u["kind"], "stage": stage_of(u), "family": u.get("family", u.get("group", "")),
-                         "regime": u.get("regime", "Base" if u["kind"] == "base" else ""), "languages": "+".join(u.get("langs", [])),
+                         "regime": u.get("regime", "Base" if u["kind"] == "base" else ""), "languages": "+".join(u.get("langs", [])) or "+".join(f"{f}:{l}" for f, ls in u.get("gen", {}).items() for l in ls),
                          "lr": lr, "seed": u.get("seed", ""), "epochs": ep, "train_rows_approx": rows_for(u) if u["kind"] == "train" else "",
                          "val_scoring_passes": ep, "test_after_training": u.get("test", ""), "depends_on": " ".join(u["deps"]),
                          "est_gpu_hours": u["est_hours"], "optional": bool(u.get("optional")),
@@ -326,6 +367,8 @@ def stage_of(u: dict) -> str:
         return "test-scoring"
     if u["kind"] == "xeval":
         return "cross_eval (optional, off by default)"
+    if u["kind"] == "beam":
+        return "beam (test only, beside greedy)"
     return "lr-sweep" if u.get("keep") else ("seed" if u.get("seed", 42) != 42 else "mono")
 
 
@@ -542,7 +585,7 @@ def gen_spec(r: Run, model: Path, tasks: list[str], out: Path) -> Path:
     return out.with_suffix(".spec.json")
 
 
-def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: Path) -> dict:
+def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: Path, beam: bool = False) -> dict:
     """Score one family on one split with the paper's protocol scorer. Returns {"per_lang": {lang: points}, ...}."""
     done = out.with_suffix(".score.json")
     if done.exists():
@@ -555,6 +598,9 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
         out.rename(out.with_name(out.name + f".partial{int(time.time())}"))
     t0 = time.time()
     per, n = {}, {}
+    # selection uses the fixed validation subsample (val_subsample.json); test is always full size
+    os.environ["FFT_VAL_SUBSAMPLE"] = "1" if split == "val" else "0"
+    os.environ["FFT_VAL_SPLIT"] = split
     if family in ("news", "sib"):
         raw = out.with_suffix(".json")
         cmd = [py, f"{hs}/{family}_score.py", "--arch", arch, "--base", model, "--split", kit_split, "--langs", ",".join(langs), "--out", raw]
@@ -591,7 +637,10 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
         runner = f"{hs}/gen_direct_bs1.py" if arch == "xlstm" else f"{hs}/gen_direct.py"
         env = r.env({"SALLM_T2X_CACHE_DIR": f"{GEN}/data/t2x_cache", "PYTHONPATH_PREPEND": BUNDLE})
         cmd = [py, runner, "--spec", gen_spec(r, model, tasks, out), "--index", "0", "--source", V8, "--output", out,
-               "--split", split, "--system-prompt", "drop", "--decoding", "greedy"]
+               "--split", split, "--system-prompt", "drop", "--decoding", "config" if beam else "greedy"]
+        if beam:
+            assert split == "test" and BEAM_MODE[arch] != "unsupported", (split, arch)
+            cmd += ["--no-cache"] if BEAM_MODE[arch] == "nocache" else []
         r.sh(cmd + (["--max-samples", lim] if lim else []), log, env, cwd=GEN)
         summary = json.loads((out / "evaluation_summary.json").read_text())
         for row in summary:
@@ -634,7 +683,9 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
     else:
         raise ValueError(family)
     rec = {"family": family, "split": split, "model": str(model), "per_lang": per, "n": n, "raw": str(out),
-           "mean": sum(per.values()) / len(per), "secs": round(time.time() - t0, 1), "limit": lim, "gpu": gpu_name()}
+           "mean": sum(per.values()) / len(per), "secs": round(time.time() - t0, 1), "limit": lim, "gpu": gpu_name(),
+           "val_subsample_sha256": hashlib.sha256((HERE / "val_subsample.json").read_bytes()).hexdigest() if split == "val" else None,
+           "decoding": ("beam" + ("" if BEAM_MODE[arch] == "cache" else " (no cache)")) if beam else "greedy"}
     write_json(done, rec)
     return rec
 
@@ -863,6 +914,20 @@ def do_test(r: Run, u: dict) -> dict:
     return {"run": rid, "test": res}
 
 
+def do_beam(r: Run, u: dict) -> dict:
+    src = json.loads((r.state / f"{u['src']}.json").read_text())["result"]
+    rid = src["run"]
+    ckpt = Path(json.loads((r.out / "keep" / u["family"] / "SELECTED.json").read_text())["checkpoint"]) if u["src"].startswith("test-") \
+        else Path(json.loads((r.out / "runs" / rid / "RUN_DONE.json").read_text())["kept"])
+    if BEAM_MODE[r.arch] == "unsupported":
+        res = {"status": "not supported by the implementation", "reason": "FLA 0.5.1 cache cannot be reordered across beams"}
+    else:
+        res = {f: score(r, f, "test", ckpt, langs, r.out / "test" / f"beam-{rid}" / f, beam=True)["per_lang"] for f, langs in u["gen"].items()}
+    write_json(r.out / "runs" / rid / "BEAM_DONE.json", {"unit": u["id"], "checkpoint": str(ckpt), "mode": BEAM_MODE[r.arch],
+                                                         "gen": u["gen"], "test": res})
+    return {"run": rid, "test": res}
+
+
 def do_xeval(r: Run, u: dict) -> dict:
     rid = run_id({**u, "seed": 42}, selected_lr(r, u["family"]))
     done = json.loads((r.out / "runs" / rid / "RUN_DONE.json").read_text())
@@ -948,7 +1013,7 @@ def do_count(r: Run, u: dict) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------- lane worker
-KINDS = {"prep": do_prep, "count": do_count, "base": do_base, "train": do_train, "select": do_select, "test": do_test, "xeval": do_xeval}
+KINDS = {"prep": do_prep, "count": do_count, "base": do_base, "train": do_train, "select": do_select, "test": do_test, "xeval": do_xeval, "beam": do_beam}
 
 
 class Lock:
@@ -1222,7 +1287,30 @@ def collect(r: Run) -> dict:
                              "train_language": "+".join(meta["langs"]) if regime == "Mono" else "",
                              "metric": METRIC[task_fam], "score_points": f"{pts:.6f}", "ci95_low": ci[0], "ci95_high": ci[1],
                              "n_items": rec["n"].get(lang), "lr": meta["lr"], "seed": meta["seed"], "epoch": meta["best_epoch"],
-                             "run": done.parent.name, "gpu": rec.get("gpu"), "limit": rec.get("limit")})
+                             "run": done.parent.name, "gpu": rec.get("gpu"), "limit": rec.get("limit"),
+                             "decoding": "greedy" if fam in ("t2x", "afrihg") else "", "note": ""})
+    for b in sorted((r.out / "runs").glob("*/BEAM_DONE.json")):  # test-only beam decoding, beside greedy
+        d, meta = json.loads(b.read_text()), json.loads((b.parent / "RUN_DONE.json").read_text())
+        regime = {"mono": "Mono", "multi": "Multi", "general": "General"}[meta["regime"]]
+        common = {"model": model, "regime": regime, "train_language": "+".join(meta["langs"]) if regime == "Mono" else "", "metric": "chrf",
+                  "lr": meta["lr"], "seed": meta["seed"], "epoch": meta["best_epoch"], "run": b.parent.name}
+        if "status" in d["test"]:
+            for fam, langs in d["gen"].items():
+                for lg in langs:
+                    rows.append({**common, "task": PAPER_TASK[fam], "language": lg, "family": LANG_FAMILY[lg], "score_points": "",
+                                 "ci95_low": "", "ci95_high": "", "n_items": "", "gpu": "", "limit": "", "decoding": "beam",
+                                 "note": d["test"]["status"]})
+            continue
+        for fam in d["test"]:
+            rec = json.loads((r.out / "test" / f"beam-{b.parent.name}" / f"{fam}.score.json").read_text())
+            for lg, pts in rec["per_lang"].items():
+                ci = ("", "")
+                got = items_for(rec, lg)
+                if got and got[0]:
+                    ci = tuple(round(x, 4) for x in bootstrap(got[0], got[1]))
+                rows.append({**common, "task": PAPER_TASK[fam], "language": lg, "family": LANG_FAMILY[lg], "score_points": f"{pts:.6f}",
+                             "ci95_low": ci[0], "ci95_high": ci[1], "n_items": rec["n"].get(lg), "gpu": rec.get("gpu"),
+                             "limit": rec.get("limit"), "decoding": "beam", "note": rec.get("decoding", "")})
     base = r.out / "base_eval"
     for fam in ("t2x", "afrihg"):
         p = base / "gen" / f"{fam}.score.json"
@@ -1232,7 +1320,8 @@ def collect(r: Run) -> dict:
                 rows.append({"model": model, "task": PAPER_TASK[fam], "language": lang, "family": LANG_FAMILY[lang], "regime": "Base",
                              "train_language": "", "metric": "chrf",
                              "score_points": f"{pts:.6f}", "ci95_low": "", "ci95_high": "", "n_items": rec["n"][lang], "lr": "",
-                             "seed": "", "epoch": "", "run": "base-gen", "gpu": rec.get("gpu"), "limit": rec.get("limit")})
+                             "seed": "", "epoch": "", "run": "base-gen", "gpu": rec.get("gpu"), "limit": rec.get("limit"),
+                             "decoding": "greedy", "note": ""})
     for x in sorted((r.out / "runs").glob("*/XEVAL_DONE.json")):  # optional cross-lingual transfer matrix
         d, meta = json.loads(x.read_text()), json.loads((x.parent / "RUN_DONE.json").read_text())
         rec = json.loads((r.out / "test" / f"xeval-{x.parent.name}" / f"{meta['family']}.score.json").read_text())
@@ -1241,7 +1330,7 @@ def collect(r: Run) -> dict:
                          "regime": "Mono-crosslingual", "train_language": d["train_language"], "metric": METRIC[meta["family"]],
                          "score_points": f"{pts:.6f}", "ci95_low": "", "ci95_high": "", "n_items": rec["n"].get(lang), "lr": meta["lr"],
                          "seed": meta["seed"], "epoch": meta["best_epoch"], "run": x.parent.name, "gpu": rec.get("gpu"),
-                         "limit": rec.get("limit")})
+                         "limit": rec.get("limit"), "decoding": "greedy" if meta["family"] in ("t2x", "afrihg") else "", "note": ""})
     out = r.out / "results" / "cells.csv"
     if rows:
         with out.open("w", newline="") as fh:

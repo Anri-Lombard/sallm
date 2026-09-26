@@ -52,6 +52,11 @@ from sallm.evaluation.pos_metrics import UPOS_LABELS
 from sallm.templates import registry as templates
 from transformers import AutoTokenizer
 
+import sys  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from val_subsample import indices as val_subsample_indices  # noqa: E402
+
 ARCHITECTURES = ("mzansilm", "mamba2", "xlstm", "gdn")
 LANGUAGES = tuple(os.environ.get("SEQ_LANGUAGES", "tsn,xho,zul").split(","))
 PROTOCOL_PROMPTS = {"ner": {"tsn": 2, "xho": 5, "zul": 5}, "pos": {"tsn": 3, "xho": 3, "zul": 3}}
@@ -223,6 +228,11 @@ def load_ner_split(
         revision=NER_REVISION,
         split=split,
     )
+    if split == "validation":  # fixed selection subsample (rollout: FFT_VAL_SUBSAMPLE=1)
+        keep = val_subsample_indices("ner", language, len(dataset))
+        if keep is not None:
+            print(f"VAL_SUBSAMPLE ner/{language} {len(dataset)} -> {len(keep)}", flush=True)
+            dataset = dataset.select(keep)
     return DatasetDict({split: dataset})
 
 

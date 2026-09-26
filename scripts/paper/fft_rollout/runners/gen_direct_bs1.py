@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import cast
@@ -41,10 +42,42 @@ def _load_with_recurrent_cache(model_cfg):
     model, tokenizer = _load_model_and_tokenizer(model_cfg)
     if getattr(model.config, "model_type", None) == "xlstm":
         model.config.use_cache = True
+    if os.environ.get("FFT_GEN_NO_CACHE") == "1":
+        model.config.use_cache = False
     return model, tokenizer
 
 
 eval_run.load_model_and_tokenizer = _load_with_recurrent_cache
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from val_subsample import indices as val_subsample_indices  # noqa: E402
+from sallm.evaluation.generation_metrics import GenerationEvaluator  # noqa: E402
+
+_evaluate, _cap = GenerationEvaluator.evaluate, GenerationEvaluator._cap_dataset
+
+
+def _evaluate_with_task(self, model, dataset, *args, **kwargs):
+    self._fft_task = str(kwargs.get("metric_prefix", "")).split("/")[-1]  # harness passes eval/<task id>
+    return _evaluate(self, model, dataset, *args, **kwargs)
+
+
+def _cap_with_subsample(self, dataset, world_size, lang_key):
+    """Validation only (FFT_VAL_SUBSAMPLE=1): the fixed selection subsample, then the smoke cap if any."""
+    task = getattr(self, "_fft_task", "")
+    if os.environ.get("FFT_VAL_SPLIT") == "val" and "_" in task:
+        family, lang = task.rsplit("_", 1)
+        keep = val_subsample_indices(family, lang, len(dataset))
+        if keep is not None:
+            print(f"VAL_SUBSAMPLE {family}/{lang} {len(dataset)} -> {len(keep)}", flush=True)
+            dataset = dataset.select(keep)
+    if self.max_samples_per_lang is not None and len(dataset) > self.max_samples_per_lang:
+        return dataset.select(range(self.max_samples_per_lang)) if os.environ.get("FFT_VAL_SPLIT") == "val" else _cap(self, dataset, world_size, lang_key)
+    return dataset
+
+
+GenerationEvaluator.evaluate = _evaluate_with_task
+GenerationEvaluator._cap_dataset = _cap_with_subsample
 
 
 def main() -> None:
@@ -57,6 +90,7 @@ def main() -> None:
     parser.add_argument("--system-prompt", choices=("keep", "drop"), required=True)
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--decoding", choices=("config", "greedy"), default="config")
+    parser.add_argument("--no-cache", action="store_true", help="decode without the generation cache (beam search on models whose cache cannot be reordered)")
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
@@ -77,9 +111,13 @@ def main() -> None:
         task["max_samples_per_lang"] = args.max_samples
         if args.system_prompt == "drop":
             task.pop("system_prompt", None)
-        # Greedy is the only decoding all four architectures support (Mamba-2 cannot reorder beams).
-        if args.decoding == "greedy" or unit["architecture"] == "mamba2":
+        if args.decoding == "greedy":
             task["decoding"] = {"strategy": "greedy", "batch_size": 1}
+        elif unit["architecture"] == "mamba2" and not args.no_cache:
+            # FLA 0.5.1's cache cannot be reordered across beams; never fall back to greedy under a beam label.
+            raise SystemExit("beam search on mamba2 needs --no-cache")
+        else:
+            task["decoding"] = {**task["decoding"], "batch_size": 1}
     config_dict = {
         "mode": "EVALUATE",
         "eval_model": {
@@ -97,6 +135,8 @@ def main() -> None:
         },
     }
     config = cast(ExperimentConfig, OmegaConf.merge(OmegaConf.structured(ExperimentConfig), OmegaConf.create(config_dict)))
+    if args.no_cache:
+        os.environ["FFT_GEN_NO_CACHE"] = "1"
     run(config)
     summary = verify_output(args.output, wanted)
     marker = {
@@ -106,6 +146,7 @@ def main() -> None:
         "system_prompt": args.system_prompt,
         "max_samples_per_lang": args.max_samples,
         "decoding": [task["decoding"] for task in tasks],
+        "generation_cache": not args.no_cache,
         "evaluation_summary_sha256": sha256(summary),
         "tasks": sorted(wanted),
         "generation": {"batch_size": 1, "xlstm_use_cache": True, "padding": "none"},

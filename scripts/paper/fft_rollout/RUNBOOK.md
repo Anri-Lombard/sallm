@@ -37,9 +37,18 @@ Or from the Mac, fire each architecture the moment its final weights exist (poll
 because `mp-full-*` jobs resubmit themselves under new ids):
 
 ```bash
-cd ~/Desktop/Masters/sallm/scripts/paper/fft_rollout
-for a in mzansilm xlstm gdn mamba2; do nohup bash fire_when_ready.sh $a <CAP> > ~/fire_$a.log 2>&1 & done
+# detached from the terminal (setsid) and kept awake (caffeinate); a copy of the script so later edits cannot touch it
+mkdir -p ~/.sallm_fire && cp ~/Desktop/Masters/sallm/scripts/paper/fft_rollout/fire_when_ready.sh ~/.sallm_fire/
+for ac in mzansilm:2 xlstm:3 gdn:3 mamba2:2; do a=${ac%:*}; c=${ac#*:}
+  perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- nohup caffeinate -i bash ~/.sallm_fire/fire_when_ready.sh $a $c \
+    < /dev/null > ~/.sallm_fire/$a.log 2>&1 &
+done
+pgrep -fl fire_when_ready; tail ~/.sallm_fire/*.log
 ```
+The loops wait while any `mp-full-*` job is pending. Caps 2/3/3/2 keep pretraining + lanes <= 10 L40S at every point
+(the first three bases free 6 GPUs while Mamba-2 still pretrains on 2). When an architecture's lanes go idle at the end,
+hand its GPUs to a slower one: `echo <n> > $R/runs/<name>/MAX_LANES` plus extra lanes (section 2). The Mac must stay
+awake and online (caffeinate stops idle sleep, not a closed lid).
 
 GPU budget: the per-user QOS limit is 10 L40S and the matched-pretraining runs (`mp-full-*`, 2 GPUs each, auto-resuming)
 have priority. Pick `CAP` so that pretraining GPUs + all rollout lanes <= 10 (e.g. the first base finishes -> its 2 GPUs
@@ -101,6 +110,21 @@ checkpoints per run shipped Kombuys -> Mac -> HEX login node. Not worth it at ~0
 Every training run: epochs = 10 if the tokenized train set has < 5000 rows else 4, one checkpoint per epoch in
 node-local `/dev/shm`, each scored on validation with the paper's protocol scorer; only the best epoch survives
 (sweep runs keep it in `keep/`, deleted when not selected). All scoring is on the lane's L40S.
+
+Selection (best epoch and LR) uses a FIXED validation subsample: at most 500 items per (task, language), drawn once
+with seed 20260926 and stored in `val_subsample.json` (sha256 in every validation score record; `val_subsample.py`
+rebuilds it byte for byte). Only NER xho/zul (817/836 -> 500) and AfriHG xho/zul (1305/1777 -> 500) are cut; every
+other validation split has <= 500 items and stays whole. The General model's per-epoch validation uses the same
+subsets. Test scoring is always full size.
+
+Beam stage (test only, beside greedy; greedy stays the primary all-architecture number): every selected T2X/AfriHG
+checkpoint (T2X Mono seeds 42/43/44, AfriHG Multi + Mono xho/zul, General seeds 42/43/44) is decoded again with the v1
+beam settings (5 beams; length penalty 1.0 T2X, 0.7 AfriHG; early stopping), scored with the same NFC chrF, rows with
+`decoding=beam` in cells.csv and `data/fft-beam.csv`. MzansiLM uses the generation cache; GDN and xLSTM decode without
+it, because FLA 0.5.1's cache cannot be reordered across beams and transformers 4.57.3 never reorders xLSTM's
+`cache_params`; xLSTM runs at batch 1. Mamba-2 beam cells are recorded as "not supported by the implementation"
+(`BEAM_MAMBA2_NOCACHE=1` in the lane environment would run it cache-free like GDN). The `collect-beam` unit re-collects
+after the beam units; `collect` does not wait for them.
 
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
