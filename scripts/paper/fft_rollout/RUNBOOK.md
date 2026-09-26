@@ -148,3 +148,16 @@ cd ~/Desktop/sa-architecture-comparison-paper
 
 `collect_fft.py` refuses smoke (limited) results and needs all four architectures. Every output carries a language
 `family` column (Nguni: zul, xho, ssw, nbl; Sotho-Tswana: sot, tsn, nso; afr, eng, ven, tso on their own).
+
+## 5. Smoke test (stand-in base, tiny cells)
+
+```bash
+SMOKE=1 FIX_SPECIAL_IDS=1 LANE_TIME=00:50:00 bash $R/code/fft_rollout/launch.sh mzansilm \
+  /scratch/lmbanr001/masters/sallm/checkpoints/sallm-llama-125m/final_model 1 smoke-mzansilm
+# per architecture, T2X + General only (every scorer of that architecture):
+SMOKE=1 SMOKE_FAMILIES="t2x general" LANE_TIME=00:50:00 bash $R/code/fft_rollout/launch.sh gdn <base> 1 smoke-gdn
+```
+Smoke = 4 optimizer steps per run (one checkpoint), 20 items per language for every validation and test scorer,
+SIB/NER/POS/T2X/General cells (+ a tokenization-only count of every training config). 50-minute lanes backfill
+single free GPUs and resubmit themselves. Delete smoke checkpoints afterwards: `rm -rf $R/runs/smoke-*/keep/*/*_e* $R/runs/smoke-*/base`.
+While any `mp-full-*` job is pending, hold smoke jobs (`scontrol hold <id>`); pretraining has priority.

@@ -10,12 +10,14 @@ set -euo pipefail
 NAME="${1:?NAME}"; DELETE="${2:-}"
 R=/scratch/lmbanr001/masters/sallm/results/fft_rollout_20260926/runs/$NAME/keep
 K=/scratch/alombard/sallm/results/fft_rollout_20260926/$NAME/keep
+# Kombuys side runs in a 12G memory-capped scope with oom_score_adj 1000.
+cap() { echo "systemd-run --user --scope -p MemoryMax=12G --quiet bash -c 'echo 1000 > /proc/self/oom_score_adj; $1'"; }
 q() { grep -v -E '^\*\*|^ *\*|AUP|agree|^$' || true; }
 for sel in $(ssh hex "cd $R && ls */*.selected 2>/dev/null" 2> /dev/null | q); do
   d="${sel%.selected}"; fam="${d%%/*}"; base="${d#*/}"
   if ! ssh jbuys "test -f $K/$d.archived"; then
     ssh hex "cd $R && tar cf - $d $d.sha256 $d.selected" 2> /dev/null \
-      | ssh jbuys "mkdir -p $K && cd $K && tar xf - && cd $fam && nice sha256sum -c --quiet $base.sha256 && touch $base.archived"
+      | ssh jbuys "$(cap "mkdir -p $K && cd $K && tar xf - && cd $fam && nice sha256sum -c --quiet $base.sha256 && touch $base.archived")"
     echo "archived $NAME/$d"
   fi
   if [[ "$DELETE" == --delete-hex ]] && ssh jbuys "test -f $K/$d.archived"; then

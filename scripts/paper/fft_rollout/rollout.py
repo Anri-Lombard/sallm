@@ -478,7 +478,7 @@ def do_prep(r: Run, u: dict) -> dict:
                 "'params':sum(p.numel() for p in m.parameters())},open(sys.argv[1],'w'))\n")
         r.sh([r.a["py"], "-c", code, check], r.logs / "prep_load_check.log", r.env())
         info = json.loads(check.read_text())
-        assert math.isfinite(info["loss"]) and info["loss"] < 12, info
+        assert math.isfinite(info["loss"]) and info["loss"] < 9, info  # random init gives ~ln(65539) = 11.1
         assert info["tok_ids"] == [0, 1, 2], info
         if r.arch == "mamba2":
             assert info["class"].startswith("fla."), info
