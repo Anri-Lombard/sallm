@@ -70,10 +70,9 @@ SEEDS_HEADLINE = (43, 44)  # plus seed 42 (the sweep run)
 # (T2X 5 beams, length penalty 1.0; AfriHG 5 beams, length penalty 0.7; early stopping). Transformers 4.57.3 reorders
 # beams through Cache.reorder_cache: FLA 0.5.1's cache layers keep their state in `.state`, so the reorder hits
 # `.keys = None` (GDN, Mamba-2: AttributeError), and HF xLSTM keeps `cache_params`, which beam search never reorders
-# (silently wrong beams). Those decode without the generation cache (exact, slower). Mamba-2 beam is recorded as
-# "not supported by the implementation" unless BEAM_MAMBA2_NOCACHE=1 (same cache-free path as GDN).
+# (silently wrong beams). Those decode without the generation cache (exact, slower), Mamba-2 included.
 BEAM_MODE = {"mzansilm": "cache", "gdn": "nocache", "xlstm": "nocache",
-             "mamba2": "nocache" if os.environ.get("BEAM_MAMBA2_NOCACHE") == "1" else "unsupported"}
+             "mamba2": "nocache"}  # user decision 26 Sep: Mamba-2 beam runs cache-free like GDN
 BEAM_FACTOR = {"cache": 3.0, "nocache": 12.0}  # beam s/row over greedy s/row; provisional until the beam canary measures it
 ARCHS = {
     #          Hydra model key     python     eval interface (dtype, merge_lora, tie_word_embeddings)
@@ -194,9 +193,15 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
             for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
                 units.append(unit(f"train-{fam}-{tag}-s{seed}", "train", [f"select-{fam}"], family=fam, regime=sweep_regime,
                                   langs=sweep_langs, lr=None, seed=seed, keep=False, test=True))
-    units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count"], light=True))
+    # General seeds 43/44 go last: they wait for collect and every seed-42 beam unit (user decision, 26 Sep)
+    late = [u for u in units if u.get("family") == "general" and u["kind"] == "train" and u.get("seed") in (*SEEDS_HEADLINE, *SMOKE["seeds"])]
+    late_ids = {u["id"] for u in late}
+    units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count" and u["id"] not in late_ids], light=True))
     beams = beam_units(families, smoke)  # after collect in the DAG: a failed beam unit never blocks the main results
-    units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"], light=True)] if beams else []
+    for u in late:
+        u["deps"] = sorted(set(u["deps"]) | {"collect"})
+        u["after"] = sorted(b["id"] for b in beams if not set(b["deps"]) & late_ids)  # ordering only: a failed beam never blocks
+    units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"] + sorted(late_ids), light=True)] if beams else []
     if cross_eval:
         units += cross_eval_units(families)
     for u in units:
@@ -1068,7 +1073,8 @@ def claim(r: Run, units: list[dict], hours_left: float, lane: str) -> tuple[dict
                     write_json(r.state / f"{u['id']}.json", states[u["id"]])
                     changed = True
         ready = [u for u in units if states.get(u["id"], {}).get("state") in (None, "pending")
-                 and all(states.get(d, {}).get("state") == "done" for d in u["deps"])]
+                 and all(states.get(d, {}).get("state") == "done" for d in u["deps"])
+                 and all(states.get(d, {}).get("state") in TERMINAL for d in u.get("after", ()))]
         pending = [u for u in units if states.get(u["id"], {}).get("state") not in TERMINAL]
         if not pending:
             return None, "finished"

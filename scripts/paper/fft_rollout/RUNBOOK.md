@@ -122,9 +122,13 @@ checkpoint (T2X Mono seeds 42/43/44, AfriHG Multi + Mono xho/zul, General seeds 
 beam settings (5 beams; length penalty 1.0 T2X, 0.7 AfriHG; early stopping), scored with the same NFC chrF, rows with
 `decoding=beam` in cells.csv and `data/fft-beam.csv`. MzansiLM uses the generation cache; GDN and xLSTM decode without
 it, because FLA 0.5.1's cache cannot be reordered across beams and transformers 4.57.3 never reorders xLSTM's
-`cache_params`; xLSTM runs at batch 1. Mamba-2 beam cells are recorded as "not supported by the implementation"
-(`BEAM_MAMBA2_NOCACHE=1` in the lane environment would run it cache-free like GDN). The `collect-beam` unit re-collects
-after the beam units; `collect` does not wait for them.
+`cache_params`; xLSTM runs at batch 1. Mamba-2 also decodes cache-free (the default in `BEAM_MODE`; no environment
+variable needed). The `collect-beam` unit re-collects after the beam units; `collect` does not wait for them.
+
+Order: General seeds 43/44 run last. They depend on `collect` (every seed-42 unit: Base, sweeps, selections, Mono,
+General seed 42, tests; Mono T2X seeds 43/44 stay in the main pass) and start only after every seed-42 beam unit has
+finished or failed (an ordering-only `after` list, so a failed beam never blocks them). `collect-beam` is the final
+collect and includes them.
 
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
