@@ -829,3 +829,71 @@ bounded causal study rather than a speculative broad sweep.
   2026-08-05 02:30--05:30 SAST. First validation and checkpoint are due at
   step 1,000. Selection remains validation-loss-only; held-out test is not
   touched.
+
+## 00:19--01:20 SAST, 2026-08-03 — monitoring connectivity blocked
+
+- Repeated read-only quota-first monitoring attempts for `1167989/1167990`
+  failed during SSH banner exchange with `Connection timed out`; no Slurm or
+  artifact mutation was attempted. The last confirmed state remains healthy
+  two-A100-80GB training with `1167990` dependency-held.
+- Local network inspection shows no connected VPN service in `scutil --nc
+  list`; the configured HEX target remains `hex.uct.ac.za:22`. This may be a
+  missing UCT Cisco VPN route or a remote SSH service issue. Checkpoint-1000
+  and current validation loss remain unverified until SSH access returns.
+
+## 08:48 SAST, 2026-08-03 — connectivity restored; training healthy
+
+- Quota-first SSH monitoring is restored. Primary `1167989` remains running
+  on two `ampere80` GPUs at about step `13,075/67,498` (19.4%); sole
+  continuation `1167990` remains dependency-pending. No owned A100-40GB or
+  L40S job is active or schedulable.
+- Recent training loss is `3.6281` at step `13,070`, down from `11.1935` at
+  step 10. Steady throughput remains `~2.70 s/step`; no traceback, CUDA OOM,
+  disk-full, quota, or kill marker appears.
+- `save_total_limit=2` has correctly rotated checkpoint-1000. Retained
+  resumable checkpoints are `checkpoint-12000` and `checkpoint-13000`; latest
+  validation loss improved monotonically across steps 11k/12k/13k:
+  `3.7664101`, `3.7383947`, `3.7119770`. Selection remains validation-loss
+  only; held-out test remains untouched.
+- Active run artifacts occupy `1.5G`; superseded diagnostic run occupies
+  `735M`. Scratch is `90/100 GB` (`90.2%`). Because only two checkpoints are
+  retained, checkpoint storage is bounded; nevertheless the remaining
+  `~9.8 GB` must be watched through final-model save. Current completion ETA
+  remains approximately 2026-08-05 03:00--06:00 SAST across `1167989/1167990`.
+
+## 10:35 SAST, 2026-08-03 — 300 GB scratch expansion verified
+
+- Live `purequota` now reports `/scratch=90/300 GB` (`30.1%`), confirming the
+  requested capacity expansion. The former 100 GB storage blocker is closed;
+  accepted canary, active checkpoints, winners, and canonical artifacts remain
+  preserved.
+- Primary `1167989` remains healthy on two A100-80GB GPUs, with sole
+  continuation `1167990` dependency-held and no competing owned GPU family.
+  Checkpoint `15000` records validation loss `3.6771374`, continuing the
+  improving validation-only trajectory. No runtime error marker is present.
+
+## 11:45 SAST, 2026-08-03 — provisional cross-architecture loss interpretation
+
+- Pure GDN validation loss is `4.1037` at step 5k, `3.7951` at 10k,
+  `3.6771` at 15k, and `3.6586` at 16k. The monotonic curve is healthy.
+- Against the parameter-matched strict xLSTM screen (`126.90M` parameters),
+  pure GDN currently trails: xLSTM reached trainer validation loss `3.3108`
+  at step 10k, versus GDN `3.7951`. The completed xLSTM three-epoch run later
+  selected validation loss `2.9697` at step 60k. Final clean-loss auditing is
+  still required before calling the architecture ranking.
+- Pure GDN is substantially better than the fresh Mamba screen lineage, whose
+  representative 10k trainer validation losses were roughly `5.6--6.5`; the
+  existing Mamba base clean pretrain audit was NLL `3.9961`. Exact audit
+  datasets/procedures differ, so this is directional rather than a final
+  numeric ranking.
+- Executed LLaMA is stronger (`eval/loss=3.0235` final; clean pretrain audit
+  NLL roughly `2.47`), but its frozen config is `248--255M`, about twice the
+  pure-GDN/xLSTM parameter count. It is therefore a useful upper reference,
+  not a parameter-matched architectural verdict.
+- The pure-GDN runtime is optimized enough for the baseline: FLA TileLang
+  chunk fast path, BF16, DDP, and packed 2,048-token batches are verified.
+  The architecture/training recipe is not HPO-optimized: its 21-layer
+  512-wide shape was selected to hit the parameter budget, and LR/warmup/
+  weight decay were inherited rather than selected by a pure-GDN
+  validation-only sweep. Report it as a matched baseline, not an optimized
+  pure-GDN ceiling.
