@@ -1,35 +1,29 @@
+# Data and outputs
 data/**/
 !data/cleaning/
 !data/cleaning/README.md
 !data/cleaning/clean_mzansi_text.py
 !data/cleaning/config.toml.example
 trash/
-.mypy_cache
-.ruff_cache
+reports/
+output/
+outputs/
+logs/
+wandb/
+slurm-*.out
+*.log
+*.csv
 *.json
-__pycache__
-*.pyc
-.mypy_cache/
-/src/sallm.egg-info/
-build/
-dist/
+!tokenizer/sallm_bpe_tokenizer/*.json
 
-.idea/
-.vscode/
-.env
+# Local protocol staging (one-off preflights, execution manifests, dataset copies)
+.audit/
 
-data/**/
-!data/cleaning/
-!data/cleaning/README.md
-!data/cleaning/clean_mzansi_text.py
-!data/cleaning/config.toml.example
-trash/
-.mypy_cache/
-.ruff_cache/
-*.json
+# Python
 __pycache__/
 *.py[cod]
-.pyc
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
 ENV/
@@ -38,18 +32,16 @@ env/
 build/
 dist/
 
+# Editors and OS
 .idea/
 .vscode/
+.DS_Store
 .env
 
-.DS_Store
+# Tools
 .github/chatmodes
 .bmad-core
-reports/
-*.csv
 .playwright-cli/
-output/
-outputs/
 sallm_memory/artifacts/
 sallm_memory/.obsidian/
 sallm_memory/observability/
