@@ -58,3 +58,50 @@ def test_masakhapos_official_tasks_use_commit_pinned_sources() -> None:
         source = task.read_text(encoding="utf-8")
         assert f"/raw/{huggingface.MASAKHAPOS_REVISION}/" in source
         assert "/raw/main/" not in source
+
+
+def test_masakhaner_validation_split_is_loaded_at_the_pinned_revision(
+    monkeypatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from datasets import Dataset
+
+    calls = []
+
+    def load_dataset(path, **kwargs):
+        calls.append((path, kwargs))
+        return Dataset.from_list([{"tokens": ["a"], "ner_tags": [0]}])
+
+    monkeypatch.setattr(huggingface, "load_dataset", load_dataset)
+    monkeypatch.setattr("sallm.data.loaders.base.load_dataset", load_dataset)
+    cfg = SimpleNamespace(
+        splits={"train": "train", "val": "validation"},
+        languages=["xho"],
+        subset=None,
+        hf_name="masakhane/masakhaner2",
+    )
+    monkeypatch.setattr(huggingface, "_requested_languages", lambda *_: ["xho"])
+    huggingface._load_masakhaner_dataset(cfg)
+    val = [kw for _, kw in calls if kw.get("split") == "validation"]
+    assert (
+        val
+        and val[0]["revision"]
+        == huggingface.DATASET_REVISIONS[huggingface.MASAKHANER_PARQUET_DATASET]
+    )
+    assert val[0].get("name") is None
+
+
+def test_read_url_caches_commit_pinned_sources(monkeypatch, tmp_path) -> None:
+    calls = []
+    monkeypatch.setattr(
+        huggingface, "urlopen", lambda url, timeout: calls.append(url) or _Response()
+    )
+    monkeypatch.setenv("SALLM_SOURCE_CACHE_DIR", str(tmp_path))
+    pinned = f"https://example.org/x?ref={huggingface.MASAKHAPOS_REVISION}"
+    assert huggingface._read_url(pinned) == b"stable"
+    assert huggingface._read_url(pinned) == b"stable"
+    assert len(calls) == 1
+    huggingface._read_url("https://example.org/main/x")
+    huggingface._read_url("https://example.org/main/x")
+    assert len(calls) == 3
