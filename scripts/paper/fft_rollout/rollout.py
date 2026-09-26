@@ -1168,6 +1168,8 @@ def cmd_lane(args) -> None:
     signal.signal(signal.SIGTERM, lambda *_: os._exit(143))
     hours = float(os.environ.get("LANE_HOURS", "47.5"))
     start = time.time()
+    idle_exit = float(os.environ.get("IDLE_EXIT_MIN", "15")) * 60
+    idle_since = None
     print(f"LANE {lane} job={os.environ.get('SLURM_JOB_ID')} host={socket.gethostname()} gpu={gpu_name()} arch={r.arch} out={out}", flush=True)
     while True:
         cap = (out / "MAX_LANES").read_text().strip() if (out / "MAX_LANES").exists() else None
@@ -1176,6 +1178,7 @@ def cmd_lane(args) -> None:
             break
         u, why = claim(r, units, hours - (time.time() - start) / 3600, lane)
         if u is not None:
+            idle_since = None
             print(f"UNIT_START {u['id']} est={u['est_hours']} h", flush=True)
             execute(r, u, lane)
             write_status(r)
@@ -1185,6 +1188,13 @@ def cmd_lane(args) -> None:
             break
         if why == "resubmit":
             resubmit(out, lane)
+            break
+        # nothing runnable (a barrier such as select-<family>): free the GPU after IDLE_EXIT_MIN; rebalance.sh (Mac)
+        # hands free GPUs to the architecture with the most work left once units become ready again
+        idle_since = idle_since or time.time()
+        write_status(r)
+        if time.time() - idle_since > idle_exit:
+            print("LANE_IDLE_EXIT", flush=True)
             break
         time.sleep(60)
     write_status(r)
@@ -1205,7 +1215,10 @@ def write_status(r: Run) -> None:
     for u in units:
         s = states.get(u["id"], {}).get("state", "waiting")
         counts[s] = counts.get(s, 0) + 1
-    lines.append(" ".join(f"{k}={v}" for k, v in sorted(counts.items())) +
+    ready = sum(1 for u in units if states.get(u["id"], {}).get("state") in (None, "pending")
+                and all(states.get(d, {}).get("state") == "done" for d in u["deps"])
+                and all(states.get(d, {}).get("state") in TERMINAL for d in u.get("after", ())))
+    lines.append(" ".join(f"{k}={v}" for k, v in sorted(counts.items())) + f" ready={ready}" +
                  f" | est GPU-h left {sum(u['est_hours'] for u in units if states.get(u['id'], {}).get('state') != 'done'):.1f}")
     for u in units:
         st = states.get(u["id"], {})

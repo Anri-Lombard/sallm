@@ -70,6 +70,21 @@ finds no final weights, fails twice and blocks everything; re-fire with `NAME` u
 `rm -rf $R/runs/<name>` or use `relane.sh` once the final weights exist. Use the id of the job that will
 actually finish the run.
 
+### Automatic lane rebalancing (Mac)
+
+```bash
+cp ~/Desktop/Masters/sallm/scripts/paper/fft_rollout/rebalance.py ~/.sallm_fire/
+perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' -- nohup caffeinate -i /opt/homebrew/bin/python3 -u ~/.sallm_fire/rebalance.py \
+  < /dev/null >> ~/.sallm_fire/rebalance.log 2>&1 &
+```
+Every 10 min: counts this user's queued + running L40S (pretraining included), keeps the total <= 10, adds nothing
+while an `mp-full-*` job is pending, keeps 2 GPUs for an architecture whose pretraining ended but is not fired yet,
+and gives free GPUs to the architecture with the most estimated GPU-h left that has ready units (`addlane.sh`,
+NICE=1000). It never cancels anything. GPUs are freed by lanes themselves: a lane with nothing runnable for
+`IDLE_EXIT_MIN` (15) minutes exits (`LANE_IDLE_EXIT`), and finished runs' lanes exit. Lanes started before 22:35 on
+26 Sep run the older code without idle exit until they resubmit. `python3 rebalance.py --dry-run` prints one decision.
+Stop it by its exact PID.
+
 ## 2. Monitor
 
 ```bash
