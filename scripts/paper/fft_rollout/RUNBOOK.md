@@ -33,6 +33,14 @@ bash $R/code/fft_rollout/launch.sh gdn /scratch/lmbanr001/masters/sallm/results/
 # or fire it now and let Slurm hold the lanes until the pretraining job ends (zero idle time):
 AFTER=<pretraining jobid> bash $R/code/fft_rollout/launch.sh gdn <run dir> 4
 ```
+Or from the Mac, fire each architecture the moment its final weights exist (polls every 5 min; `AFTER` is fragile
+because `mp-full-*` jobs resubmit themselves under new ids):
+
+```bash
+cd ~/Desktop/Masters/sallm/scripts/paper/fft_rollout
+for a in mzansilm xlstm gdn mamba2; do nohup bash fire_when_ready.sh $a <CAP> > ~/fire_$a.log 2>&1 & done
+```
+
 GPU budget: the per-user QOS limit is 10 L40S and the matched-pretraining runs (`mp-full-*`, 2 GPUs each, auto-resuming)
 have priority. Pick `CAP` so that pretraining GPUs + all rollout lanes <= 10 (e.g. the first base finishes -> its 2 GPUs
 -> `CAP=2`), and pass `NICE=1000` so a pending pretraining resubmit outranks pending lanes of the same user:
@@ -100,8 +108,9 @@ Every selected fine-tuned model is kept, weights only (~0.51 GB fp32): each Mono
 each sweep's selected (lr, epoch). Per architecture: 20 Mono + 6 Multi + T2X (3 seeds) + General (3 seeds) = 32
 checkpoints, ~16.3 GB; all four ~65 GB. Sweep runs keep their best epoch only until `select-<family>` has run.
 Layout: `runs/<name>/keep/<family>/<run>_e<epoch>/` plus `<run>_e<epoch>.sha256` (manifest, written in-job) and
-`<run>_e<epoch>.selected` (marker). HEX /scratch had ~63 GB free on 26 Sep (pretraining also writes there), so
-archive as architectures finish, from the Mac:
+`<run>_e<epoch>.selected` (marker). HEX /scratch quota (300 GB) had only ~22 GB free at 14:40 on 26 Sep, and pretraining still writes there
+(~4 GB per run to go). Peak rollout use is ~25 GB per architecture, so free space before firing (largest
+candidates: `masters/sallm_recovery` 30 GB, `results/eval` 18 GB, the T2X pilot 8 GB) and archive as families finish:
 
 ```bash
 bash scripts/paper/fft_rollout/archive_to_kombuys.sh <name>               # copy + sha256sum -c on Kombuys

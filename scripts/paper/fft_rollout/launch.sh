@@ -34,6 +34,9 @@ if [[ -e "$OUT/config.json" ]]; then
   echo "ERROR: $OUT exists. To resume it: sbatch --export=ALL,OUT=$OUT,LANE=<i> $R/code/fft_rollout/lane.sbatch" >&2; exit 4
 fi
 (cd "$R/code" && sha256sum -c CODE.sha256 --quiet)
+# ~25 GB per architecture on /scratch at peak (base, sweep best epochs, 32 kept checkpoints); archive_to_kombuys.sh frees it
+free=$(/scratch/slurm/bin/purequota 2>/dev/null | awk '$1 == "/scratch" {print $2 - $3}' | tr -d GB) || true
+[[ -z "$free" || "$free" -ge 25 ]] || echo "WARNING: only ${free} GB left in the /scratch quota; archive/free space before the keep/ dirs fill it" >&2
 mkdir -p "$OUT" "$R/logs"
 smoke=false; [[ "${SMOKE:-0}" == 1 ]] && smoke=true
 fix=false; [[ "${FIX_SPECIAL_IDS:-0}" == 1 ]] && fix=true
