@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mac: every ~10 min, hand free L40S to the architecture with the most estimated GPU-hours left.
+"""Mac: every ~10 min, hand free L40S one at a time to the architecture with the most estimated GPU-hours left per lane.
 
   nohup caffeinate -i python3 rebalance.py > ~/.sallm_fire/rebalance.log 2>&1 &
 
@@ -128,11 +128,12 @@ def step() -> None:
         need = {a: s["ready"] - s["pending_lanes"] for a, s in info.items() if s["ready"] - s["pending_lanes"] > 0}
         if not need:
             break
-        a = max(need, key=lambda x: info[x]["left"])
-        k = min(free, need[a])
-        plan.append((a, k))
-        free -= k
-        info[a]["pending_lanes"] += k
+        # one GPU at a time to the run that would finish last: most estimated hours left per lane
+        a = max(need, key=lambda x: info[x]["left"] / (info[x]["lanes"] + 1))
+        plan.append((a, 1))
+        free -= 1
+        info[a]["pending_lanes"] += 1
+        info[a]["lanes"] += 1
     for a, k in plan:
         print(f"{time.strftime('%F %T')} add {k} lane(s) to {a} (left {info[a]['left']} h, ready {info[a]['ready']})", flush=True)
         if not DRY:
