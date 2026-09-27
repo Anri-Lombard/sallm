@@ -145,7 +145,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/datasets/sallm_processed.yaml",
+        default="src/conf/datasets/sallm_processed.yaml",
         help="Path to the data processing configuration YAML file.",
     )
     args = parser.parse_args()

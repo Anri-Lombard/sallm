@@ -113,7 +113,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/tokenizers/bpe.yaml",
+        default="src/conf/tokenizers/bpe.yaml",
         help="Path to the tokenizer training configuration YAML file.",
     )
     args = parser.parse_args()
