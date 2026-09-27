@@ -211,14 +211,21 @@ The `collect` unit (last) writes `$R/runs/<name>/results/cells.csv` (one row per
 bootstrap 95% CI where rows allow, lr, seed, epoch). Fetch per architecture (rsync is a plain file copy):
 
 ```bash
+cd ~/Desktop/sa-architecture-comparison-paper
 for a in mzansilm mamba2 xlstm gdn; do
   rsync -a --include='results/***' --include='base_eval/' --include='base_eval/*.json' --exclude='*' \
-    hex:$R/runs/$a/ ~/Desktop/sa-architecture-comparison-paper/data/fft_raw/$a/
+    hex:$R/runs/$a/ data/fft_raw/$a/
+  # compact per-item predictions for the benchmark-standard columns (accuracy, ROUGE, chrF++/BLEU, XTREME-UP NER F1)
+  # and the Belebele prompt-1 guard; stdlib only, on a compute node (the raw test outputs are too big for the login node)
+  ssh hex srun --account=l40sfree --partition=l40s --cpus-per-task=2 --time=00:30:00 \
+    /home/lmbanr001/masters/sallm/.venv/bin/python - $R/runs/$a < scripts/hex/extract_items.py | gzip -n > data/fft_raw/$a/items.jsonl.gz
 done
-cd ~/Desktop/sa-architecture-comparison-paper
-/opt/homebrew/bin/python3 scripts/collect_fft.py data/fft_raw/{mzansilm,mamba2,xlstm,gdn}
+~/Desktop/Masters/sallm/.venv/bin/python scripts/collect_fft.py data/fft_raw/{mzansilm,mamba2,xlstm,gdn}
 /opt/homebrew/bin/python3 scripts/build_results.py
 ```
+`collect_fft.py` needs the sallm venv (rouge_score, numpy, sacrebleu) for the extra columns. It recomputes every
+Belebele score as prompt 1's acc_norm from `items.jsonl.gz` and warns where `cells.csv` differs (lanes started before
+the prompt-1 fix, 297eec6). Metric definitions: the paper repo's `literature/metric_comparability.md`.
 
 | rollout output | paper file | read by |
 |---|---|---|
