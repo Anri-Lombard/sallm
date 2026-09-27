@@ -251,6 +251,17 @@ fp32 cache states, since the rest of a bf16 model still differs between the step
 xLSTM rollout scoring used a bf16 cache. Scored before the patch (fp32 cache, so unaffected): AfriHG Multi validation
 epochs 1-2 of lr3e-5/1e-4/3e-4 (10:03-10:55).
 
+Mamba-2 constrained-label scoring (27 Sep 2026, synced 12:03:37 SAST, sallm cf319ad; speed only). `score_labels` scored
+POS labels for Mamba one label per forward (batch 1: some UPOS labels tokenise to 2+ tokens after the prefix, so every POS token takes the
+multi-token path); it now scores all 17 in one forward (`SALLM_MAMBA_VALIDATION_LABEL_MICROBATCH`, default all labels;
+the rollout env strips `SALLM_*`, so the default applies). Other architectures unchanged; NER (lm-eval) unaffected.
+Check (Kombuys 5090, matched Mamba-2 base tok2839M, seq_eval.decode_pos_row, 60 validation rows tsn/xho/zul x 20, P3,
+1,215 tokens): identical labels on 1,215/1,215 tokens, max abs label-score diff 1.1e-3 (fp32 mean log-prob; not
+bitwise), 9.34 -> 3.14 s/row (3.0x, shared GPU), peak 0.95 -> 4.49 GiB. Units scored at batch 1: Mamba POS Multi
+sweep validation e1-e5 of lr3e-5 and lr1e-4 (e5 started 11:59:10 and 12:03:18, both before the new files landed; the
+manifest check after import passed, so both loaded the old code). Every later Mamba POS scoring unit (val e6+, the
+rest of the POS sweep, select/Mono/General, test, base POS) runs at batch 17.
+
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
 Every selected fine-tuned model is kept, weights only (~0.51 GB fp32): each Mono and seed run's best epoch, and
