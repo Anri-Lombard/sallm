@@ -95,7 +95,7 @@ def transform_config(mamba_config: dict, task: str, lang: str) -> dict:
 def main():
     """Generate all xLSTM configs from Mamba templates."""
 
-    repo_root = Path(__file__).parent.parent
+    repo_root = Path(__file__).resolve().parents[2]
     conf_dir = repo_root / "src" / "conf" / "finetune"
 
     if not conf_dir.exists():

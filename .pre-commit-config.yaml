@@ -20,7 +20,7 @@ repos:
     rev: v0.18.1
     hooks:
       - id: markdownlint-cli2
-        exclude: ^docs/(hpo_mamba_sweeps_last_14_days|masakhaner-x-issue)\.md$
+        exclude: ^archive/
 
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.12.0-2
