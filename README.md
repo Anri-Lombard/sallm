@@ -9,40 +9,78 @@ This repository accompanies **"MzansiText and MzansiLM: An Open Corpus and
 Decoder-Only Language Model for South African Languages"**
 ([arXiv:2603.20732](https://arxiv.org/abs/2603.20732)).
 
-The public workflow is recipe-first: choose a recipe ID, inspect the Hydra
-configs it resolves to, then launch fine-tuning or evaluation.
+It also holds the code for the architecture comparison (Transformer, Mamba-2,
+xLSTM and Gated DeltaNet) built on the same corpus.
+
+## Setup
 
 ```bash
-uv sync
+uv sync                      # add --extra pure-gdn on Linux for Gated DeltaNet
+uv run hf download uctnlp/mzansilm-125m tokenizer.json tokenizer_config.json \
+  special_tokens_map.json --local-dir tokenizer/sallm_bpe_tokenizer
+```
+
+The tokenizer is published with MzansiLM rather than committed. Configs that
+set `tokenizer.path` expect it at `tokenizer/sallm_bpe_tokenizer` (under
+`$HOME/masters/sallm` on the cluster).
+
+## Running
+
+Every run goes through one Hydra entrypoint:
+`python -m sallm.main --config-name <target>`, where the target is a path under
+`src/conf` without `.yaml`. The config's `mode` (`TRAIN`, `FINETUNE` or
+`EVALUATE`) picks the stage. Paths such as `${oc.env:SCRATCH}` resolve from the
+environment; override any value on the command line.
+
+| Stage | Command |
+| --- | --- |
+| Build the corpus release | `uv run python data/prepare_datasets.py` (after [data/cleaning](data/cleaning/README.md)) |
+| Train the tokenizer | `uv run python tokenizer/train.py` |
+| Tokenize the corpus | `uv run python tokenizer/process.py` |
+| Pretrain | `uv run python -m sallm.main --config-name base/llama_125m` |
+| Fine-tune | `uv run python -m sallm.main --config-name finetune/llama_t2x_xho` |
+| Evaluate | `uv run python -m sallm.main --config-name eval/run_llama_t2x_xho` |
+
+Base configs exist for `llama_125m`, `llama_400m`, `mamba_125m`, `xlstm_125m`
+and `gated_deltanet_125m`. The Mamba, xLSTM and Gated DeltaNet ones read the
+released tokenized corpus from the Hub.
+
+Recipes in `recipes/registry.yaml` name common fine-tune and evaluate pairs:
+
+```bash
 uv run sallm recipes list
-uv run sallm recipe show llama_t2x_xho
 uv run sallm finetune llama_t2x_xho --dry-run
-uv run sallm evaluate llama_t2x_xho --dry-run
 ```
 
-Recipe IDs are defined in `recipes/registry.yaml`. Each recipe points to known
-Hydra configs under `src/conf`; those YAML files remain the source of truth for
-hyperparameters.
-
-## Docs
-
-- [Quickstart](docs/quickstart.md): install, inspect recipes, and dry-run the CLI.
-- [Recipes](docs/recipes.md): supported recipe IDs and their config targets.
-- [Configuration](docs/configuration.md): how recipe targets map to Hydra YAML.
-- [SLURM](docs/slurm.md): advanced cluster script compatibility notes.
-
-## Paper Snapshot
-
-For exact reproduction of the LREC 2026 paper results, use the permanent
-snapshot:
+On SLURM, `ops/slurm/` wraps the same entrypoint. Cluster paths come from
+`ops/slurm/lib/env.sh` (`SALLM_HOME_DIR`, `SALLM_SCRATCH_DIR`, `SALLM_REPO_DIR`).
 
 ```bash
-git clone https://github.com/Anri-Lombard/sallm.git
-cd sallm
-git checkout tags/mzansitext-mzansilm-lrec2026-v1
+sbatch ops/slurm/launch_pretrain.sh base/llama_125m
+sbatch ops/slurm/launch_finetune.sh finetune/llama_t2x_xho
+sbatch ops/slurm/launch_evaluation.sh eval/run_llama_t2x_xho
+sbatch ops/slurm/launch_hpo.sh llama_t2x_xho 10      # sweep in src/conf/sweeps
 ```
 
-The `main` branch is actively maintained and may differ from the paper snapshot.
+## Layout
+
+| Path | Contents |
+| --- | --- |
+| `src/main/sallm` | Library: `training/` (pretraining), `fine_tune/`, `evaluation/`, `hpo/`, `data/`, `models/`, `configs/` (typed schema), `main.py` (Hydra entrypoint), `cli.py` (recipe CLI) |
+| `src/conf` | Hydra configs: `base/`, `finetune/`, `eval/`, `rerank/`, `sweeps/`, `templates/`, `datasets/`, `tokenizers/` |
+| `data/`, `tokenizer/` | Corpus preparation and tokenizer training |
+| `ops/slurm/` | SLURM launchers |
+| `tests/` | CPU test suite, run in CI |
+
+## Reproducing the Papers
+
+- MzansiLM (LREC 2026): tag `mzansitext-mzansilm-lrec2026-v1`.
+- Architecture comparison: branch `paper/architecture-comparison-2026-09`, which
+  keeps the as-run runners (`scripts/paper/`), their environment lock and a
+  README mapping each result to its runner. It will be tagged once the runs
+  finish.
+
+`main` is maintained code and may differ from both snapshots.
 
 ## Releases
 
@@ -51,68 +89,6 @@ The `main` branch is actively maintained and may differ from the paper snapshot.
 - Raw corpus: [uctnlp/mzansi-text](https://huggingface.co/datasets/uctnlp/mzansi-text)
 - Tokenized corpus: [uctnlp/mzansi-text-tokenized](https://huggingface.co/datasets/uctnlp/mzansi-text-tokenized)
 - Collection: [MzansiLM](https://huggingface.co/collections/anrilombard/mzansilm-69635ca7b60efedb9dfcb09e)
-
-Rebuild the raw release from the complete filtered source tree with:
-
-```bash
-uv run python data/prepare_datasets.py
-```
-
-The release guard requires all 42 source files and the exact paper splits:
-3,943,584 train, 19,379 validation, and 19,341 test rows. Output columns are
-`text` and `lang`.
-
-## Running the Pipeline
-
-Every run goes through one Hydra entrypoint, `python -m sallm.main
---config-name <target>`. The `mode` field in the config (`TRAIN`, `FINETUNE`
-or `EVALUATE`) selects the stage. Config paths such as `${oc.env:SCRATCH}`
-resolve from the environment, so set `SCRATCH` and `HOME` or override the
-paths on the command line.
-
-**1. Corpus and tokenizer.** Clean the raw sources as described in
-[data/cleaning/README.md](data/cleaning/README.md), then:
-
-```bash
-uv run python data/prepare_datasets.py          # src/conf/datasets/sallm_dataset.yaml
-uv run python tokenizer/train.py                # src/conf/tokenizers/bpe.yaml
-uv run python tokenizer/process.py              # src/conf/datasets/sallm_processed.yaml
-```
-
-The Llama base configs read the processed corpus from disk. The Mamba, xLSTM,
-RWKV and RecurrentGemma base configs load the tokenized corpus from the Hub
-instead.
-
-**2. Pretraining.** Base model configs live in `src/conf/base/`:
-
-```bash
-uv run python -m sallm.main --config-name base/llama_125m
-```
-
-**3. Fine-tuning and evaluation.** Use a recipe, or a config target directly:
-
-```bash
-uv run sallm finetune llama_t2x_xho --dry-run
-uv run python -m sallm.main --config-name finetune/llama_t2x_xho
-uv run python -m sallm.main --config-name eval/run_llama_t2x_xho
-```
-
-**4. HPO.** Sweep configs live in `src/conf/sweeps/`. On a SLURM cluster,
-`ops/slurm/` wraps fine-tuning, evaluation and HPO; see [SLURM](docs/slurm.md).
-
-## Repository Layout
-
-| Path | Contents |
-| --- | --- |
-| `src/main/sallm` | Python package: `training/` (pretraining), `fine_tune/`, `evaluation/`, `hpo/`, `data/` (dataset adapters, formatters, loaders), `models/`, `configs/` (typed config schema), `cli.py` (recipe CLI) and `main.py` (Hydra entrypoint) |
-| `src/conf` | Hydra configs: `base/` (pretraining), `finetune/`, `eval/` (evaluation runs and lm-eval task packs), `rerank/`, `sweeps/` (HPO), `templates/` (prompt templates), `datasets/`, `tokenizers/` |
-| `recipes/registry.yaml` | Public recipe IDs mapped to finetune and eval configs |
-| `data/` | Corpus cleaning and release preparation |
-| `tokenizer/` | Tokenizer training and corpus tokenization; `tokenizer/tokenizer/` holds a committed tokenizer |
-| `ops/slurm/` | SLURM launchers for fine-tuning, evaluation and HPO |
-| `scripts/` | Small utilities (corpus pre-tokenization, Grype policy check) |
-| `tests/` | CPU pytest suite, run in CI |
-| `archive/` | Superseded environments, one-off scripts and dated reports, kept for provenance |
 
 ## Development
 
