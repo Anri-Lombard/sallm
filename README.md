@@ -39,7 +39,7 @@ environment; override any value on the command line.
 | Tokenize the corpus | `uv run python tokenizer/process.py` |
 | Pretrain | `uv run python -m sallm.main --config-name base/llama_125m` |
 | Fine-tune | `uv run python -m sallm.main --config-name finetune/llama_t2x_xho` |
-| Evaluate | `uv run python -m sallm.main --config-name eval/run_llama_t2x_xho` |
+| Evaluate | `uv run python -m sallm.main --config-name eval/run eval_model.checkpoint=<model> 'evaluation.task_packs=[sib_xho]' wandb.name=<run>` |
 
 Base configs exist for `llama_125m`, `llama_400m`, `mamba_125m`, `xlstm_125m`
 and `gated_deltanet_125m`. The Mamba, xLSTM and Gated DeltaNet ones read the

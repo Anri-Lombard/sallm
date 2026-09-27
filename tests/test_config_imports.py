@@ -374,48 +374,26 @@ def test_experiment_schema_merges_representative_eval_config() -> None:
     assert merged.evaluation.generation_tasks[0].decoding.strategy == "beam"
 
 
-def test_representative_eval_configs_share_run_defaults() -> None:
-    schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "eval/run_llama_sib_xho": {
-            "checkpoint_suffix": "ft_llama_125m_sa_general_all/final_merged_model",
-            "task_pack": "sib_xho",
-            "wandb_name": "eval-ft-llama-125m-sib-xho",
-            "merge_lora": False,
-        },
-        "eval/run_mamba_sib_xho": {
-            "checkpoint": "anrilombard/sallm-mamba-sib_xho",
-            "task_pack": "sib_xho",
-            "wandb_name": "eval-ft-mamba-125m-sib-xho",
-            "merge_lora": False,
-        },
-        "eval/run_xlstm_sib_xho": {
-            "checkpoint": "anrilombard/sallm-xlstm-125m",
-            "task_pack": "sib_xho",
-            "wandb_name": "eval-xlstm-125m-sib-xho",
-            "merge_lora": None,
-        },
-    }
+def test_generic_eval_config_takes_checkpoint_and_task_packs() -> None:
+    GlobalHydra.instance().clear()
+    with initialize_config_dir(config_dir=str(CONF_ROOT), version_base=None):
+        cfg = compose(
+            config_name="eval/run",
+            overrides=[
+                "eval_model.checkpoint=anrilombard/sallm-mamba-125m",
+                "evaluation.task_packs=[sib_xho]",
+                "wandb.name=eval-mamba-sib-xho",
+            ],
+        )
+    merged = OmegaConf.merge(OmegaConf.structured(domain_config.ExperimentConfig), cfg)
 
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.EVALUATE
-        assert merged.eval_model.adapter == "hf"
-        assert merged.eval_model.dtype == "bfloat16"
-        assert merged.eval_model.device == "cuda:0"
-        assert merged.eval_model.merge_lora is expected["merge_lora"]
-        eval_model = OmegaConf.to_container(merged.eval_model, resolve=False)
-        if "checkpoint" in expected:
-            assert merged.eval_model.checkpoint == expected["checkpoint"]
-        else:
-            assert str(eval_model["checkpoint"]).endswith(expected["checkpoint_suffix"])
-        assert list(merged.evaluation.task_packs) == [expected["task_pack"]]
-        assert merged.wandb.project == "sallm-eval"
-        assert merged.wandb.name == expected["wandb_name"]
-        assert merged.training is None
-        assert merged.dataset is None
+    assert merged.mode == domain_config.RunMode.EVALUATE
+    assert merged.eval_model.adapter == "hf"
+    assert list(merged.evaluation.task_packs) == ["sib_xho"]
+    assert merged.wandb.project == "sallm-eval"
+    assert merged.training is None
+    output_dir = OmegaConf.to_container(merged.evaluation, resolve=False)["output_dir"]
+    assert output_dir.endswith("/results/eval/${..wandb.name}")
 
 
 def test_hpo_base_config_loader_composes_hydra_defaults() -> None:
@@ -456,4 +434,4 @@ def test_every_entry_config_merges_into_the_schema() -> None:
     for target in targets:
         OmegaConf.merge(schema, compose_config_target(target))
 
-    assert len(targets) > 200
+    assert targets

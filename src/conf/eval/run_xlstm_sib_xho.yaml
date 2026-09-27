@@ -1,11 +1,10 @@
+# @package _global_
 defaults:
-  - defaults/run@_here_
+  - run@_here_
   - _self_
 eval_model:
-  adapter: hf
   checkpoint: anrilombard/sallm-xlstm-125m
 evaluation:
-  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_sib_xho
   task_packs:
     - sib_xho
 wandb:

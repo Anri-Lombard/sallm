@@ -25,17 +25,33 @@ selects checkpoints by equal-family assistant-token loss on General data.
 
 ## Evaluation configs
 
-`eval/run_*.yaml` compose `eval/defaults/run` and set the checkpoint, task packs,
-output directory and W&B name. A task pack in `eval/tasks/<name>.yaml` lists
-lm-eval tasks and their settings; packs for validation reranking live in
-`rerank/tasks/`. Task definitions maintained in this repository live in
-`eval/lm_eval_tasks/` and `rerank/lm_eval_tasks/`; a pack that uses them lists
-the directory under `task_manager_kwargs.include_path`.
+`eval/run` evaluates one checkpoint on lm-eval task packs; name the checkpoint,
+the packs and the run on the command line:
+
+```bash
+uv run python -m sallm.main --config-name eval/run \
+  eval_model.checkpoint=anrilombard/sallm-mamba-125m \
+  'evaluation.task_packs=[sib_xho]' wandb.name=eval-mamba-sib-xho
+```
+
+Results go to `$SCRATCH/masters/sallm/results/eval/<wandb.name>`. Add
+`eval_model.merge_lora=true` or `eval_model.peft_adapter=<path>` for adapters.
+
+`eval/generate_<task>` runs the generation tasks (AfriHG, T2X) the same way;
+the `_base` variants use the decoding settings for base models. The
+`eval/run_<recipe>` files are the evaluation targets of the recipes.
+
+A task pack in `eval/tasks/<name>.yaml` lists lm-eval tasks and their settings;
+packs for validation reranking live in `rerank/tasks/`. Task definitions
+maintained in this repository live in `eval/lm_eval_tasks/` and
+`rerank/lm_eval_tasks/`; a pack that uses them lists the directory under
+`task_manager_kwargs.include_path`.
 
 ## Sweeps
 
-`sweeps/*.yaml` are W&B sweep files. Each names its base fine-tuning config
-with `--base-config`; `ops/slurm/launch_hpo.sh` registers and runs them.
+`sweeps/llama_t2x_xho.yaml` is a W&B sweep template. A sweep names its base
+fine-tuning config with `--base-config`; `ops/slurm/launch_hpo.sh` registers and
+runs it. The sweeps behind the paper results are on the paper branch.
 
 ## Checking changes
 
