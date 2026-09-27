@@ -22,9 +22,9 @@ dataset:
     val: validation
   task: CLASSIFICATION
   templates:
-    - id: afrisenti_v1
+    - id: afrisenti_sentiment_classification/v1
       weight: 1.0
-    - id: afrisenti_v1
+    - id: afrisenti_sentiment_classification/v1
       weight: 0.0
   packing: false
   assistant_only_loss: true
