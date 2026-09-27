@@ -204,13 +204,13 @@ autograd). 20-step recipe loop: loss within 0.02% of native, 0.163 -> 0.095 s/st
 (4x1024 x 4 accum). The strict gate (every gradient cosine >= 0.999) fails at long sequences (forget-gate gradient at the kernel
 level, whole-model gradient vs autograd). USER DECISION (27 Sep ~08:40): enable it anyway for NEW xLSTM training
 units, accepting that the gap is the custom-backward stabiliser convention (native_custbw shows the same gap vs
-autograd; the base was pretrained with TFLA) rather than an error. Live from the sync at ~08:45 SAST: new xLSTM units
+autograd; the base was pretrained with TFLA) rather than an error. Live from the sync at 08:40 SAST: new xLSTM units
 record `train_kernel=tfla_padded128`; before the swap train_fft.py runs `tfla.self_check()` (3 calls, 2x256, forward
 rel. error <= 0.012 and every gradient cosine >= 0.999 vs native_custbw fp32); if the import, the self-check or the
 swap fails, the unit trains with the native kernel and `train_settings.json` / `run_info` record `train_kernel`
 native plus `tfla_fallback` (a resume stays native). Generation and scoring stay native at batch 1 (separate
 processes loading the saved checkpoint; the config is untouched). train.log: `FFT_XLSTM_TRAIN_KERNEL <kernel> <self-check>`.
-Kernel per xLSTM run: native_autograd for every xLSTM unit started before ~08:45 (POS Multi lr3e-5/1e-4/3e-4 done,
+Kernel per xLSTM run: native_autograd for every xLSTM unit started before 08:40 (POS Multi lr3e-5/1e-4/3e-4 done,
 AfriHG Multi lr3e-5/1e-4/3e-4 running, and their resumes); tfla_padded128 for every later one unless it fell back.
 End-to-end check (Kombuys 5090, train_fft.py, xLSTM base, SIB Multi, 12 steps): step-12 loss 3.0801 vs 3.0837
 native, 0.53 vs 1.02 s/step; the no-mlstm_kernels case fell back and recorded it.
