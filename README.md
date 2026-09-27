@@ -62,21 +62,63 @@ The release guard requires all 42 source files and the exact paper splits:
 3,943,584 train, 19,379 validation, and 19,341 test rows. Output columns are
 `text` and `lang`.
 
+## Running the Pipeline
+
+Every run goes through one Hydra entrypoint, `python -m sallm.main
+--config-name <target>`. The `mode` field in the config (`TRAIN`, `FINETUNE`
+or `EVALUATE`) selects the stage. Config paths such as `${oc.env:SCRATCH}`
+resolve from the environment, so set `SCRATCH` and `HOME` or override the
+paths on the command line.
+
+**1. Corpus and tokenizer.** Clean the raw sources as described in
+[data/cleaning/README.md](data/cleaning/README.md), then:
+
+```bash
+uv run python data/prepare_datasets.py          # src/conf/datasets/sallm_dataset.yaml
+uv run python tokenizer/train.py                # src/conf/tokenizers/bpe.yaml
+uv run python tokenizer/process.py              # src/conf/datasets/sallm_processed.yaml
+```
+
+The Llama base configs read the processed corpus from disk. The Mamba, xLSTM,
+RWKV and RecurrentGemma base configs load the tokenized corpus from the Hub
+instead.
+
+**2. Pretraining.** Base model configs live in `src/conf/base/`:
+
+```bash
+uv run python -m sallm.main --config-name base/llama_125m
+```
+
+**3. Fine-tuning and evaluation.** Use a recipe, or a config target directly:
+
+```bash
+uv run sallm finetune llama_t2x_xho --dry-run
+uv run python -m sallm.main --config-name finetune/llama_t2x_xho
+uv run python -m sallm.main --config-name eval/run_llama_t2x_xho
+```
+
+**4. HPO.** Sweep configs live in `src/conf/sweeps/`. On a SLURM cluster,
+`ops/slurm/` wraps fine-tuning, evaluation and HPO; see [SLURM](docs/slurm.md).
+
 ## Repository Layout
 
-- `src/main/sallm`: Python package for training, fine-tuning, and evaluation.
-- `src/conf`: Hydra configs for model, data, fine-tuning, evaluation, and HPO.
-- `recipes/registry.yaml`: public recipe IDs mapped to known configs.
-- `ops/slurm`: advanced SLURM workflows for cluster execution.
-- `scripts`: local Python utilities.
-- `tokenizer`: tokenizer training and processing utilities.
-- `data`: dataset preparation and cleaning utilities.
+| Path | Contents |
+| --- | --- |
+| `src/main/sallm` | Python package: `training/` (pretraining), `fine_tune/`, `evaluation/`, `hpo/`, `data/` (dataset adapters, formatters, loaders), `models/`, `configs/` (typed config schema), `cli.py` (recipe CLI) and `main.py` (Hydra entrypoint) |
+| `src/conf` | Hydra configs: `base/` (pretraining), `finetune/`, `eval/` (evaluation runs and lm-eval task packs), `rerank/`, `sweeps/` (HPO), `templates/` (prompt templates), `datasets/`, `tokenizers/` |
+| `recipes/registry.yaml` | Public recipe IDs mapped to finetune and eval configs |
+| `data/` | Corpus cleaning and release preparation |
+| `tokenizer/` | Tokenizer training and corpus tokenization; `tokenizer/tokenizer/` holds a committed tokenizer |
+| `ops/slurm/` | SLURM launchers for fine-tuning, evaluation and HPO |
+| `scripts/` | Small utilities (corpus pre-tokenization, Grype policy check) |
+| `tests/` | CPU pytest suite, run in CI |
+| `archive/` | Superseded environments, one-off scripts and dated reports, kept for provenance |
 
 ## Development
 
 ```bash
 uv sync --extra dev
-uv run pytest tests/test_cli.py tests/test_recipes.py
+uv run pytest -q
 uv run pre-commit run --all-files
 ```
 
