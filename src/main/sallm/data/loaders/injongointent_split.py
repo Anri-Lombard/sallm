@@ -7,6 +7,22 @@ from typing import Any
 INJONGOINTENT_VALIDATION_RATIO = 0.1
 
 
+def exclude_heldout_texts(
+    rows: list[dict[str, Any]],
+    heldout_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    heldout_texts = {
+        _normalized_text(row.get("text"))
+        for row in heldout_rows
+        if _normalized_text(row.get("text"))
+    }
+    return [
+        dict(row)
+        for row in rows
+        if _normalized_text(row.get("text")) not in heldout_texts
+    ]
+
+
 def split_injongointent_rows(
     rows: list[dict[str, Any]],
     validation_ratio: float = INJONGOINTENT_VALIDATION_RATIO,
@@ -45,9 +61,13 @@ def _row_key(row: dict[str, Any], fallback_index: int) -> str:
     for field in ("example_id", "raw", "text"):
         value = row.get(field)
         if value:
-            return str(value)
-    return str(fallback_index)
+            return f"{row.get('intent', '')}\0{value}"
+    return f"{row.get('intent', '')}\0{fallback_index}"
 
 
 def _stable_hash(value: str) -> str:
     return md5(value.encode("utf-8"), usedforsecurity=False).hexdigest()
+
+
+def _normalized_text(value: object) -> str:
+    return " ".join(str(value or "").split()).casefold()

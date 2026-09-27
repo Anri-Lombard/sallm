@@ -1,0 +1,29 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "anrilombard/sallm-gated-deltanet-125m-shallowwide-4x40-20260707"
+  dtype: "bfloat16"
+  device: "cuda:0"
+
+evaluation:
+  task_packs:
+    - "afrimgsm_sa"
+    - "afrimmlu_sa"
+    - "afrixnli_sa"
+    - "afrisenti_tso"
+    - "injongointent_all"
+    - "masakhaner_all"
+    - "masakhanews_all"
+  output_dir: "${oc.env:SCRATCH}/sallm/results/eval/gdn_125m_base_multilingual_all"
+
+wandb:
+  project: "sallm-eval"
+  name: "eval-gdn-125m-base-multilingual-all"
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

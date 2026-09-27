@@ -8,6 +8,7 @@ from sallm.data.loaders.base import load_split_with_fallback
 
 MASAKHANER_DATASET = "masakhane/masakhaner2"
 MASAKHANER_PARQUET_DATASET = "anrilombard/masakhaner-x-parquet"
+MASAKHANER_PARQUET_REVISION = "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1"
 MASAKHANER_PARQUET_LANG_DIRS = {
     "tsn": "tn",
     "xho": "xh",
@@ -32,12 +33,13 @@ class MasakhaNERAdapter:
                 MASAKHANER_PARQUET_DATASET,
                 data_files=data_files,
                 split=splits["train"],
+                revision=MASAKHANER_PARQUET_REVISION,
             )
             val_ds = load_split_with_fallback(
                 MASAKHANER_PARQUET_DATASET,
                 None,
                 splits["val"],
-                None,
+                revision=MASAKHANER_PARQUET_REVISION,
                 data_files=data_files,
             )
             if "lang" not in train_ds.column_names:

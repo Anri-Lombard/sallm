@@ -9,7 +9,7 @@ import yaml
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 import datasets
-from tokenizers import Tokenizer
+from tokenizers import Tokenizer, decoders
 from tokenizers.models import BPE
 from tokenizers.normalizers import NFD, Sequence
 from tokenizers.pre_tokenizers import ByteLevel
@@ -47,6 +47,8 @@ def train_tokenizer(config: dict) -> None:
     # without needing to change libraries. Tokens will now be bytes which has been
     # shown to help with the morphologically rich languages we're working with
     tokenizer.pre_tokenizer = ByteLevel()
+    # Without a decoder, decode() returns raw byte-level symbols ("Ġword").
+    tokenizer.decoder = decoders.ByteLevel()
 
     trainer = BpeTrainer(
         vocab_size=vocab_size,

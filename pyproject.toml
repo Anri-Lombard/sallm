@@ -14,7 +14,7 @@ dependencies = [
     "transformers>=5.5.0,<6",
     "protobuf==5.29.6",
     "tornado>=6.5.7",
-    "datasets>=3.6.0",
+    "datasets>=4.4.2,<5",
     "wandb>=0.29.0",
     "pydantic>=2.11.7",
     "pyyaml>=6.0.2",
@@ -47,6 +47,9 @@ sallm = "sallm.cli:main"
 gpu = [
     "kernels>=0.11.0",  # pure Python, can be in lockfile
 ]
+pure-gdn = [
+    "flash-linear-attention==0.5.1; sys_platform == 'linux'",
+]
 dev = [
     "pytest>=9.0.3",
     "types-pyyaml>=6.0.12.20250516",
@@ -67,11 +70,18 @@ line-length = 88
 target-version = "py312"
 src = ["src", "tokenizer"]
 exclude = ["build", "dist", "trash", "__pycache__"]
+# scripts/ holds as-run research runners whose sha256 is recorded in the research
+# notes; scripts/paper is a verbatim copy of the paper's runners. Keep their bytes.
+extend-exclude = ["scripts/paper"]
+force-exclude = true
+
+[tool.ruff.format]
+exclude = ["scripts/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["E203"]
-per-file-ignores = {"__init__.py" = ["F401"]}
+per-file-ignores = {"__init__.py" = ["F401"], "scripts/**" = ["E501", "E702", "UP017"]}
 
 [tool.ty.environment]
 python-version = "3.12"

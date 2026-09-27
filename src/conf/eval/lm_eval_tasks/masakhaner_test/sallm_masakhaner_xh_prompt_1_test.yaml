@@ -1,0 +1,4 @@
+include: ../masakhaner_validation/sallm_masakhaner_xh_prompt_1_val.yaml
+task: sallm_masakhaner_xh_prompt_1_test
+test_split: test
+validation_split: null

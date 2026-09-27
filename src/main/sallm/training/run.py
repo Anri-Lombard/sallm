@@ -1,5 +1,6 @@
 import logging
 import os
+from collections.abc import Mapping
 from typing import Any, cast
 
 import wandb
@@ -19,6 +20,51 @@ def _is_main_process() -> bool:
     except Exception:
         return True
     return local_rank in (-1, 0)
+
+
+def _assert_train_batch_length_if_requested(trainer: Any) -> None:
+    """Check a real training batch when the canary explicitly requests it."""
+    raw_expected = os.environ.get("SALLM_ASSERT_TRAIN_BATCH_LENGTH")
+    if raw_expected is None:
+        return
+    try:
+        expected = int(raw_expected)
+    except ValueError as exc:
+        raise ValueError(
+            "SALLM_ASSERT_TRAIN_BATCH_LENGTH must be a positive integer, "
+            f"got {raw_expected!r}."
+        ) from exc
+    if expected <= 0:
+        raise ValueError(
+            "SALLM_ASSERT_TRAIN_BATCH_LENGTH must be a positive integer, "
+            f"got {raw_expected!r}."
+        )
+
+    try:
+        batch = next(iter(trainer.get_train_dataloader()))
+    except StopIteration as exc:
+        raise ValueError(
+            "Cannot assert packed batch length: training data is empty."
+        ) from exc
+    if not isinstance(batch, Mapping) or "input_ids" not in batch:
+        raise ValueError(
+            "Cannot assert packed batch length: the real training batch has no "
+            "`input_ids`."
+        )
+    input_ids = batch["input_ids"]
+    shape = tuple(getattr(input_ids, "shape", ()))
+    if len(shape) < 2:
+        raise ValueError(
+            "Cannot assert packed batch length: `input_ids` must be rank two or "
+            f"higher, got shape {tuple(shape)!r}."
+        )
+    actual = int(shape[-1])
+    if actual != expected:
+        raise AssertionError(
+            "Real training batch length does not match "
+            f"SALLM_ASSERT_TRAIN_BATCH_LENGTH: expected {expected}, got {actual}."
+        )
+    logger.info("Verified real training batch length: %d tokens.", actual)
 
 
 def run(config: ExperimentConfig) -> None:
@@ -50,14 +96,18 @@ def run(config: ExperimentConfig) -> None:
     train_ds, val_ds, test_ds = build_datasets(config, tokenizer, is_hpo=is_hpo_run)
 
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
+    _assert_train_batch_length_if_requested(trainer)
     trainer.train(
         resume_from_checkpoint=(config.training or {}).get("resume_from_checkpoint")
     )
 
     if not is_hpo_run:
         out = os.path.join(str(trainer.args.output_dir), "final_model")
-        trainer.save_model(out)
-        logger.info(f"Saved model → {out}")
+        trainer.accelerator.wait_for_everyone()
+        if trainer.args.should_save:
+            trainer.save_model(out)
+            logger.info(f"Saved model → {out}")
+        trainer.accelerator.wait_for_everyone()
 
         if config.hub and config.hub.enabled and i_am_main:
             if config.model is None:

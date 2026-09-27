@@ -9,6 +9,7 @@ from sallm.data.adapters import (
     github,
     huggingface,
     masakhapos,
+    sources,
 )
 from sallm.data.adapters.masakhaner import masakhaner_data_files
 from sallm.data.adapters.registry import load_raw_dataset, resolve_dataset_adapter
@@ -152,8 +153,8 @@ def test_masakhapos_retries_transient_download_failures(
             raise transient_error
         return _MasakhaPOSResponse()
 
-    monkeypatch.setattr(masakhapos, "urlopen", fake_urlopen)
-    monkeypatch.setattr(masakhapos, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(sources, "urlopen", fake_urlopen)
+    monkeypatch.setattr(sources, "sleep", lambda _seconds: None)
 
     dataset = masakhapos.load_masakhapos_split("xho", "train")
 
@@ -170,8 +171,8 @@ def test_masakhapos_stops_after_three_transient_failures(monkeypatch) -> None:
         calls += 1
         raise HTTPError(request.full_url, 503, "unavailable", None, None)
 
-    monkeypatch.setattr(masakhapos, "urlopen", fake_urlopen)
-    monkeypatch.setattr(masakhapos, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(sources, "urlopen", fake_urlopen)
+    monkeypatch.setattr(sources, "sleep", lambda _seconds: None)
 
     with pytest.raises(HTTPError):
         masakhapos.load_masakhapos_split("xho", "train")
@@ -193,7 +194,7 @@ def test_masakhapos_uses_pinned_source_and_preserves_filename_fallback(
             raise HTTPError(request.full_url, 404, "missing", None, None)
         return _MasakhaPOSResponse()
 
-    monkeypatch.setattr(masakhapos, "urlopen", fake_urlopen)
+    monkeypatch.setattr(sources, "urlopen", fake_urlopen)
 
     dataset = masakhapos.load_masakhapos_split("xho", "validation")
 
@@ -274,3 +275,29 @@ def test_mix_component_raw_loading_uses_shared_adapter(monkeypatch) -> None:
     assert seen == ["github:francois-meyer/t2x"]
     assert train_raw is train
     assert val_raw is validation
+
+
+def test_injongointent_adapter_drops_test_texts_and_derives_validation(
+    monkeypatch,
+) -> None:
+    from sallm.data.adapters import injongointent
+
+    rows = {
+        "train": [{"text": f"t{i}", "intent": "greet"} for i in range(10)]
+        + [{"text": "Leaked", "intent": "greet"}],
+        "test": [{"text": "leaked", "intent": "greet"}],
+    }
+    monkeypatch.setattr(
+        injongointent,
+        "load_injongointent_split",
+        lambda lang, split: Dataset.from_list(rows[split]),
+    )
+
+    train_raw, val_raw = load_raw_dataset(
+        _cfg("masakhane/InjongoIntent", languages=["xho"])
+    )
+
+    texts = set(train_raw["text"]) | set(val_raw["text"])
+    assert "Leaked" not in texts
+    assert len(texts) == 10 and len(val_raw) == 1
+    assert "/resolve/main" not in injongointent.INJONGOINTENT_BASE_URL

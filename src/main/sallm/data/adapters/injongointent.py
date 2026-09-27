@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 import json
-from urllib.request import urlopen
 
 from datasets import Dataset, concatenate_datasets
 
 from sallm.config import FinetuneDatasetConfig
 from sallm.data.adapters.base import RawDatasetSplits, required_languages
+from sallm.data.adapters.sources import read_url
 from sallm.data.loaders.base import VALIDATION_ALIASES
-from sallm.data.loaders.injongointent_split import split_injongointent_rows
+from sallm.data.loaders.injongointent_split import (
+    exclude_heldout_texts,
+    split_injongointent_rows,
+)
 
 INJONGOINTENT_DATASET = "masakhane/InjongoIntent"
 INJONGOINTENT_BASE_URL = (
-    "https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/main"
+    "https://huggingface.co/datasets/masakhane/InjongoIntent/resolve/"
+    "fe4be3882a1614161dfe231ec793197bb74f4b44"
 )
 
 
@@ -28,17 +32,21 @@ class InjongoIntentAdapter:
         val_parts: list[Dataset] = []
         for lang_code in required_languages(ds_cfg, INJONGOINTENT_DATASET):
             train_ds = load_injongointent_split(lang_code, splits["train"])
+            test_ds = load_injongointent_split(lang_code, "test")
+            train_ds = Dataset.from_list(
+                exclude_heldout_texts(train_ds.to_list(), test_ds.to_list())
+            )
 
             val_split = splits["val"]
             if val_split.lower() in VALIDATION_ALIASES:
-                try:
-                    val_ds = load_injongointent_split(lang_code, val_split)
-                except Exception:
-                    train_rows, val_rows = split_injongointent_rows(train_ds.to_list())
-                    if not val_rows:
-                        raise
-                    train_ds = Dataset.from_list(train_rows)
-                    val_ds = Dataset.from_list(val_rows)
+                train_rows, val_rows = split_injongointent_rows(train_ds.to_list())
+                if not val_rows:
+                    raise ValueError(
+                        "Could not derive InjongoIntent validation rows for "
+                        f"{lang_code}."
+                    )
+                train_ds = Dataset.from_list(train_rows)
+                val_ds = Dataset.from_list(val_rows)
             else:
                 val_ds = load_injongointent_split(lang_code, val_split)
 
@@ -70,15 +78,14 @@ def load_injongointent_split(lang_code: str, split: str) -> Dataset:
     for filename in injongointent_split_candidates(split):
         try:
             url = f"{INJONGOINTENT_BASE_URL}/{lang_code}/{filename}"
-            with urlopen(url, timeout=30) as response:
-                rows = [
-                    {
-                        **json.loads(line),
-                        "lang": lang_code,
-                    }
-                    for line in response.read().decode("utf-8").splitlines()
-                    if line.strip()
-                ]
+            rows = [
+                {
+                    **json.loads(line),
+                    "lang": lang_code,
+                }
+                for line in read_url(url).decode("utf-8").splitlines()
+                if line.strip()
+            ]
             return Dataset.from_list(rows)
         except Exception as err:  # noqa: BLE001 - try alternate filename candidates
             last_err = err

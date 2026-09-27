@@ -1,0 +1,79 @@
+# Pure FLA GatedDeltaNet canary: same measured model/scientific contract as full.
+# Exact FLA 0.5.1 CPU count: 127,425,448 trainable parameters (HEX job 1164029).
+mode: TRAIN
+
+wandb:
+  project: ""
+  name: "125m-pure-fla-gdn-canary"
+
+model:
+  architecture: "gated_deltanet"
+  config:
+    vocab_size: 65536
+    hidden_size: 512
+    num_hidden_layers: 21
+    intermediate_size: 1536
+    hidden_ratio: null
+    num_heads: 4
+    head_dim: 128
+    expand_v: 2
+    max_position_embeddings: 2048
+    attn: null
+    attn_mode: "chunk"
+    tie_word_embeddings: true
+    use_cache: false
+  param_validation:
+    min_params_m: 120.0
+    max_params_m: 130.0
+
+data:
+  hf_name: "anrilombard/mzansi-text-tokenized"
+  streaming: true
+  train_split: "train"
+  eval_split: "validation"
+  test_split: null
+
+tokenizer:
+  path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-pure-gdn-125m-canary"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-pure-gdn-125m-canary"
+  learning_rate: 4.0e-4
+  max_seq_length: 2048
+  lr_scheduler_type: "cosine"
+  warmup_steps: 2000
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+  # Canary only: 2 devices × 2 microbatches × 48 accumulation = full EBS 192.
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 48
+  num_train_epochs: 5
+  max_steps: 2
+  eval_strategy: "steps"
+  eval_steps: 1
+  save_strategy: "steps"
+  save_steps: 1
+  save_total_limit: 2
+  resume_from_checkpoint: null
+  bf16: true
+  bf16_full_eval: true
+  logging_steps: 1
+  report_to: "none"
+  prediction_loss_only: true
+  ddp_find_unused_parameters: false
+  gradient_checkpointing: false
+  torch_compile: false
+  dataloader_num_workers: 2
+  packing: true
+  packing_strategy: "wrapped"
+  padding_free: false
+  save_safetensors: false
+
+hub:
+  enabled: false
+  organization: "anrilombard"
+  private: true

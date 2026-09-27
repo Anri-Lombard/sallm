@@ -9,20 +9,51 @@
 
 set -euo pipefail
 
+SWEEP_PATH="${1:-}"
+ARCHITECTURE="${2:-}"
+COUNT="${3:-43}"
+
+if [[ -z "$SWEEP_PATH" || -z "$ARCHITECTURE" ]]; then
+  echo "Usage: sbatch $0 <sweep_path> <architecture> [count]" >&2
+  echo "Architectures: gated_deltanet (pure FLA), qwen3next_gdn_hybrid (gdn), mamba2 (mamba), xlstm, llama" >&2
+  echo "Example: sbatch $0 anri-lombard/sallm-ft/z0vyuasg gated_deltanet 43" >&2
+  exit 1
+fi
+
+case "$ARCHITECTURE" in
+  gated_deltanet) ;;
+  gdn | qwen3next_gdn_hybrid) ARCHITECTURE="qwen3next_gdn_hybrid" ;;
+  mamba2 | mamba) ARCHITECTURE="mamba2" ;;
+  xlstm | llama) ;;
+  *)
+    echo "Unknown architecture: $ARCHITECTURE" >&2
+    exit 1
+    ;;
+esac
+
+if [[ ! "$COUNT" =~ ^[0-9]+$ ]] || ((10#$COUNT <= 0)); then
+  echo "Count must be a positive integer: $COUNT" >&2
+  exit 1
+fi
+COUNT=$((10#$COUNT))
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  for candidate in "${SLURM_SUBMIT_DIR:-}/ops/slurm" "$HOME/masters/sallm/ops/slurm"; do
+    if [[ -f "$candidate/lib/env.sh" ]]; then
+      SCRIPT_DIR="$candidate"
+      break
+    fi
+  done
+fi
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  echo "ERROR: Could not locate ops/slurm/lib/env.sh." >&2
+  exit 1
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/pyproject.toml" ]]; then
   export SALLM_REPO_DIR="$SLURM_SUBMIT_DIR"
-fi
-
-SWEEP_PATH="${1:-}"
-COUNT="${2:-43}"
-
-if [[ -z "$SWEEP_PATH" ]]; then
-  echo "Usage: sbatch $0 <sweep_path> [count]" >&2
-  echo "Example: sbatch $0 anri-lombard/sallm-ft/z0vyuasg 43" >&2
-  exit 1
 fi
 
 SWEEP_ID="${SWEEP_PATH##*/}"
@@ -44,24 +75,50 @@ export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
 
 module load python/miniconda3-py3.12
-set +u
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate sallm-uv
-set -u
+if command -v conda >/dev/null 2>&1; then
+  CONDA_BASE=$(conda info --base)
+  set +u
+  source "$CONDA_BASE/etc/profile.d/conda.sh"
+  if conda env list | awk '{print $1}' | grep -qx sallm-uv; then
+    conda activate sallm-uv
+  else
+    echo "Conda environment sallm-uv is unavailable; using the repository .venv."
+  fi
+  set -u
+fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
 cd "$SALLM_REPO_DIR"
-uv sync --frozen --inexact
+if [[ "$ARCHITECTURE" == "gated_deltanet" || "$ARCHITECTURE" == "qwen3next_gdn_hybrid" ]]; then
+  uv sync --extra pure-gdn --frozen --inexact
+else
+  uv sync --frozen --inexact
+fi
 source .venv/bin/activate
 
-# Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
-# Wheels are cached on cluster scratch so this should stay quick.
-echo "--- Mamba CUDA kernel status ---"
-if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-  echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
-  uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5 || true
-fi
-python -c "
+case "$ARCHITECTURE" in
+  gated_deltanet | qwen3next_gdn_hybrid)
+    if [[ "$ARCHITECTURE" == "gated_deltanet" ]]; then
+      KERNEL_LABEL="Pure FLA GatedDeltaNet"
+    else
+      KERNEL_LABEL="GDN–Attention Hybrid (Qwen3Next implementation)"
+    fi
+    python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" ||
+      {
+        echo "ERROR: $KERNEL_LABEL fast kernels are unavailable." >&2
+        exit 1
+      }
+    echo "✓ $KERNEL_LABEL FLA preflight available"
+    ;;
+  mamba2)
+    # Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
+    # Wheels are cached on cluster scratch so this should stay quick.
+    echo "--- Mamba CUDA kernel status ---"
+    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+      echo "Installing mamba-ssm and causal-conv1d from cached wheels..."
+      uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1 | tail -5 || true
+    fi
+    python -c "
 try:
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
     from causal_conv1d import causal_conv1d_fn
@@ -70,12 +127,21 @@ except ImportError as e:
     print(f'ℹ Mamba CUDA kernels unavailable: {e}')
     raise SystemExit(1)
 "
-echo "-------------------------------"
+    echo "-------------------------------"
+    ;;
+  xlstm | llama)
+    echo "Skipping CUDA kernel preflight for $ARCHITECTURE; no architecture-specific kernel requirement."
+    ;;
+esac
 
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
+export WANDB_AGENT_MAX_INITIAL_FAILURES="${WANDB_AGENT_MAX_INITIAL_FAILURES:-100}"
 
-NUM_GPUS=2
+NUM_GPUS="${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-2}}"
 AGENTS_TO_RUN=$NUM_GPUS
+if [[ "$COUNT" -lt "$AGENTS_TO_RUN" ]]; then
+  AGENTS_TO_RUN="$COUNT"
+fi
 BASE_PER_AGENT=$((COUNT / AGENTS_TO_RUN))
 REMAINDER=$((COUNT % AGENTS_TO_RUN))
 

@@ -1,12 +1,26 @@
 #!/bin/bash
-#SBATCH --partition=l40s
-#SBATCH --gres=gpu:l40s:2
+#SBATCH --account=nlpgroup
+#SBATCH --partition=a100
+#SBATCH --qos=nlpgroup
+#SBATCH --gres=gpu:ampere:1
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mail-type=FAIL,END
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  for candidate in "${SLURM_SUBMIT_DIR:-}/ops/slurm" "$HOME/masters/sallm/ops/slurm"; do
+    if [[ -f "$candidate/lib/env.sh" ]]; then
+      SCRIPT_DIR="$candidate"
+      break
+    fi
+  done
+fi
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  echo "ERROR: Could not locate ops/slurm/lib/env.sh." >&2
+  exit 1
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/pyproject.toml" ]]; then
@@ -24,6 +38,33 @@ EXTRA_ARGS=("$@")
 if [[ "$CONFIG_NAME" != */* ]]; then
   CONFIG_NAME="eval/$CONFIG_NAME"
 fi
+
+CONFIG_GROUP="${CONFIG_NAME%%/*}"
+NORMALIZED_ARGS=()
+for arg in "${EXTRA_ARGS[@]}"; do
+  case "$arg" in
+    -*) NORMALIZED_ARGS+=("$arg") ;;
+    hydra.* | "$CONFIG_GROUP".*) NORMALIZED_ARGS+=("$arg") ;;
+    ++*)
+      arg_body="${arg#++}"
+      if [[ "$arg_body" == "$CONFIG_GROUP."* ]]; then
+        NORMALIZED_ARGS+=("++${arg_body}")
+      else
+        NORMALIZED_ARGS+=("++${CONFIG_GROUP}.${arg_body}")
+      fi
+      ;;
+    +*)
+      arg_body="${arg#+}"
+      if [[ "$arg_body" == "$CONFIG_GROUP."* ]]; then
+        NORMALIZED_ARGS+=("$arg")
+      else
+        NORMALIZED_ARGS+=("+${CONFIG_GROUP}.${arg_body}")
+      fi
+      ;;
+    *) NORMALIZED_ARGS+=("${CONFIG_GROUP}.${arg}") ;;
+  esac
+done
+EXTRA_ARGS=("${NORMALIZED_ARGS[@]}")
 
 CFG_NAME="${CONFIG_NAME##*/}"
 JOB_NAME="eval-${CFG_NAME#mamba_}"
@@ -58,17 +99,24 @@ echo "--- Storage Usage ---"
 df -h /home /scratch 2>/dev/null || true
 echo "-------------------------------"
 
-module load python/miniconda3-py3.12
-CONDA_BASE=$(conda info --base)
-source "$CONDA_BASE/etc/profile.d/conda.sh"
-set +u
-conda activate sallm-uv
-set -u
+if command -v module >/dev/null 2>&1; then
+  module load python/miniconda3-py3.12
+  CONDA_BASE=$(conda info --base)
+  source "$CONDA_BASE/etc/profile.d/conda.sh"
+  if conda env list | awk '{print $1}' | grep -qx sallm-uv; then
+    conda activate sallm-uv
+  else
+    echo "ℹ conda environment sallm-uv is unavailable; using the repository .venv."
+  fi
+fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
-cd "$SALLM_REPO_DIR"
-uv sync --frozen --inexact
+cd "$SALLM_RUNTIME_REPO"
+if command -v uv >/dev/null 2>&1; then
+  uv sync --frozen --inexact
+fi
 source .venv/bin/activate
+export PYTHONPATH="$SALLM_REPO_DIR/src/main:${PYTHONPATH:-}"
 
 # Install CUDA kernels based on model type
 echo "--- CUDA kernel status ---"
@@ -77,7 +125,7 @@ IS_XLSTM=false
 [[ "$CONFIG_NAME" == *mamba* ]] && IS_MAMBA=true
 [[ "$CONFIG_NAME" == *xlstm* ]] && IS_XLSTM=true
 
-if $IS_MAMBA; then
+if $IS_MAMBA && [[ "${SALLM_SKIP_MAMBA_KERNEL_CHECK:-0}" != 1 ]]; then
   if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then
     echo "✓ Mamba fast path (CUDA kernels) available"
   else
@@ -91,6 +139,8 @@ if $IS_MAMBA; then
     echo "✓ Mamba fast path (CUDA kernels) available"
   fi
   export MAMBA_SCAN_IMPL="cuda"
+elif $IS_MAMBA; then
+  echo "Skipping Mamba kernels for an architecture override."
 fi
 
 if $IS_XLSTM; then
@@ -110,5 +160,11 @@ echo "-------------------------------"
 
 # Set PyTorch CUDA allocation config
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
+
+if [[ "$CONFIG_NAME" == *gdn* || "$CONFIG_NAME" == *gated_deltanet* ]]; then
+  # TileLang can be importable but unusable when its native library root is absent.
+  export FLA_DISABLE_BACKEND_DISPATCH=1
+  echo "GDN evaluation: disabling FLA backend dispatch; using the reference path."
+fi
 
 python -m sallm.main --config-name "$CONFIG_NAME" "${EXTRA_ARGS[@]}"

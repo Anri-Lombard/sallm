@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -20,6 +21,7 @@ from transformers import (
 from sallm.config import DecodingConfig, FinetuneTaskType
 from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.evaluation.generation_metrics import GenerationEvaluator
+from sallm.evaluation.pos_metrics import PosEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -242,14 +244,37 @@ class GenerationMetricsCallback(TrainerCallback):
         elif state.is_world_process_zero:
             world_size = getattr(args, "world_size", 1)
             collect_debug_examples = self.debug_examples_per_lang > 0
-            result = self.evaluator.evaluate(
-                model,
-                self.eval_dataset,
-                world_size=world_size,
-                metric_prefix="eval",
-                collect_examples=collect_debug_examples,
-                example_limit_per_lang=self.debug_examples_per_lang,
-            )
+            config = getattr(model, "config", None)
+            restore_xlstm = None
+            if (
+                config is not None
+                and getattr(config, "model_type", None) == "xlstm"
+                and getattr(config, "mode", None) == "train"
+            ):
+                restore_xlstm = (
+                    config.mode,
+                    config.return_last_states,
+                    config.inference_state_dtype,
+                )
+                config.mode = "inference"
+                config.return_last_states = True
+                config.inference_state_dtype = str(config.dtype).removeprefix("torch.")
+            try:
+                result = self.evaluator.evaluate(
+                    model,
+                    self.eval_dataset,
+                    world_size=world_size,
+                    metric_prefix="eval",
+                    collect_examples=collect_debug_examples,
+                    example_limit_per_lang=self.debug_examples_per_lang,
+                )
+            finally:
+                if restore_xlstm is not None and config is not None:
+                    (
+                        config.mode,
+                        config.return_last_states,
+                        config.inference_state_dtype,
+                    ) = restore_xlstm
 
             if result.metrics:
                 trainer_metrics = dict(result.metrics)
@@ -359,11 +384,15 @@ class ClassificationMetricsCallback(TrainerCallback):
                 "ClassificationMetricsCallback: `model` not found in kwargs. Skipping."
             )
         elif state.is_world_process_zero:
-            metrics = self.evaluator.evaluate(
-                model,
-                self.eval_dataset,
-                metric_prefix="classification",
-            )
+            try:
+                metrics = self.evaluator.evaluate(
+                    model,
+                    self.eval_dataset,
+                    metric_prefix="classification",
+                )
+            finally:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
             if metrics:
                 trainer_metrics = dict(metrics)
@@ -383,6 +412,83 @@ class ClassificationMetricsCallback(TrainerCallback):
             callback_metrics.update(trainer_metrics)
         if state.is_world_process_zero and wandb_metrics:
             wandb.log(wandb_metrics)
+
+
+class PosMetricsCallback(TrainerCallback):
+    """Compute the frozen closed-label MasakhaPOS validation metric."""
+
+    def __init__(
+        self,
+        eval_dataset: Dataset,
+        tokenizer: PreTrainedTokenizerBase,
+    ) -> None:
+        self.eval_dataset = eval_dataset
+        self.evaluator = PosEvaluator(
+            tokenizer,
+            score_mode="mean",
+            pad_to_multiple_of=64,
+            strict_contract=True,
+        )
+
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        trainer_metrics: dict[str, float] = {}
+        model = cast(PreTrainedModel | None, kwargs.get("model"))
+        if model is None:
+            logger.warning("PosMetricsCallback: `model` not found in kwargs. Skipping.")
+        elif state.is_world_process_zero:
+            try:
+                metrics = self.evaluator.evaluate(model, self.eval_dataset)
+            finally:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            trainer_metrics = dict(metrics)
+            for key, value in list(metrics.items()):
+                if "/" in key:
+                    trainer_metrics[key.replace("/", "_")] = value
+            self._write_artifact(args=args, state=state)
+            wandb.log(metrics)
+
+        trainer_metrics = _broadcast_metrics_from_rank0(
+            local_metrics=trainer_metrics,
+            is_world_process_zero=state.is_world_process_zero,
+        )
+        callback_metrics = kwargs.get("metrics")
+        if trainer_metrics and isinstance(callback_metrics, dict):
+            callback_metrics.update(trainer_metrics)
+
+    def _write_artifact(
+        self,
+        *,
+        args: TrainingArguments,
+        state: TrainerState,
+    ) -> None:
+        payload = {
+            **self.evaluator.last_details,
+            "global_step": int(state.global_step),
+            "epoch": state.epoch,
+        }
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        ).encode("utf-8")
+        artifact_dir = Path(str(args.output_dir)) / "validation_artifacts" / "pos"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        path = artifact_dir / f"step-{int(state.global_step):08d}.json"
+        path.write_bytes(encoded + b"\n")
+        digest = hashlib.sha256(encoded + b"\n").hexdigest()
+        path.with_suffix(".json.sha256").write_text(
+            f"{digest}  {path.name}\n",
+            encoding="utf-8",
+        )
+        logger.info("Saved constrained POS validation artifact %s (%s)", path, digest)
 
 
 class EnsureStaticGraphCallback(TrainerCallback):

@@ -1,0 +1,373 @@
+arch,unit,kind,stage,family,regime,languages,lr,seed,epochs,train_rows_approx,val_scoring_passes,test_after_training,depends_on,est_gpu_hours,optional,cross_eval_targets
+mzansilm,prep,prep,prep,,,,,,,,,,,0.1,False,
+mzansilm,base-gen,base,base-eval,gen,Base,,,,,,,,prep,0.173,False,
+mzansilm,base-prompt,base,base-eval,prompt,Base,,,,,,,,prep,1.5,False,
+mzansilm,base-ner,base,base-eval,ner,Base,,,,,,,,prep,0.183,False,
+mzansilm,base-pos,base,base-eval,pos,Base,,,,,,,,prep,0.75,False,
+mzansilm,train-news-multi-lr3e-5-s42,train,lr-sweep,news,multi,eng+xho,3e-5,42,10,4341,10,False,prep,2.126,False,
+mzansilm,train-news-multi-lr1e-4-s42,train,lr-sweep,news,multi,eng+xho,1e-4,42,10,4341,10,False,prep,2.126,False,
+mzansilm,train-news-multi-lr3e-4-s42,train,lr-sweep,news,multi,eng+xho,3e-4,42,10,4341,10,False,prep,2.126,False,
+mzansilm,select-news,select,lr-selection (+edge run),news,multi,eng+xho,,,,,,,train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42,1.063,False,
+mzansilm,test-news-multi,test,test-scoring,news,multi,eng+xho,,,,,,,select-news,0.15,False,
+mzansilm,train-news-mono-eng-s42,train,mono,news,mono,eng,selected,42,10,3309,10,True,select-news,1.539,False,
+mzansilm,train-news-mono-xho-s42,train,mono,news,mono,xho,selected,42,10,1032,10,True,select-news,0.786,False,
+mzansilm,train-sib-multi-lr3e-5-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-5,42,10,4206,10,False,prep,0.728,False,
+mzansilm,train-sib-multi-lr1e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,1e-4,42,10,4206,10,False,prep,0.728,False,
+mzansilm,train-sib-multi-lr3e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-4,42,10,4206,10,False,prep,0.728,False,
+mzansilm,select-sib,select,lr-selection (+edge run),sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42,0.364,False,
+mzansilm,test-sib-multi,test,test-scoring,sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,select-sib,0.108,False,
+mzansilm,train-sib-mono-afr-s42,train,mono,sib,mono,afr,selected,42,10,701,10,True,select-sib,0.215,False,
+mzansilm,train-sib-mono-eng-s42,train,mono,sib,mono,eng,selected,42,10,701,10,True,select-sib,0.215,False,
+mzansilm,train-sib-mono-nso-s42,train,mono,sib,mono,nso,selected,42,10,701,10,True,select-sib,0.215,False,
+mzansilm,train-sib-mono-sot-s42,train,mono,sib,mono,sot,selected,42,10,701,10,True,select-sib,0.215,False,
+mzansilm,train-sib-mono-xho-s42,train,mono,sib,mono,xho,selected,42,10,701,10,True,select-sib,0.215,False,
+mzansilm,train-sib-mono-zul-s42,train,mono,sib,mono,zul,selected,42,10,701,10,True,select-sib,0.215,False,
+mzansilm,train-intent-multi-lr3e-5-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-5,42,4,7046,4,False,prep,0.712,False,
+mzansilm,train-intent-multi-lr1e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,1e-4,42,4,7046,4,False,prep,0.712,False,
+mzansilm,train-intent-multi-lr3e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-4,42,4,7046,4,False,prep,0.712,False,
+mzansilm,select-intent,select,lr-selection (+edge run),intent,multi,eng+sot+xho+zul,,,,,,,train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42,0.356,False,
+mzansilm,test-intent-multi,test,test-scoring,intent,multi,eng+sot+xho+zul,,,,,,,select-intent,0.2,False,
+mzansilm,train-intent-mono-eng-s42,train,mono,intent,mono,eng,selected,42,10,1046,10,True,select-intent,0.345,False,
+mzansilm,train-intent-mono-sot-s42,train,mono,intent,mono,sot,selected,42,10,2000,10,True,select-intent,0.425,False,
+mzansilm,train-intent-mono-xho-s42,train,mono,intent,mono,xho,selected,42,10,2000,10,True,select-intent,0.425,False,
+mzansilm,train-intent-mono-zul-s42,train,mono,intent,mono,zul,selected,42,10,2000,10,True,select-intent,0.425,False,
+mzansilm,train-ner-multi-lr3e-5-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-5,42,10,4323,10,False,prep,1.468,False,
+mzansilm,train-ner-multi-lr1e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,1e-4,42,10,4323,10,False,prep,1.468,False,
+mzansilm,train-ner-multi-lr3e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-4,42,10,4323,10,False,prep,1.468,False,
+mzansilm,select-ner,select,lr-selection (+edge run),ner,multi,tsn+xho+zul,,,,,,,train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42,0.734,False,
+mzansilm,test-ner-multi,test,test-scoring,ner,multi,tsn+xho+zul,,,,,,,select-ner,0.25,False,
+mzansilm,train-ner-mono-tsn-s42,train,mono,ner,mono,tsn,selected,42,10,1441,10,True,select-ner,0.624,False,
+mzansilm,train-ner-mono-xho-s42,train,mono,ner,mono,xho,selected,42,10,1441,10,True,select-ner,0.624,False,
+mzansilm,train-ner-mono-zul-s42,train,mono,ner,mono,zul,selected,42,10,1441,10,True,select-ner,0.624,False,
+mzansilm,train-pos-multi-lr3e-5-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-5,42,10,2259,10,False,prep,2.713,False,
+mzansilm,train-pos-multi-lr1e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,1e-4,42,10,2259,10,False,prep,2.713,False,
+mzansilm,train-pos-multi-lr3e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-4,42,10,2259,10,False,prep,2.713,False,
+mzansilm,select-pos,select,lr-selection (+edge run),pos,multi,tsn+xho+zul,,,,,,,train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42,1.357,False,
+mzansilm,test-pos-multi,test,test-scoring,pos,multi,tsn+xho+zul,,,,,,,select-pos,0.817,False,
+mzansilm,train-pos-mono-tsn-s42,train,mono,pos,mono,tsn,selected,42,10,754,10,True,select-pos,1.228,False,
+mzansilm,train-pos-mono-xho-s42,train,mono,pos,mono,xho,selected,42,10,752,10,True,select-pos,1.226,False,
+mzansilm,train-pos-mono-zul-s42,train,mono,pos,mono,zul,selected,42,10,753,10,True,select-pos,1.228,False,
+mzansilm,train-afrihg-multi-lr3e-5-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-5,42,4,24649,4,False,prep,4.855,False,
+mzansilm,train-afrihg-multi-lr1e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,1e-4,42,4,24649,4,False,prep,4.855,False,
+mzansilm,train-afrihg-multi-lr3e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-4,42,4,24649,4,False,prep,4.855,False,
+mzansilm,select-afrihg,select,lr-selection (+edge run),afrihg,multi,xho+zul,,,,,,,train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42,2.428,False,
+mzansilm,test-afrihg-multi,test,test-scoring,afrihg,multi,xho+zul,,,,,,,select-afrihg,0.173,False,
+mzansilm,train-afrihg-mono-xho-s42,train,mono,afrihg,mono,xho,selected,42,4,12300,4,True,select-afrihg,2.535,False,
+mzansilm,train-afrihg-mono-zul-s42,train,mono,afrihg,mono,zul,selected,42,4,12349,4,True,select-afrihg,2.543,False,
+mzansilm,train-t2x-mono-xho-lr3e-5-s42,train,lr-sweep,t2x,mono,xho,3e-5,42,10,3859,10,False,prep,0.568,False,
+mzansilm,train-t2x-mono-xho-lr1e-4-s42,train,lr-sweep,t2x,mono,xho,1e-4,42,10,3859,10,False,prep,0.568,False,
+mzansilm,train-t2x-mono-xho-lr3e-4-s42,train,lr-sweep,t2x,mono,xho,3e-4,42,10,3859,10,False,prep,0.568,False,
+mzansilm,select-t2x,select,lr-selection (+edge run),t2x,mono,xho,,,,,,,train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42,0.284,False,
+mzansilm,test-t2x-mono-xho,test,test-scoring,t2x,mono,xho,,,,,,,select-t2x,0.083,False,
+mzansilm,train-t2x-mono-xho-s43,train,seed,t2x,mono,xho,selected,43,10,3859,10,True,select-t2x,0.601,False,
+mzansilm,train-t2x-mono-xho-s44,train,seed,t2x,mono,xho,selected,44,10,3859,10,True,select-t2x,0.601,False,
+mzansilm,train-general-general-s42,train,mono,general,general,,selected,42,4,43637,4,True,prep select-news select-sib select-intent select-ner select-pos select-afrihg,13.151,False,
+mzansilm,collect,collect,collect,,,,,,,,,,prep base-gen base-prompt base-ner base-pos train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42 select-news test-news-multi train-news-mono-eng-s42 train-news-mono-xho-s42 train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42 select-sib test-sib-multi train-sib-mono-afr-s42 train-sib-mono-eng-s42 train-sib-mono-nso-s42 train-sib-mono-sot-s42 train-sib-mono-xho-s42 train-sib-mono-zul-s42 train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42 select-intent test-intent-multi train-intent-mono-eng-s42 train-intent-mono-sot-s42 train-intent-mono-xho-s42 train-intent-mono-zul-s42 train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42 select-ner test-ner-multi train-ner-mono-tsn-s42 train-ner-mono-xho-s42 train-ner-mono-zul-s42 train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42 select-pos test-pos-multi train-pos-mono-tsn-s42 train-pos-mono-xho-s42 train-pos-mono-zul-s42 train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42 select-afrihg test-afrihg-multi train-afrihg-mono-xho-s42 train-afrihg-mono-zul-s42 train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42 select-t2x test-t2x-mono-xho train-t2x-mono-xho-s43 train-t2x-mono-xho-s44 train-general-general-s42,0.05,False,
+mzansilm,beam-t2x-mono-xho-s42,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,42,,,,,test-t2x-mono-xho,0.074,False,
+mzansilm,beam-t2x-mono-xho-s43,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,43,,,,,train-t2x-mono-xho-s43,0.074,False,
+mzansilm,beam-t2x-mono-xho-s44,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,44,,,,,train-t2x-mono-xho-s44,0.074,False,
+mzansilm,beam-afrihg-multi,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho+afrihg:zul,,42,,,,,test-afrihg-multi,0.245,False,
+mzansilm,beam-afrihg-mono-xho,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho,,42,,,,,train-afrihg-mono-xho-s42,0.148,False,
+mzansilm,beam-afrihg-mono-zul,beam,"beam (test only, beside greedy)",afrihg,,afrihg:zul,,42,,,,,train-afrihg-mono-zul-s42,0.148,False,
+mzansilm,beam-general-s42,beam,"beam (test only, beside greedy)",general,,t2x:xho+afrihg:xho+afrihg:zul,,42,,,,,train-general-general-s42,0.269,False,
+mzansilm,collect-beam,collect,collect,,,,,,,,,,beam-t2x-mono-xho-s42 beam-t2x-mono-xho-s43 beam-t2x-mono-xho-s44 beam-afrihg-multi beam-afrihg-mono-xho beam-afrihg-mono-zul beam-general-s42 collect,0.05,False,
+mzansilm,xeval-news-eng,xeval,"cross_eval (optional, off by default)",news,mono,eng,,42,,,,,train-news-mono-eng-s42,0.1,True,xho
+mzansilm,xeval-news-xho,xeval,"cross_eval (optional, off by default)",news,mono,xho,,42,,,,,train-news-mono-xho-s42,0.1,True,eng
+mzansilm,xeval-sib-afr,xeval,"cross_eval (optional, off by default)",sib,mono,afr,,42,,,,,train-sib-mono-afr-s42,0.099,True,eng+nso+sot+xho+zul
+mzansilm,xeval-sib-eng,xeval,"cross_eval (optional, off by default)",sib,mono,eng,,42,,,,,train-sib-mono-eng-s42,0.099,True,afr+nso+sot+xho+zul
+mzansilm,xeval-sib-nso,xeval,"cross_eval (optional, off by default)",sib,mono,nso,,42,,,,,train-sib-mono-nso-s42,0.099,True,afr+eng+sot+xho+zul
+mzansilm,xeval-sib-sot,xeval,"cross_eval (optional, off by default)",sib,mono,sot,,42,,,,,train-sib-mono-sot-s42,0.099,True,afr+eng+nso+xho+zul
+mzansilm,xeval-sib-xho,xeval,"cross_eval (optional, off by default)",sib,mono,xho,,42,,,,,train-sib-mono-xho-s42,0.099,True,afr+eng+nso+sot+zul
+mzansilm,xeval-sib-zul,xeval,"cross_eval (optional, off by default)",sib,mono,zul,,42,,,,,train-sib-mono-zul-s42,0.099,True,afr+eng+nso+sot+xho
+mzansilm,xeval-intent-eng,xeval,"cross_eval (optional, off by default)",intent,mono,eng,,42,,,,,train-intent-mono-eng-s42,0.163,True,sot+xho+zul
+mzansilm,xeval-intent-sot,xeval,"cross_eval (optional, off by default)",intent,mono,sot,,42,,,,,train-intent-mono-sot-s42,0.163,True,eng+xho+zul
+mzansilm,xeval-intent-xho,xeval,"cross_eval (optional, off by default)",intent,mono,xho,,42,,,,,train-intent-mono-xho-s42,0.163,True,eng+sot+zul
+mzansilm,xeval-intent-zul,xeval,"cross_eval (optional, off by default)",intent,mono,zul,,42,,,,,train-intent-mono-zul-s42,0.163,True,eng+sot+xho
+mzansilm,xeval-ner-tsn,xeval,"cross_eval (optional, off by default)",ner,mono,tsn,,42,,,,,train-ner-mono-tsn-s42,0.183,True,xho+zul
+mzansilm,xeval-ner-xho,xeval,"cross_eval (optional, off by default)",ner,mono,xho,,42,,,,,train-ner-mono-xho-s42,0.183,True,tsn+zul
+mzansilm,xeval-ner-zul,xeval,"cross_eval (optional, off by default)",ner,mono,zul,,42,,,,,train-ner-mono-zul-s42,0.183,True,tsn+xho
+mzansilm,xeval-pos-tsn,xeval,"cross_eval (optional, off by default)",pos,mono,tsn,,42,,,,,train-pos-mono-tsn-s42,0.561,True,xho+zul
+mzansilm,xeval-pos-xho,xeval,"cross_eval (optional, off by default)",pos,mono,xho,,42,,,,,train-pos-mono-xho-s42,0.561,True,tsn+zul
+mzansilm,xeval-pos-zul,xeval,"cross_eval (optional, off by default)",pos,mono,zul,,42,,,,,train-pos-mono-zul-s42,0.561,True,tsn+xho
+mzansilm,xeval-afrihg-xho,xeval,"cross_eval (optional, off by default)",afrihg,mono,xho,,42,,,,,train-afrihg-mono-xho-s42,0.111,True,zul
+mzansilm,xeval-afrihg-zul,xeval,"cross_eval (optional, off by default)",afrihg,mono,zul,,42,,,,,train-afrihg-mono-zul-s42,0.111,True,xho
+mzansilm,collect-xeval,collect,collect,,,,,,,,,,xeval-news-eng xeval-news-xho xeval-sib-afr xeval-sib-eng xeval-sib-nso xeval-sib-sot xeval-sib-xho xeval-sib-zul xeval-intent-eng xeval-intent-sot xeval-intent-xho xeval-intent-zul xeval-ner-tsn xeval-ner-xho xeval-ner-zul xeval-pos-tsn xeval-pos-xho xeval-pos-zul xeval-afrihg-xho xeval-afrihg-zul collect,0.05,True,
+mamba2,prep,prep,prep,,,,,,,,,,,0.1,False,
+mamba2,base-gen,base,base-eval,gen,Base,,,,,,,,prep,0.436,False,
+mamba2,base-prompt,base,base-eval,prompt,Base,,,,,,,,prep,1.5,False,
+mamba2,base-ner,base,base-eval,ner,Base,,,,,,,,prep,0.25,False,
+mamba2,base-pos,base,base-eval,pos,Base,,,,,,,,prep,2.067,False,
+mamba2,train-news-multi-lr3e-5-s42,train,lr-sweep,news,multi,eng+xho,3e-5,42,10,4341,10,False,prep,1.938,False,
+mamba2,train-news-multi-lr1e-4-s42,train,lr-sweep,news,multi,eng+xho,1e-4,42,10,4341,10,False,prep,1.938,False,
+mamba2,train-news-multi-lr3e-4-s42,train,lr-sweep,news,multi,eng+xho,3e-4,42,10,4341,10,False,prep,1.938,False,
+mamba2,select-news,select,lr-selection (+edge run),news,multi,eng+xho,,,,,,,train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42,0.969,False,
+mamba2,test-news-multi,test,test-scoring,news,multi,eng+xho,,,,,,,select-news,0.2,False,
+mamba2,train-news-mono-eng-s42,train,mono,news,mono,eng,selected,42,10,3309,10,True,select-news,1.349,False,
+mamba2,train-news-mono-xho-s42,train,mono,news,mono,xho,selected,42,10,1032,10,True,select-news,0.84,False,
+mamba2,train-sib-multi-lr3e-5-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-5,42,10,4206,10,False,prep,0.699,False,
+mamba2,train-sib-multi-lr1e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,1e-4,42,10,4206,10,False,prep,0.699,False,
+mamba2,train-sib-multi-lr3e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-4,42,10,4206,10,False,prep,0.699,False,
+mamba2,select-sib,select,lr-selection (+edge run),sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42,0.349,False,
+mamba2,test-sib-multi,test,test-scoring,sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,select-sib,0.133,False,
+mamba2,train-sib-mono-afr-s42,train,mono,sib,mono,afr,selected,42,10,701,10,True,select-sib,0.214,False,
+mamba2,train-sib-mono-eng-s42,train,mono,sib,mono,eng,selected,42,10,701,10,True,select-sib,0.214,False,
+mamba2,train-sib-mono-nso-s42,train,mono,sib,mono,nso,selected,42,10,701,10,True,select-sib,0.214,False,
+mamba2,train-sib-mono-sot-s42,train,mono,sib,mono,sot,selected,42,10,701,10,True,select-sib,0.214,False,
+mamba2,train-sib-mono-xho-s42,train,mono,sib,mono,xho,selected,42,10,701,10,True,select-sib,0.214,False,
+mamba2,train-sib-mono-zul-s42,train,mono,sib,mono,zul,selected,42,10,701,10,True,select-sib,0.214,False,
+mamba2,train-intent-multi-lr3e-5-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-5,42,4,7046,4,False,prep,0.743,False,
+mamba2,train-intent-multi-lr1e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,1e-4,42,4,7046,4,False,prep,0.743,False,
+mamba2,train-intent-multi-lr3e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-4,42,4,7046,4,False,prep,0.743,False,
+mamba2,select-intent,select,lr-selection (+edge run),intent,multi,eng+sot+xho+zul,,,,,,,train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42,0.372,False,
+mamba2,test-intent-multi,test,test-scoring,intent,multi,eng+sot+xho+zul,,,,,,,select-intent,0.28,False,
+mamba2,train-intent-mono-eng-s42,train,mono,intent,mono,eng,selected,42,10,1046,10,True,select-intent,0.394,False,
+mamba2,train-intent-mono-sot-s42,train,mono,intent,mono,sot,selected,42,10,2000,10,True,select-intent,0.454,False,
+mamba2,train-intent-mono-xho-s42,train,mono,intent,mono,xho,selected,42,10,2000,10,True,select-intent,0.454,False,
+mamba2,train-intent-mono-zul-s42,train,mono,intent,mono,zul,selected,42,10,2000,10,True,select-intent,0.454,False,
+mamba2,train-ner-multi-lr3e-5-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-5,42,10,4323,10,False,prep,1.674,False,
+mamba2,train-ner-multi-lr1e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,1e-4,42,10,4323,10,False,prep,1.674,False,
+mamba2,train-ner-multi-lr3e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-4,42,10,4323,10,False,prep,1.674,False,
+mamba2,select-ner,select,lr-selection (+edge run),ner,multi,tsn+xho+zul,,,,,,,train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42,0.837,False,
+mamba2,test-ner-multi,test,test-scoring,ner,multi,tsn+xho+zul,,,,,,,select-ner,0.317,False,
+mamba2,train-ner-mono-tsn-s42,train,mono,ner,mono,tsn,selected,42,10,1441,10,True,select-ner,0.714,False,
+mamba2,train-ner-mono-xho-s42,train,mono,ner,mono,xho,selected,42,10,1441,10,True,select-ner,0.714,False,
+mamba2,train-ner-mono-zul-s42,train,mono,ner,mono,zul,selected,42,10,1441,10,True,select-ner,0.714,False,
+mamba2,train-pos-multi-lr3e-5-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-5,42,10,2259,10,False,prep,6.312,False,
+mamba2,train-pos-multi-lr1e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,1e-4,42,10,2259,10,False,prep,6.312,False,
+mamba2,train-pos-multi-lr3e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-4,42,10,2259,10,False,prep,6.312,False,
+mamba2,select-pos,select,lr-selection (+edge run),pos,multi,tsn+xho+zul,,,,,,,train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42,3.156,False,
+mamba2,test-pos-multi,test,test-scoring,pos,multi,tsn+xho+zul,,,,,,,select-pos,2.133,False,
+mamba2,train-pos-mono-tsn-s42,train,mono,pos,mono,tsn,selected,42,10,754,10,True,select-pos,2.867,False,
+mamba2,train-pos-mono-xho-s42,train,mono,pos,mono,xho,selected,42,10,752,10,True,select-pos,2.864,False,
+mamba2,train-pos-mono-zul-s42,train,mono,pos,mono,zul,selected,42,10,753,10,True,select-pos,2.867,False,
+mamba2,train-afrihg-multi-lr3e-5-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-5,42,4,24649,4,False,prep,3.558,False,
+mamba2,train-afrihg-multi-lr1e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,1e-4,42,4,24649,4,False,prep,3.558,False,
+mamba2,train-afrihg-multi-lr3e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-4,42,4,24649,4,False,prep,3.558,False,
+mamba2,select-afrihg,select,lr-selection (+edge run),afrihg,multi,xho+zul,,,,,,,train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42,1.779,False,
+mamba2,test-afrihg-multi,test,test-scoring,afrihg,multi,xho+zul,,,,,,,select-afrihg,0.524,False,
+mamba2,train-afrihg-mono-xho-s42,train,mono,afrihg,mono,xho,selected,42,4,12300,4,True,select-afrihg,2.063,False,
+mamba2,train-afrihg-mono-zul-s42,train,mono,afrihg,mono,zul,selected,42,4,12349,4,True,select-afrihg,2.069,False,
+mamba2,train-t2x-mono-xho-lr3e-5-s42,train,lr-sweep,t2x,mono,xho,3e-5,42,10,3859,10,False,prep,0.664,False,
+mamba2,train-t2x-mono-xho-lr1e-4-s42,train,lr-sweep,t2x,mono,xho,1e-4,42,10,3859,10,False,prep,0.664,False,
+mamba2,train-t2x-mono-xho-lr3e-4-s42,train,lr-sweep,t2x,mono,xho,3e-4,42,10,3859,10,False,prep,0.664,False,
+mamba2,select-t2x,select,lr-selection (+edge run),t2x,mono,xho,,,,,,,train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42,0.332,False,
+mamba2,test-t2x-mono-xho,test,test-scoring,t2x,mono,xho,,,,,,,select-t2x,0.112,False,
+mamba2,train-t2x-mono-xho-s43,train,seed,t2x,mono,xho,selected,43,10,3859,10,True,select-t2x,0.726,False,
+mamba2,train-t2x-mono-xho-s44,train,seed,t2x,mono,xho,selected,44,10,3859,10,True,select-t2x,0.726,False,
+mamba2,train-general-general-s42,train,mono,general,general,,selected,42,4,43637,4,True,prep select-news select-sib select-intent select-ner select-pos select-afrihg,14.984,False,
+mamba2,collect,collect,collect,,,,,,,,,,prep base-gen base-prompt base-ner base-pos train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42 select-news test-news-multi train-news-mono-eng-s42 train-news-mono-xho-s42 train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42 select-sib test-sib-multi train-sib-mono-afr-s42 train-sib-mono-eng-s42 train-sib-mono-nso-s42 train-sib-mono-sot-s42 train-sib-mono-xho-s42 train-sib-mono-zul-s42 train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42 select-intent test-intent-multi train-intent-mono-eng-s42 train-intent-mono-sot-s42 train-intent-mono-xho-s42 train-intent-mono-zul-s42 train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42 select-ner test-ner-multi train-ner-mono-tsn-s42 train-ner-mono-xho-s42 train-ner-mono-zul-s42 train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42 select-pos test-pos-multi train-pos-mono-tsn-s42 train-pos-mono-xho-s42 train-pos-mono-zul-s42 train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42 select-afrihg test-afrihg-multi train-afrihg-mono-xho-s42 train-afrihg-mono-zul-s42 train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42 select-t2x test-t2x-mono-xho train-t2x-mono-xho-s43 train-t2x-mono-xho-s44 train-general-general-s42,0.05,False,
+mamba2,beam-t2x-mono-xho-s42,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,42,,,,,test-t2x-mono-xho,0.491,False,
+mamba2,beam-t2x-mono-xho-s43,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,43,,,,,train-t2x-mono-xho-s43,0.491,False,
+mamba2,beam-t2x-mono-xho-s44,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,44,,,,,train-t2x-mono-xho-s44,0.491,False,
+mamba2,beam-afrihg-multi,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho+afrihg:zul,,42,,,,,test-afrihg-multi,3.644,False,
+mamba2,beam-afrihg-mono-xho,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho,,42,,,,,train-afrihg-mono-xho-s42,1.847,False,
+mamba2,beam-afrihg-mono-zul,beam,"beam (test only, beside greedy)",afrihg,,afrihg:zul,,42,,,,,train-afrihg-mono-zul-s42,1.847,False,
+mamba2,beam-general-s42,beam,"beam (test only, beside greedy)",general,,t2x:xho+afrihg:xho+afrihg:zul,,42,,,,,train-general-general-s42,4.085,False,
+mamba2,collect-beam,collect,collect,,,,,,,,,,beam-t2x-mono-xho-s42 beam-t2x-mono-xho-s43 beam-t2x-mono-xho-s44 beam-afrihg-multi beam-afrihg-mono-xho beam-afrihg-mono-zul beam-general-s42 collect,0.05,False,
+mamba2,xeval-news-eng,xeval,"cross_eval (optional, off by default)",news,mono,eng,,42,,,,,train-news-mono-eng-s42,0.125,True,xho
+mamba2,xeval-news-xho,xeval,"cross_eval (optional, off by default)",news,mono,xho,,42,,,,,train-news-mono-xho-s42,0.125,True,eng
+mamba2,xeval-sib-afr,xeval,"cross_eval (optional, off by default)",sib,mono,afr,,42,,,,,train-sib-mono-afr-s42,0.119,True,eng+nso+sot+xho+zul
+mamba2,xeval-sib-eng,xeval,"cross_eval (optional, off by default)",sib,mono,eng,,42,,,,,train-sib-mono-eng-s42,0.119,True,afr+nso+sot+xho+zul
+mamba2,xeval-sib-nso,xeval,"cross_eval (optional, off by default)",sib,mono,nso,,42,,,,,train-sib-mono-nso-s42,0.119,True,afr+eng+sot+xho+zul
+mamba2,xeval-sib-sot,xeval,"cross_eval (optional, off by default)",sib,mono,sot,,42,,,,,train-sib-mono-sot-s42,0.119,True,afr+eng+nso+xho+zul
+mamba2,xeval-sib-xho,xeval,"cross_eval (optional, off by default)",sib,mono,xho,,42,,,,,train-sib-mono-xho-s42,0.119,True,afr+eng+nso+sot+zul
+mamba2,xeval-sib-zul,xeval,"cross_eval (optional, off by default)",sib,mono,zul,,42,,,,,train-sib-mono-zul-s42,0.119,True,afr+eng+nso+sot+xho
+mamba2,xeval-intent-eng,xeval,"cross_eval (optional, off by default)",intent,mono,eng,,42,,,,,train-intent-mono-eng-s42,0.223,True,sot+xho+zul
+mamba2,xeval-intent-sot,xeval,"cross_eval (optional, off by default)",intent,mono,sot,,42,,,,,train-intent-mono-sot-s42,0.223,True,eng+xho+zul
+mamba2,xeval-intent-xho,xeval,"cross_eval (optional, off by default)",intent,mono,xho,,42,,,,,train-intent-mono-xho-s42,0.223,True,eng+sot+zul
+mamba2,xeval-intent-zul,xeval,"cross_eval (optional, off by default)",intent,mono,zul,,42,,,,,train-intent-mono-zul-s42,0.223,True,eng+sot+xho
+mamba2,xeval-ner-tsn,xeval,"cross_eval (optional, off by default)",ner,mono,tsn,,42,,,,,train-ner-mono-tsn-s42,0.228,True,xho+zul
+mamba2,xeval-ner-xho,xeval,"cross_eval (optional, off by default)",ner,mono,xho,,42,,,,,train-ner-mono-xho-s42,0.228,True,tsn+zul
+mamba2,xeval-ner-zul,xeval,"cross_eval (optional, off by default)",ner,mono,zul,,42,,,,,train-ner-mono-zul-s42,0.228,True,tsn+xho
+mamba2,xeval-pos-tsn,xeval,"cross_eval (optional, off by default)",pos,mono,tsn,,42,,,,,train-pos-mono-tsn-s42,1.439,True,xho+zul
+mamba2,xeval-pos-xho,xeval,"cross_eval (optional, off by default)",pos,mono,xho,,42,,,,,train-pos-mono-xho-s42,1.439,True,tsn+zul
+mamba2,xeval-pos-zul,xeval,"cross_eval (optional, off by default)",pos,mono,zul,,42,,,,,train-pos-mono-zul-s42,1.439,True,tsn+xho
+mamba2,xeval-afrihg-xho,xeval,"cross_eval (optional, off by default)",afrihg,mono,xho,,42,,,,,train-afrihg-mono-xho-s42,0.287,True,zul
+mamba2,xeval-afrihg-zul,xeval,"cross_eval (optional, off by default)",afrihg,mono,zul,,42,,,,,train-afrihg-mono-zul-s42,0.287,True,xho
+mamba2,collect-xeval,collect,collect,,,,,,,,,,xeval-news-eng xeval-news-xho xeval-sib-afr xeval-sib-eng xeval-sib-nso xeval-sib-sot xeval-sib-xho xeval-sib-zul xeval-intent-eng xeval-intent-sot xeval-intent-xho xeval-intent-zul xeval-ner-tsn xeval-ner-xho xeval-ner-zul xeval-pos-tsn xeval-pos-xho xeval-pos-zul xeval-afrihg-xho xeval-afrihg-zul collect,0.05,True,
+xlstm,prep,prep,prep,,,,,,,,,,,0.1,False,
+xlstm,base-gen,base,base-eval,gen,Base,,,,,,,,prep,0.369,False,
+xlstm,base-prompt,base,base-eval,prompt,Base,,,,,,,,prep,4.0,False,
+xlstm,base-ner,base,base-eval,ner,Base,,,,,,,,prep,1.25,False,
+xlstm,base-pos,base,base-eval,pos,Base,,,,,,,,prep,1.8,False,
+xlstm,train-news-multi-lr3e-5-s42,train,lr-sweep,news,multi,eng+xho,3e-5,42,10,4341,10,False,prep,2.729,False,
+xlstm,train-news-multi-lr1e-4-s42,train,lr-sweep,news,multi,eng+xho,1e-4,42,10,4341,10,False,prep,2.729,False,
+xlstm,train-news-multi-lr3e-4-s42,train,lr-sweep,news,multi,eng+xho,3e-4,42,10,4341,10,False,prep,2.729,False,
+xlstm,select-news,select,lr-selection (+edge run),news,multi,eng+xho,,,,,,,train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42,1.365,False,
+xlstm,test-news-multi,test,test-scoring,news,multi,eng+xho,,,,,,,select-news,0.2,False,
+xlstm,train-news-mono-eng-s42,train,mono,news,mono,eng,selected,42,10,3309,10,True,select-news,1.951,False,
+xlstm,train-news-mono-xho-s42,train,mono,news,mono,xho,selected,42,10,1032,10,True,select-news,1.029,False,
+xlstm,train-sib-multi-lr3e-5-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-5,42,10,4206,10,False,prep,0.897,False,
+xlstm,train-sib-multi-lr1e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,1e-4,42,10,4206,10,False,prep,0.897,False,
+xlstm,train-sib-multi-lr3e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-4,42,10,4206,10,False,prep,0.897,False,
+xlstm,select-sib,select,lr-selection (+edge run),sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42,0.448,False,
+xlstm,test-sib-multi,test,test-scoring,sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,select-sib,0.133,False,
+xlstm,train-sib-mono-afr-s42,train,mono,sib,mono,afr,selected,42,10,701,10,True,select-sib,0.247,False,
+xlstm,train-sib-mono-eng-s42,train,mono,sib,mono,eng,selected,42,10,701,10,True,select-sib,0.247,False,
+xlstm,train-sib-mono-nso-s42,train,mono,sib,mono,nso,selected,42,10,701,10,True,select-sib,0.247,False,
+xlstm,train-sib-mono-sot-s42,train,mono,sib,mono,sot,selected,42,10,701,10,True,select-sib,0.247,False,
+xlstm,train-sib-mono-xho-s42,train,mono,sib,mono,xho,selected,42,10,701,10,True,select-sib,0.247,False,
+xlstm,train-sib-mono-zul-s42,train,mono,sib,mono,zul,selected,42,10,701,10,True,select-sib,0.247,False,
+xlstm,train-intent-multi-lr3e-5-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-5,42,4,7046,4,False,prep,0.92,False,
+xlstm,train-intent-multi-lr1e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,1e-4,42,4,7046,4,False,prep,0.92,False,
+xlstm,train-intent-multi-lr3e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-4,42,4,7046,4,False,prep,0.92,False,
+xlstm,select-intent,select,lr-selection (+edge run),intent,multi,eng+sot+xho+zul,,,,,,,train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42,0.46,False,
+xlstm,test-intent-multi,test,test-scoring,intent,multi,eng+sot+xho+zul,,,,,,,select-intent,0.28,False,
+xlstm,train-intent-mono-eng-s42,train,mono,intent,mono,eng,selected,42,10,1046,10,True,select-intent,0.44,False,
+xlstm,train-intent-mono-sot-s42,train,mono,intent,mono,sot,selected,42,10,2000,10,True,select-intent,0.542,False,
+xlstm,train-intent-mono-xho-s42,train,mono,intent,mono,xho,selected,42,10,2000,10,True,select-intent,0.542,False,
+xlstm,train-intent-mono-zul-s42,train,mono,intent,mono,zul,selected,42,10,2000,10,True,select-intent,0.542,False,
+xlstm,train-ner-multi-lr3e-5-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-5,42,10,4323,10,False,prep,2.684,False,
+xlstm,train-ner-multi-lr1e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,1e-4,42,10,4323,10,False,prep,2.684,False,
+xlstm,train-ner-multi-lr3e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-4,42,10,4323,10,False,prep,2.684,False,
+xlstm,select-ner,select,lr-selection (+edge run),ner,multi,tsn+xho+zul,,,,,,,train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42,1.342,False,
+xlstm,test-ner-multi,test,test-scoring,ner,multi,tsn+xho+zul,,,,,,,select-ner,0.483,False,
+xlstm,train-ner-mono-tsn-s42,train,mono,ner,mono,tsn,selected,42,10,1441,10,True,select-ner,1.107,False,
+xlstm,train-ner-mono-xho-s42,train,mono,ner,mono,xho,selected,42,10,1441,10,True,select-ner,1.107,False,
+xlstm,train-ner-mono-zul-s42,train,mono,ner,mono,zul,selected,42,10,1441,10,True,select-ner,1.107,False,
+xlstm,train-pos-multi-lr3e-5-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-5,42,10,2259,10,False,prep,5.761,False,
+xlstm,train-pos-multi-lr1e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,1e-4,42,10,2259,10,False,prep,5.761,False,
+xlstm,train-pos-multi-lr3e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-4,42,10,2259,10,False,prep,5.761,False,
+xlstm,select-pos,select,lr-selection (+edge run),pos,multi,tsn+xho+zul,,,,,,,train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42,2.88,False,
+xlstm,test-pos-multi,test,test-scoring,pos,multi,tsn+xho+zul,,,,,,,select-pos,1.867,False,
+xlstm,train-pos-mono-tsn-s42,train,mono,pos,mono,tsn,selected,42,10,754,10,True,select-pos,2.595,False,
+xlstm,train-pos-mono-xho-s42,train,mono,pos,mono,xho,selected,42,10,752,10,True,select-pos,2.591,False,
+xlstm,train-pos-mono-zul-s42,train,mono,pos,mono,zul,selected,42,10,753,10,True,select-pos,2.595,False,
+xlstm,train-afrihg-multi-lr3e-5-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-5,42,4,24649,4,False,prep,6.079,False,
+xlstm,train-afrihg-multi-lr1e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,1e-4,42,4,24649,4,False,prep,6.079,False,
+xlstm,train-afrihg-multi-lr3e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-4,42,4,24649,4,False,prep,6.079,False,
+xlstm,select-afrihg,select,lr-selection (+edge run),afrihg,multi,xho+zul,,,,,,,train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42,3.04,False,
+xlstm,test-afrihg-multi,test,test-scoring,afrihg,multi,xho+zul,,,,,,,select-afrihg,0.434,False,
+xlstm,train-afrihg-mono-xho-s42,train,mono,afrihg,mono,xho,selected,42,4,12300,4,True,select-afrihg,3.277,False,
+xlstm,train-afrihg-mono-zul-s42,train,mono,afrihg,mono,zul,selected,42,4,12349,4,True,select-afrihg,3.287,False,
+xlstm,train-t2x-mono-xho-lr3e-5-s42,train,lr-sweep,t2x,mono,xho,3e-5,42,10,3859,10,False,prep,0.658,False,
+xlstm,train-t2x-mono-xho-lr1e-4-s42,train,lr-sweep,t2x,mono,xho,1e-4,42,10,3859,10,False,prep,0.658,False,
+xlstm,train-t2x-mono-xho-lr3e-4-s42,train,lr-sweep,t2x,mono,xho,3e-4,42,10,3859,10,False,prep,0.658,False,
+xlstm,select-t2x,select,lr-selection (+edge run),t2x,mono,xho,,,,,,,train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42,0.329,False,
+xlstm,test-t2x-mono-xho,test,test-scoring,t2x,mono,xho,,,,,,,select-t2x,0.104,False,
+xlstm,train-t2x-mono-xho-s43,train,seed,t2x,mono,xho,selected,43,10,3859,10,True,select-t2x,0.712,False,
+xlstm,train-t2x-mono-xho-s44,train,seed,t2x,mono,xho,selected,44,10,3859,10,True,select-t2x,0.712,False,
+xlstm,train-general-general-s42,train,mono,general,general,,selected,42,4,43637,4,True,prep select-news select-sib select-intent select-ner select-pos select-afrihg,20.668,False,
+xlstm,collect,collect,collect,,,,,,,,,,prep base-gen base-prompt base-ner base-pos train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42 select-news test-news-multi train-news-mono-eng-s42 train-news-mono-xho-s42 train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42 select-sib test-sib-multi train-sib-mono-afr-s42 train-sib-mono-eng-s42 train-sib-mono-nso-s42 train-sib-mono-sot-s42 train-sib-mono-xho-s42 train-sib-mono-zul-s42 train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42 select-intent test-intent-multi train-intent-mono-eng-s42 train-intent-mono-sot-s42 train-intent-mono-xho-s42 train-intent-mono-zul-s42 train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42 select-ner test-ner-multi train-ner-mono-tsn-s42 train-ner-mono-xho-s42 train-ner-mono-zul-s42 train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42 select-pos test-pos-multi train-pos-mono-tsn-s42 train-pos-mono-xho-s42 train-pos-mono-zul-s42 train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42 select-afrihg test-afrihg-multi train-afrihg-mono-xho-s42 train-afrihg-mono-zul-s42 train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42 select-t2x test-t2x-mono-xho train-t2x-mono-xho-s43 train-t2x-mono-xho-s44 train-general-general-s42,0.05,False,
+xlstm,beam-t2x-mono-xho-s42,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,42,,,,,test-t2x-mono-xho,0.403,False,
+xlstm,beam-t2x-mono-xho-s43,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,43,,,,,train-t2x-mono-xho-s43,0.403,False,
+xlstm,beam-t2x-mono-xho-s44,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,44,,,,,train-t2x-mono-xho-s44,0.403,False,
+xlstm,beam-afrihg-multi,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho+afrihg:zul,,42,,,,,test-afrihg-multi,2.926,False,
+xlstm,beam-afrihg-mono-xho,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho,,42,,,,,train-afrihg-mono-xho-s42,1.488,False,
+xlstm,beam-afrihg-mono-zul,beam,"beam (test only, beside greedy)",afrihg,,afrihg:zul,,42,,,,,train-afrihg-mono-zul-s42,1.488,False,
+xlstm,beam-general-s42,beam,"beam (test only, beside greedy)",general,,t2x:xho+afrihg:xho+afrihg:zul,,42,,,,,train-general-general-s42,3.278,False,
+xlstm,collect-beam,collect,collect,,,,,,,,,,beam-t2x-mono-xho-s42 beam-t2x-mono-xho-s43 beam-t2x-mono-xho-s44 beam-afrihg-multi beam-afrihg-mono-xho beam-afrihg-mono-zul beam-general-s42 collect,0.05,False,
+xlstm,xeval-news-eng,xeval,"cross_eval (optional, off by default)",news,mono,eng,,42,,,,,train-news-mono-eng-s42,0.125,True,xho
+xlstm,xeval-news-xho,xeval,"cross_eval (optional, off by default)",news,mono,xho,,42,,,,,train-news-mono-xho-s42,0.125,True,eng
+xlstm,xeval-sib-afr,xeval,"cross_eval (optional, off by default)",sib,mono,afr,,42,,,,,train-sib-mono-afr-s42,0.119,True,eng+nso+sot+xho+zul
+xlstm,xeval-sib-eng,xeval,"cross_eval (optional, off by default)",sib,mono,eng,,42,,,,,train-sib-mono-eng-s42,0.119,True,afr+nso+sot+xho+zul
+xlstm,xeval-sib-nso,xeval,"cross_eval (optional, off by default)",sib,mono,nso,,42,,,,,train-sib-mono-nso-s42,0.119,True,afr+eng+sot+xho+zul
+xlstm,xeval-sib-sot,xeval,"cross_eval (optional, off by default)",sib,mono,sot,,42,,,,,train-sib-mono-sot-s42,0.119,True,afr+eng+nso+xho+zul
+xlstm,xeval-sib-xho,xeval,"cross_eval (optional, off by default)",sib,mono,xho,,42,,,,,train-sib-mono-xho-s42,0.119,True,afr+eng+nso+sot+zul
+xlstm,xeval-sib-zul,xeval,"cross_eval (optional, off by default)",sib,mono,zul,,42,,,,,train-sib-mono-zul-s42,0.119,True,afr+eng+nso+sot+xho
+xlstm,xeval-intent-eng,xeval,"cross_eval (optional, off by default)",intent,mono,eng,,42,,,,,train-intent-mono-eng-s42,0.223,True,sot+xho+zul
+xlstm,xeval-intent-sot,xeval,"cross_eval (optional, off by default)",intent,mono,sot,,42,,,,,train-intent-mono-sot-s42,0.223,True,eng+xho+zul
+xlstm,xeval-intent-xho,xeval,"cross_eval (optional, off by default)",intent,mono,xho,,42,,,,,train-intent-mono-xho-s42,0.223,True,eng+sot+zul
+xlstm,xeval-intent-zul,xeval,"cross_eval (optional, off by default)",intent,mono,zul,,42,,,,,train-intent-mono-zul-s42,0.223,True,eng+sot+xho
+xlstm,xeval-ner-tsn,xeval,"cross_eval (optional, off by default)",ner,mono,tsn,,42,,,,,train-ner-mono-tsn-s42,0.339,True,xho+zul
+xlstm,xeval-ner-xho,xeval,"cross_eval (optional, off by default)",ner,mono,xho,,42,,,,,train-ner-mono-xho-s42,0.339,True,tsn+zul
+xlstm,xeval-ner-zul,xeval,"cross_eval (optional, off by default)",ner,mono,zul,,42,,,,,train-ner-mono-zul-s42,0.339,True,tsn+xho
+xlstm,xeval-pos-tsn,xeval,"cross_eval (optional, off by default)",pos,mono,tsn,,42,,,,,train-pos-mono-tsn-s42,1.261,True,xho+zul
+xlstm,xeval-pos-xho,xeval,"cross_eval (optional, off by default)",pos,mono,xho,,42,,,,,train-pos-mono-xho-s42,1.261,True,tsn+zul
+xlstm,xeval-pos-zul,xeval,"cross_eval (optional, off by default)",pos,mono,zul,,42,,,,,train-pos-mono-zul-s42,1.261,True,tsn+xho
+xlstm,xeval-afrihg-xho,xeval,"cross_eval (optional, off by default)",afrihg,mono,xho,,42,,,,,train-afrihg-mono-xho-s42,0.242,True,zul
+xlstm,xeval-afrihg-zul,xeval,"cross_eval (optional, off by default)",afrihg,mono,zul,,42,,,,,train-afrihg-mono-zul-s42,0.242,True,xho
+xlstm,collect-xeval,collect,collect,,,,,,,,,,xeval-news-eng xeval-news-xho xeval-sib-afr xeval-sib-eng xeval-sib-nso xeval-sib-sot xeval-sib-xho xeval-sib-zul xeval-intent-eng xeval-intent-sot xeval-intent-xho xeval-intent-zul xeval-ner-tsn xeval-ner-xho xeval-ner-zul xeval-pos-tsn xeval-pos-xho xeval-pos-zul xeval-afrihg-xho xeval-afrihg-zul collect,0.05,True,
+gdn,prep,prep,prep,,,,,,,,,,,0.1,False,
+gdn,base-gen,base,base-eval,gen,Base,,,,,,,,prep,0.35,False,
+gdn,base-prompt,base,base-eval,prompt,Base,,,,,,,,prep,1.5,False,
+gdn,base-ner,base,base-eval,ner,Base,,,,,,,,prep,0.217,False,
+gdn,base-pos,base,base-eval,pos,Base,,,,,,,,prep,1.617,False,
+gdn,train-news-multi-lr3e-5-s42,train,lr-sweep,news,multi,eng+xho,3e-5,42,10,4341,10,False,prep,3.585,False,
+gdn,train-news-multi-lr1e-4-s42,train,lr-sweep,news,multi,eng+xho,1e-4,42,10,4341,10,False,prep,3.585,False,
+gdn,train-news-multi-lr3e-4-s42,train,lr-sweep,news,multi,eng+xho,3e-4,42,10,4341,10,False,prep,3.585,False,
+gdn,select-news,select,lr-selection (+edge run),news,multi,eng+xho,,,,,,,train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42,1.792,False,
+gdn,test-news-multi,test,test-scoring,news,multi,eng+xho,,,,,,,select-news,0.15,False,
+gdn,train-news-mono-eng-s42,train,mono,news,mono,eng,selected,42,10,3309,10,True,select-news,2.65,False,
+gdn,train-news-mono-xho-s42,train,mono,news,mono,xho,selected,42,10,1032,10,True,select-news,1.135,False,
+gdn,train-sib-multi-lr3e-5-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-5,42,10,4206,10,False,prep,0.959,False,
+gdn,train-sib-multi-lr1e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,1e-4,42,10,4206,10,False,prep,0.959,False,
+gdn,train-sib-multi-lr3e-4-s42,train,lr-sweep,sib,multi,afr+eng+nso+sot+xho+zul,3e-4,42,10,4206,10,False,prep,0.959,False,
+gdn,select-sib,select,lr-selection (+edge run),sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42,0.48,False,
+gdn,test-sib-multi,test,test-scoring,sib,multi,afr+eng+nso+sot+xho+zul,,,,,,,select-sib,0.108,False,
+gdn,train-sib-mono-afr-s42,train,mono,sib,mono,afr,selected,42,10,701,10,True,select-sib,0.253,False,
+gdn,train-sib-mono-eng-s42,train,mono,sib,mono,eng,selected,42,10,701,10,True,select-sib,0.253,False,
+gdn,train-sib-mono-nso-s42,train,mono,sib,mono,nso,selected,42,10,701,10,True,select-sib,0.253,False,
+gdn,train-sib-mono-sot-s42,train,mono,sib,mono,sot,selected,42,10,701,10,True,select-sib,0.253,False,
+gdn,train-sib-mono-xho-s42,train,mono,sib,mono,xho,selected,42,10,701,10,True,select-sib,0.253,False,
+gdn,train-sib-mono-zul-s42,train,mono,sib,mono,zul,selected,42,10,701,10,True,select-sib,0.253,False,
+gdn,train-intent-multi-lr3e-5-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-5,42,4,7046,4,False,prep,1.161,False,
+gdn,train-intent-multi-lr1e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,1e-4,42,4,7046,4,False,prep,1.161,False,
+gdn,train-intent-multi-lr3e-4-s42,train,lr-sweep,intent,multi,eng+sot+xho+zul,3e-4,42,4,7046,4,False,prep,1.161,False,
+gdn,select-intent,select,lr-selection (+edge run),intent,multi,eng+sot+xho+zul,,,,,,,train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42,0.581,False,
+gdn,test-intent-multi,test,test-scoring,intent,multi,eng+sot+xho+zul,,,,,,,select-intent,0.2,False,
+gdn,train-intent-mono-eng-s42,train,mono,intent,mono,eng,selected,42,10,1046,10,True,select-intent,0.462,False,
+gdn,train-intent-mono-sot-s42,train,mono,intent,mono,sot,selected,42,10,2000,10,True,select-intent,0.648,False,
+gdn,train-intent-mono-xho-s42,train,mono,intent,mono,xho,selected,42,10,2000,10,True,select-intent,0.648,False,
+gdn,train-intent-mono-zul-s42,train,mono,intent,mono,zul,selected,42,10,2000,10,True,select-intent,0.648,False,
+gdn,train-ner-multi-lr3e-5-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-5,42,10,4323,10,False,prep,1.976,False,
+gdn,train-ner-multi-lr1e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,1e-4,42,10,4323,10,False,prep,1.976,False,
+gdn,train-ner-multi-lr3e-4-s42,train,lr-sweep,ner,multi,tsn+xho+zul,3e-4,42,10,4323,10,False,prep,1.976,False,
+gdn,select-ner,select,lr-selection (+edge run),ner,multi,tsn+xho+zul,,,,,,,train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42,0.988,False,
+gdn,test-ner-multi,test,test-scoring,ner,multi,tsn+xho+zul,,,,,,,select-ner,0.283,False,
+gdn,train-ner-mono-tsn-s42,train,mono,ner,mono,tsn,selected,42,10,1441,10,True,select-ner,0.805,False,
+gdn,train-ner-mono-xho-s42,train,mono,ner,mono,xho,selected,42,10,1441,10,True,select-ner,0.805,False,
+gdn,train-ner-mono-zul-s42,train,mono,ner,mono,zul,selected,42,10,1441,10,True,select-ner,0.805,False,
+gdn,train-pos-multi-lr3e-5-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-5,42,10,2259,10,False,prep,5.715,False,
+gdn,train-pos-multi-lr1e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,1e-4,42,10,2259,10,False,prep,5.715,False,
+gdn,train-pos-multi-lr3e-4-s42,train,lr-sweep,pos,multi,tsn+xho+zul,3e-4,42,10,2259,10,False,prep,5.715,False,
+gdn,select-pos,select,lr-selection (+edge run),pos,multi,tsn+xho+zul,,,,,,,train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42,2.858,False,
+gdn,test-pos-multi,test,test-scoring,pos,multi,tsn+xho+zul,,,,,,,select-pos,1.683,False,
+gdn,train-pos-mono-tsn-s42,train,mono,pos,mono,tsn,selected,42,10,754,10,True,select-pos,2.521,False,
+gdn,train-pos-mono-xho-s42,train,mono,pos,mono,xho,selected,42,10,752,10,True,select-pos,2.514,False,
+gdn,train-pos-mono-zul-s42,train,mono,pos,mono,zul,selected,42,10,753,10,True,select-pos,2.521,False,
+gdn,train-afrihg-multi-lr3e-5-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-5,42,4,24649,4,False,prep,8.511,False,
+gdn,train-afrihg-multi-lr1e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,1e-4,42,4,24649,4,False,prep,8.511,False,
+gdn,train-afrihg-multi-lr3e-4-s42,train,lr-sweep,afrihg,multi,xho+zul,3e-4,42,4,24649,4,False,prep,8.511,False,
+gdn,select-afrihg,select,lr-selection (+edge run),afrihg,multi,xho+zul,,,,,,,train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42,4.256,False,
+gdn,test-afrihg-multi,test,test-scoring,afrihg,multi,xho+zul,,,,,,,select-afrihg,0.409,False,
+gdn,train-afrihg-mono-xho-s42,train,mono,afrihg,mono,xho,selected,42,4,12300,4,True,select-afrihg,4.477,False,
+gdn,train-afrihg-mono-zul-s42,train,mono,afrihg,mono,zul,selected,42,4,12349,4,True,select-afrihg,4.493,False,
+gdn,train-t2x-mono-xho-lr3e-5-s42,train,lr-sweep,t2x,mono,xho,3e-5,42,10,3859,10,False,prep,0.967,False,
+gdn,train-t2x-mono-xho-lr1e-4-s42,train,lr-sweep,t2x,mono,xho,1e-4,42,10,3859,10,False,prep,0.967,False,
+gdn,train-t2x-mono-xho-lr3e-4-s42,train,lr-sweep,t2x,mono,xho,3e-4,42,10,3859,10,False,prep,0.967,False,
+gdn,select-t2x,select,lr-selection (+edge run),t2x,mono,xho,,,,,,,train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42,0.483,False,
+gdn,test-t2x-mono-xho,test,test-scoring,t2x,mono,xho,,,,,,,select-t2x,0.102,False,
+gdn,train-t2x-mono-xho-s43,train,seed,t2x,mono,xho,selected,43,10,3859,10,True,select-t2x,1.019,False,
+gdn,train-t2x-mono-xho-s44,train,seed,t2x,mono,xho,selected,44,10,3859,10,True,select-t2x,1.019,False,
+gdn,train-general-general-s42,train,mono,general,general,,selected,42,4,43637,4,True,prep select-news select-sib select-intent select-ner select-pos select-afrihg,20.747,False,
+gdn,collect,collect,collect,,,,,,,,,,prep base-gen base-prompt base-ner base-pos train-news-multi-lr3e-5-s42 train-news-multi-lr1e-4-s42 train-news-multi-lr3e-4-s42 select-news test-news-multi train-news-mono-eng-s42 train-news-mono-xho-s42 train-sib-multi-lr3e-5-s42 train-sib-multi-lr1e-4-s42 train-sib-multi-lr3e-4-s42 select-sib test-sib-multi train-sib-mono-afr-s42 train-sib-mono-eng-s42 train-sib-mono-nso-s42 train-sib-mono-sot-s42 train-sib-mono-xho-s42 train-sib-mono-zul-s42 train-intent-multi-lr3e-5-s42 train-intent-multi-lr1e-4-s42 train-intent-multi-lr3e-4-s42 select-intent test-intent-multi train-intent-mono-eng-s42 train-intent-mono-sot-s42 train-intent-mono-xho-s42 train-intent-mono-zul-s42 train-ner-multi-lr3e-5-s42 train-ner-multi-lr1e-4-s42 train-ner-multi-lr3e-4-s42 select-ner test-ner-multi train-ner-mono-tsn-s42 train-ner-mono-xho-s42 train-ner-mono-zul-s42 train-pos-multi-lr3e-5-s42 train-pos-multi-lr1e-4-s42 train-pos-multi-lr3e-4-s42 select-pos test-pos-multi train-pos-mono-tsn-s42 train-pos-mono-xho-s42 train-pos-mono-zul-s42 train-afrihg-multi-lr3e-5-s42 train-afrihg-multi-lr1e-4-s42 train-afrihg-multi-lr3e-4-s42 select-afrihg test-afrihg-multi train-afrihg-mono-xho-s42 train-afrihg-mono-zul-s42 train-t2x-mono-xho-lr3e-5-s42 train-t2x-mono-xho-lr1e-4-s42 train-t2x-mono-xho-lr3e-4-s42 select-t2x test-t2x-mono-xho train-t2x-mono-xho-s43 train-t2x-mono-xho-s44 train-general-general-s42,0.05,False,
+gdn,beam-t2x-mono-xho-s42,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,42,,,,,test-t2x-mono-xho,0.378,False,
+gdn,beam-t2x-mono-xho-s43,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,43,,,,,train-t2x-mono-xho-s43,0.378,False,
+gdn,beam-t2x-mono-xho-s44,beam,"beam (test only, beside greedy)",t2x,,t2x:xho,,44,,,,,train-t2x-mono-xho-s44,0.378,False,
+gdn,beam-afrihg-multi,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho+afrihg:zul,,42,,,,,test-afrihg-multi,2.72,False,
+gdn,beam-afrihg-mono-xho,beam,"beam (test only, beside greedy)",afrihg,,afrihg:xho,,42,,,,,train-afrihg-mono-xho-s42,1.385,False,
+gdn,beam-afrihg-mono-zul,beam,"beam (test only, beside greedy)",afrihg,,afrihg:zul,,42,,,,,train-afrihg-mono-zul-s42,1.385,False,
+gdn,beam-general-s42,beam,"beam (test only, beside greedy)",general,,t2x:xho+afrihg:xho+afrihg:zul,,42,,,,,train-general-general-s42,3.048,False,
+gdn,collect-beam,collect,collect,,,,,,,,,,beam-t2x-mono-xho-s42 beam-t2x-mono-xho-s43 beam-t2x-mono-xho-s44 beam-afrihg-multi beam-afrihg-mono-xho beam-afrihg-mono-zul beam-general-s42 collect,0.05,False,
+gdn,xeval-news-eng,xeval,"cross_eval (optional, off by default)",news,mono,eng,,42,,,,,train-news-mono-eng-s42,0.1,True,xho
+gdn,xeval-news-xho,xeval,"cross_eval (optional, off by default)",news,mono,xho,,42,,,,,train-news-mono-xho-s42,0.1,True,eng
+gdn,xeval-sib-afr,xeval,"cross_eval (optional, off by default)",sib,mono,afr,,42,,,,,train-sib-mono-afr-s42,0.099,True,eng+nso+sot+xho+zul
+gdn,xeval-sib-eng,xeval,"cross_eval (optional, off by default)",sib,mono,eng,,42,,,,,train-sib-mono-eng-s42,0.099,True,afr+nso+sot+xho+zul
+gdn,xeval-sib-nso,xeval,"cross_eval (optional, off by default)",sib,mono,nso,,42,,,,,train-sib-mono-nso-s42,0.099,True,afr+eng+sot+xho+zul
+gdn,xeval-sib-sot,xeval,"cross_eval (optional, off by default)",sib,mono,sot,,42,,,,,train-sib-mono-sot-s42,0.099,True,afr+eng+nso+xho+zul
+gdn,xeval-sib-xho,xeval,"cross_eval (optional, off by default)",sib,mono,xho,,42,,,,,train-sib-mono-xho-s42,0.099,True,afr+eng+nso+sot+zul
+gdn,xeval-sib-zul,xeval,"cross_eval (optional, off by default)",sib,mono,zul,,42,,,,,train-sib-mono-zul-s42,0.099,True,afr+eng+nso+sot+xho
+gdn,xeval-intent-eng,xeval,"cross_eval (optional, off by default)",intent,mono,eng,,42,,,,,train-intent-mono-eng-s42,0.163,True,sot+xho+zul
+gdn,xeval-intent-sot,xeval,"cross_eval (optional, off by default)",intent,mono,sot,,42,,,,,train-intent-mono-sot-s42,0.163,True,eng+xho+zul
+gdn,xeval-intent-xho,xeval,"cross_eval (optional, off by default)",intent,mono,xho,,42,,,,,train-intent-mono-xho-s42,0.163,True,eng+sot+zul
+gdn,xeval-intent-zul,xeval,"cross_eval (optional, off by default)",intent,mono,zul,,42,,,,,train-intent-mono-zul-s42,0.163,True,eng+sot+xho
+gdn,xeval-ner-tsn,xeval,"cross_eval (optional, off by default)",ner,mono,tsn,,42,,,,,train-ner-mono-tsn-s42,0.206,True,xho+zul
+gdn,xeval-ner-xho,xeval,"cross_eval (optional, off by default)",ner,mono,xho,,42,,,,,train-ner-mono-xho-s42,0.206,True,tsn+zul
+gdn,xeval-ner-zul,xeval,"cross_eval (optional, off by default)",ner,mono,zul,,42,,,,,train-ner-mono-zul-s42,0.206,True,tsn+xho
+gdn,xeval-pos-tsn,xeval,"cross_eval (optional, off by default)",pos,mono,tsn,,42,,,,,train-pos-mono-tsn-s42,1.139,True,xho+zul
+gdn,xeval-pos-xho,xeval,"cross_eval (optional, off by default)",pos,mono,xho,,42,,,,,train-pos-mono-xho-s42,1.139,True,tsn+zul
+gdn,xeval-pos-zul,xeval,"cross_eval (optional, off by default)",pos,mono,zul,,42,,,,,train-pos-mono-zul-s42,1.139,True,tsn+xho
+gdn,xeval-afrihg-xho,xeval,"cross_eval (optional, off by default)",afrihg,mono,xho,,42,,,,,train-afrihg-mono-xho-s42,0.229,True,zul
+gdn,xeval-afrihg-zul,xeval,"cross_eval (optional, off by default)",afrihg,mono,zul,,42,,,,,train-afrihg-mono-zul-s42,0.229,True,xho
+gdn,collect-xeval,collect,collect,,,,,,,,,,xeval-news-eng xeval-news-xho xeval-sib-afr xeval-sib-eng xeval-sib-nso xeval-sib-sot xeval-sib-xho xeval-sib-zul xeval-intent-eng xeval-intent-sot xeval-intent-xho xeval-intent-zul xeval-ner-tsn xeval-ner-xho xeval-ner-zul xeval-pos-tsn xeval-pos-xho xeval-pos-zul xeval-afrihg-xho xeval-afrihg-zul collect,0.05,True,

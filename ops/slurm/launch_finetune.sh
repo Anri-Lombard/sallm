@@ -7,6 +7,18 @@
 #SBATCH --mail-type=FAIL,END
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  for candidate in "${SLURM_SUBMIT_DIR:-}/ops/slurm" "$HOME/masters/sallm/ops/slurm"; do
+    if [[ -f "$candidate/lib/env.sh" ]]; then
+      SCRIPT_DIR="$candidate"
+      break
+    fi
+  done
+fi
+if [[ ! -f "$SCRIPT_DIR/lib/env.sh" ]]; then
+  echo "ERROR: Could not locate ops/slurm/lib/env.sh." >&2
+  exit 1
+fi
 source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
 if [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "$SLURM_SUBMIT_DIR/pyproject.toml" ]]; then
@@ -21,9 +33,41 @@ CFG="$1"
 shift || true
 EXTRA_ARGS=("$@")
 
+if [[ "$CFG" != */* ]]; then
+  CFG="finetune/$CFG"
+fi
+
+CONFIG_GROUP="${CFG%%/*}"
+NORMALIZED_ARGS=()
+for arg in "${EXTRA_ARGS[@]}"; do
+  case "$arg" in
+    -*) NORMALIZED_ARGS+=("$arg") ;;
+    hydra.* | "$CONFIG_GROUP".*) NORMALIZED_ARGS+=("$arg") ;;
+    ++*)
+      arg_body="${arg#++}"
+      if [[ "$arg_body" == "$CONFIG_GROUP."* ]]; then
+        NORMALIZED_ARGS+=("$arg")
+      else
+        NORMALIZED_ARGS+=("++${CONFIG_GROUP}.${arg_body}")
+      fi
+      ;;
+    +*)
+      arg_body="${arg#+}"
+      if [[ "$arg_body" == "$CONFIG_GROUP."* ]]; then
+        NORMALIZED_ARGS+=("$arg")
+      else
+        NORMALIZED_ARGS+=("+${CONFIG_GROUP}.${arg_body}")
+      fi
+      ;;
+    *) NORMALIZED_ARGS+=("${CONFIG_GROUP}.${arg}") ;;
+  esac
+done
+EXTRA_ARGS=("${NORMALIZED_ARGS[@]}")
+
 CFG_NAME="${CFG##*/}"
 JOB_NAME="ft-${CFG_NAME#mamba_}"
 JOB_NAME="${JOB_NAME#llama_}"
+JOB_NAME="${SALLM_JOB_NAME:-$JOB_NAME}"
 
 export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
@@ -59,33 +103,61 @@ echo "--- Checking GPU availability ---"
 nvidia-smi
 echo "-------------------------------"
 
-module load python/miniconda3-py3.12
-source "$(conda info --base)/etc/profile.d/conda.sh"
-set +u
-conda activate sallm-uv
-set -u
+if command -v module >/dev/null 2>&1; then
+  module load python/miniconda3-py3.12
+fi
+if command -v conda >/dev/null 2>&1; then
+  CONDA_BASE=$(conda info --base)
+  source "$CONDA_BASE/etc/profile.d/conda.sh"
+  if conda env list | awk '{print $1}' | grep -qx sallm-uv; then
+    conda activate sallm-uv
+  else
+    echo "Conda environment sallm-uv is unavailable; using the repository .venv."
+  fi
+fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
-cd "$SALLM_REPO_DIR"
-uv sync --frozen --inexact
+cd "$SALLM_RUNTIME_REPO"
+if command -v uv >/dev/null 2>&1 && [[ "${SALLM_SKIP_UV_SYNC:-0}" != 1 ]]; then
+  uv sync --frozen --inexact
+fi
 source .venv/bin/activate
+export PYTHONPATH="$SALLM_REPO_DIR/src/main:$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 
-# Install/verify Mamba CUDA kernels (not in lockfile, must reinstall after uv sync)
-echo "--- Mamba CUDA kernel status ---"
-if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-  echo "✓ Mamba fast path (CUDA kernels) available"
+if [[ -n "${SALLM_EXECUTION_MANIFEST:-}" ]]; then
+  python "$SALLM_REPO_DIR/scripts/create_execution_manifest.py" \
+    --verify "$SALLM_EXECUTION_MANIFEST"
+fi
+
+if [[ "$CFG" == *mamba* && "${EXTRA_ARGS[*]}" != *gated_deltanet* ]]; then
+  # Install/verify Mamba CUDA kernels only for Mamba jobs.
+  echo "--- Mamba CUDA kernel status ---"
+  if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+    echo "✓ Mamba fast path (CUDA kernels) available"
+  else
+    echo "Mamba kernels missing or ABI mismatch, rebuilding..."
+    uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
+    uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
+    if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
+      echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl is too slow)."
+      exit 1
+    fi
+    echo "✓ Mamba fast path (CUDA kernels) available"
+  fi
 else
-  echo "Mamba kernels missing or ABI mismatch, rebuilding..."
-  uv pip uninstall mamba-ssm causal-conv1d 2>/dev/null || true
-  uv pip install --no-build-isolation mamba-ssm causal-conv1d 2>&1
-  if ! python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; from causal_conv1d import causal_conv1d_fn" 2>/dev/null; then
-    echo "ERROR: Mamba CUDA kernels failed to load. Aborting (native impl is too slow)."
+  echo "--- Mamba CUDA kernel status: skipped for $CFG ---"
+fi
+echo "-------------------------------"
+
+if [[ "$CFG" == *gdn* || "$CFG" == *gated_deltanet* || "${EXTRA_ARGS[*]}" == *gated_deltanet* ]]; then
+  echo "--- GatedDeltaNet CUDA kernel status ---"
+  if ! python -c "import causal_conv1d, fla; from fla.ops.gated_delta_rule import chunk_gated_delta_rule" 2>/dev/null; then
+    echo "ERROR: GatedDeltaNet fast kernels are unavailable. Aborting (torch fallback is too slow)."
     exit 1
   fi
-  echo "✓ Mamba fast path (CUDA kernels) available"
+  echo "GatedDeltaNet fast path available"
+  echo "-------------------------------"
 fi
-export MAMBA_SCAN_IMPL="cuda"
-echo "-------------------------------"
 
 # Set PyTorch CUDA allocation config to reduce fragmentation (optional)
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
@@ -94,17 +166,27 @@ export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128,expandable_segments:True
 echo "LOCAL_RANK=${LOCAL_RANK:-unset} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
 
 # Determine number of processes to launch based on available GPUs
-NUM_PROCS="${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-}}"
+NUM_PROCS="${SALLM_NUM_PROCESSES_OVERRIDE:-${SLURM_GPUS_ON_NODE:-${SLURM_GPUS_PER_NODE:-}}}"
 if [[ -z "$NUM_PROCS" || "$NUM_PROCS" -le 0 ]]; then
-  if command -v nvidia-smi >/dev/null 2>&1; then
+  if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+    NUM_PROCS=$(awk -F, '{print NF}' <<<"$CUDA_VISIBLE_DEVICES")
+  elif command -v nvidia-smi >/dev/null 2>&1; then
     NUM_PROCS=$(nvidia-smi -L | wc -l | tr -d ' ')
   else
     NUM_PROCS=1
   fi
 fi
+if [[ ! "$NUM_PROCS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: invalid process count '$NUM_PROCS'." >&2
+  exit 1
+fi
 
 # Use dynamic port based on job ID to avoid conflicts when multiple jobs run on same node
-MASTER_PORT=$((29500 + (${SLURM_JOB_ID:-0} % 1000)))
+MASTER_PORT="${SALLM_MASTER_PORT_OVERRIDE:-$((29500 + (${SLURM_JOB_ID:-0} % 1000)))}"
+if [[ ! "$MASTER_PORT" =~ ^[0-9]+$ ]] || ((MASTER_PORT < 1024 || MASTER_PORT > 65535)); then
+  echo "ERROR: invalid master port '$MASTER_PORT'." >&2
+  exit 1
+fi
 
 # pass explicit accelerate options to avoid its default-warning messages
 accelerate launch \

@@ -1,5 +1,6 @@
 import collections
 import re
+import unicodedata
 
 NER_TAGS = [
     "O",
@@ -111,6 +112,8 @@ def span_f1_agg(items):
             regex = re.compile(r"\b(a|an|the)\b", re.UNICODE)
             return re.sub(regex, " ", text)
 
+        # NFD model outputs vs NFC references: compare in NFC.
+        strings = unicodedata.normalize("NFC", str(strings))
         return remove_blank_spaces(remove_articles(remove_punctuation(strings))).lower()
 
     def tags_to_spans(tag_sequence, delimiter="$$"):

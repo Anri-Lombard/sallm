@@ -20,13 +20,16 @@ repos:
     rev: v0.18.1
     hooks:
       - id: markdownlint-cli2
-        exclude: ^docs/(hpo_mamba_sweeps_last_14_days|masakhaner-x-issue)\.md$
+        # sallm_memory/ and scripts/ hold research records and as-run runners;
+        # their bytes are provenance, so they are not reformatted or linted.
+        exclude: ^(docs/(hpo_mamba_sweeps_last_14_days|masakhaner-x-issue)\.md|sallm_memory/.*|scripts/.*)$
 
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.12.0-2
     hooks:
       - id: shfmt
         args: [-w, -i, "2", -ci]
+        exclude: ^scripts/
 
   - repo: local
     hooks:

@@ -1,0 +1,77 @@
+mode: FINETUNE
+
+wandb: {project: "sallm-ft", name: "pure-gdn-125m-news-hpo-r1"}
+
+model:
+  architecture: "gated_deltanet"
+  init_checkpoint: "${oc.env:PURE_GDN_MODEL}"
+
+peft:
+  method: "lora"
+  kwargs:
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+    target_modules: [q_proj, k_proj, v_proj, a_proj, b_proj, g_proj, o_proj, gate_proj, up_proj, down_proj]
+
+dataset:
+  hf_name: "masakhane/masakhanews"
+  subset: null
+  languages: ["eng", "xho"]
+  splits: {train: "train", val: "validation"}
+  task: CLASSIFICATION
+  label_column: "category"
+  templates:
+    - {id: "masakhane_news_classification/lm_eval_p1", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p2", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p3", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p4", weight: 1.0}
+    - {id: "masakhane_news_classification/lm_eval_p5", weight: 1.0}
+  template_choice: CYCLE
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 1024
+
+tokenizer: {path: "${oc.env:PURE_GDN_MODEL}"}
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/news_hpo_r1/pure_gdn/trial_0"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/news_hpo_r1/pure_gdn/trial_0"
+  run_name: "pure-gdn-125m-news-hpo-r1-trial-0"
+  learning_rate: 8.0e-05
+  weight_decay: 0.01
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+  label_smoothing_factor: 0.05
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 1
+  num_train_epochs: 10
+  bf16: true
+  gradient_checkpointing: false
+  logging_steps: 10
+  logging_first_step: true
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 1
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_classification/all_f1"
+  greater_is_better: true
+  early_stopping_patience: 2
+  early_stopping_threshold: 0.001
+  dataloader_num_workers: 4
+  eval_accumulation_steps: 1
+  report_to: "wandb"
+  ddp_find_unused_parameters: false
+
+hub:
+  enabled: false
+  organization: "anrilombard"
+  private: true
+  push_adapter: false
+  push_merged: false
+  base_model_id: "${oc.env:PURE_GDN_MODEL}"
+  collection_slug: null

@@ -1,0 +1,78 @@
+name: hpo-gdn-ner-xho-20260731
+project: sallm-ft
+method: bayes
+run_cap: 24
+metric:
+  name: eval/all_f1
+  goal: maximize
+early_terminate:
+  type: hyperband
+  min_iter: 3
+  eta: 3
+parameters:
+  model.architecture:
+    value: qwen3next_gdn_hybrid
+  model.init_checkpoint:
+    value: anrilombard/sallm-gated-deltanet-125m-shallowwide-4x40-20260707
+  peft.kwargs.target_modules:
+    value: [in_proj_qkvz, in_proj_ba, out_proj, q_proj, k_proj, v_proj, o_proj]
+  hpo.lora_rank:
+    values: [16, 32, 64]
+  hpo.effective_batch_size:
+    values: [32, 64]
+  peft.kwargs.lora_dropout:
+    values: [0.0, 0.05, 0.1]
+  training.learning_rate:
+    distribution: log_uniform_values
+    min: 3.0e-05
+    max: 4.0e-04
+  training.weight_decay:
+    distribution: uniform
+    min: 0.0
+    max: 0.1
+  training.warmup_ratio:
+    values: [0.03, 0.05, 0.1]
+  training.lr_scheduler_type:
+    values: [cosine, constant_with_warmup]
+  training.per_device_train_batch_size:
+    value: 8
+  training.per_device_eval_batch_size:
+    value: 4
+  training.num_train_epochs:
+    value: 15
+  training.eval_strategy:
+    value: epoch
+  training.save_strategy:
+    value: epoch
+  training.save_total_limit:
+    value: 1
+  training.save_only_model:
+    value: true
+  training.load_best_model_at_end:
+    value: true
+  training.metric_for_best_model:
+    value: eval_all_f1
+  training.greater_is_better:
+    value: true
+  training.early_stopping_patience:
+    value: 3
+  training.gradient_checkpointing:
+    value: false
+  training.output_dir:
+    value: ${oc.env:SCRATCH}/masters/sallm/checkpoints/gdn_hpo_20260731/ner_xho
+  training.logging_dir:
+    value: ${oc.env:SCRATCH}/masters/sallm/logs/gdn_hpo_20260731/ner_xho
+  hub.enabled:
+    value: false
+  hub.push_adapter:
+    value: false
+  hub.push_merged:
+    value: false
+command:
+  - ${env}
+  - python
+  - -u
+  - -m
+  - sallm.hpo.run
+  - --base-config
+  - finetune/mamba_ner_xho

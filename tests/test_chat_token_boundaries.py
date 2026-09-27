@@ -62,6 +62,7 @@ def test_generation_uses_exact_rendered_chat_ids() -> None:
     evaluator = GenerationEvaluator.__new__(GenerationEvaluator)
     evaluator.tokenizer = tokenizer
     evaluator.max_new_tokens = 4
+    evaluator.prompt_format = "chat"
     evaluator.decoding_config = type(
         "Decoding",
         (),
@@ -76,7 +77,9 @@ def test_generation_uses_exact_rendered_chat_ids() -> None:
         }
     ]
 
+    model = type("Model", (), {"config": type("Config", (), {"use_cache": True})()})()
     prepared = evaluator._prepare_generation_batch(
+        model,
         batch,
         fallback_template=None,
         device=torch.device("cpu"),

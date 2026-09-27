@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SALLM Results Tables</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #f6f6f1;
+      color: #20251f;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .stack {
+      display: grid;
+      gap: 22px;
+    }
+    .table-block {
+      overflow-x: auto;
+      border: 2px solid var(--accent);
+      background: #ffffff;
+    }
+    .title {
+      padding: 10px 12px;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-bottom: 2px solid var(--accent);
+    }
+    .base { --accent: #8c8778; --accent-soft: #eeece4; --accent-ink: #514d42; }
+    .mono { --accent: #9a6a24; --accent-soft: #fff1d8; --accent-ink: #684411; }
+    .multi { --accent: #2f6788; --accent-soft: #e6f1f6; --accent-ink: #20485f; }
+    .general { --accent: #4e6b3f; --accent-soft: #edf4e8; --accent-ink: #344b2b; }
+    table {
+      min-width: 960px;
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+    th, td {
+      padding: 8px 9px;
+      border-right: 1px solid #d9d9cf;
+      border-bottom: 1px solid #d9d9cf;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background: #f2f2ec;
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    th:last-child, td:last-child { border-right: none; }
+    tr:last-child td { border-bottom: none; }
+    td:nth-child(n+4), strong {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .task {
+      font-weight: 850;
+      background: #fbfbf8;
+      vertical-align: top;
+    }
+    .metric {
+      font-weight: 800;
+      background: #ffffff;
+      vertical-align: top;
+    }
+    strong {
+      color: #123f25;
+      font-weight: 950;
+      background: #dff0e3;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="stack">
+    <section class="table-block base">
+      <div class="title">Base / prompted model</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Metric</th>
+            <th>Language</th>
+            <th>LLaMA</th>
+            <th>Mamba</th>
+            <th>xLSTM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="1" class="task">Base LM</td><td rowspan="1" class="metric">Perplexity↓</td><td>-</td><td><strong>9.980</strong></td><td>44.990</td><td>17.480</td></tr>
+          <tr><td rowspan="2" class="task">MasakhaNews</td><td rowspan="2" class="metric">F1↑</td><td>Eng</td><td><strong>0.383</strong></td><td>0.246</td><td>0.167</td></tr>
+          <tr><td>Xho</td><td><strong>0.391</strong></td><td>0.194</td><td>0.239</td></tr>
+          <tr><td rowspan="3" class="task">MasakhaNER</td><td rowspan="3" class="metric">F1↑</td><td>Xho</td><td><strong>0.305</strong></td><td>0.000</td><td>-</td></tr>
+          <tr><td>Zul</td><td>0.000</td><td>0.000</td><td>-</td></tr>
+          <tr><td>Tsn</td><td>0.000</td><td>0.000</td><td>-</td></tr>
+          <tr><td rowspan="3" class="task">MasakhaPOS</td><td rowspan="3" class="metric">Accuracy↑</td><td>Xho</td><td>0.000</td><td>0.000</td><td>0.000</td></tr>
+          <tr><td>Zul</td><td>0.000</td><td>0.000</td><td>0.000</td></tr>
+          <tr><td>Tsn</td><td>0.000</td><td>0.000</td><td>0.000</td></tr>
+          <tr><td rowspan="6" class="task">SIB200</td><td rowspan="6" class="metric">F1↑</td><td>Zul</td><td><strong>0.312</strong></td><td>0.127</td><td>0.140</td></tr>
+          <tr><td>Xho</td><td><strong>0.289</strong></td><td>0.124</td><td>0.139</td></tr>
+          <tr><td>Sot</td><td><strong>0.180</strong></td><td>0.076</td><td>0.141</td></tr>
+          <tr><td>Nso</td><td><strong>0.193</strong></td><td>0.080</td><td>0.136</td></tr>
+          <tr><td>Eng</td><td><strong>0.323</strong></td><td>0.106</td><td>0.170</td></tr>
+          <tr><td>Afr</td><td><strong>0.434</strong></td><td>0.169</td><td>0.194</td></tr>
+          <tr><td rowspan="4" class="task">InjongoIntent</td><td rowspan="4" class="metric">F1↑</td><td>Eng</td><td><strong>0.043</strong></td><td>0.001</td><td>0.001</td></tr>
+          <tr><td>Xho</td><td><strong>0.041</strong></td><td>0.001</td><td>0.001</td></tr>
+          <tr><td>Zul</td><td><strong>0.041</strong></td><td>0.001</td><td>0.001</td></tr>
+          <tr><td>Sot</td><td><strong>0.041</strong></td><td>0.001</td><td>0.001</td></tr>
+          <tr><td rowspan="7" class="task">Belebele</td><td rowspan="7" class="metric">Acc Norm↑</td><td>Xho</td><td><strong>0.294</strong></td><td>0.286</td><td>0.234</td></tr>
+          <tr><td>Zul</td><td><strong>0.282</strong></td><td>0.281</td><td>0.231</td></tr>
+          <tr><td>Tsn</td><td><strong>0.308</strong></td><td>0.280</td><td>0.277</td></tr>
+          <tr><td>Ssw</td><td><strong>0.297</strong></td><td>0.273</td><td>0.253</td></tr>
+          <tr><td>Sot</td><td>0.274</td><td><strong>0.277</strong></td><td>0.236</td></tr>
+          <tr><td>Eng</td><td>0.276</td><td>0.270</td><td><strong>0.278</strong></td></tr>
+          <tr><td>Afr</td><td>0.276</td><td><strong>0.281</strong></td><td>0.240</td></tr>
+          <tr><td rowspan="1" class="task">T2X</td><td rowspan="1" class="metric">chrF↑</td><td>Xho</td><td><strong>3.509</strong></td><td>0.390</td><td>0.870</td></tr>
+          <tr><td rowspan="2" class="task">AfriHG</td><td rowspan="2" class="metric">chrF↑</td><td>Xho</td><td><strong>4.080</strong></td><td>1.290</td><td>3.820</td></tr>
+          <tr><td>Zul</td><td>4.605</td><td>0.180</td><td><strong>8.460</strong></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="table-block mono">
+      <div class="title">Monolingual tuned model</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Metric</th>
+            <th>Language</th>
+            <th>LLaMA</th>
+            <th>Mamba</th>
+            <th>xLSTM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="2" class="task">MasakhaNews</td><td rowspan="2" class="metric">F1↑</td><td>Eng</td><td>0.635</td><td>0.773</td><td><strong>0.913</strong></td></tr>
+          <tr><td>Xho</td><td>0.732</td><td>0.757</td><td><strong>0.920</strong></td></tr>
+          <tr><td rowspan="3" class="task">MasakhaNER</td><td rowspan="3" class="metric">F1↑</td><td>Xho</td><td><strong>0.720</strong></td><td>0.009</td><td>0.207</td></tr>
+          <tr><td>Zul</td><td><strong>0.670</strong></td><td>0.000</td><td>0.147</td></tr>
+          <tr><td>Tsn</td><td><strong>0.772</strong></td><td>0.013</td><td>0.236</td></tr>
+          <tr><td rowspan="3" class="task">MasakhaPOS</td><td rowspan="3" class="metric">Accuracy↑</td><td>Xho</td><td>0.426</td><td>0.000</td><td><strong>0.813</strong></td></tr>
+          <tr><td>Zul</td><td>0.809</td><td>0.000</td><td><strong>0.847</strong></td></tr>
+          <tr><td>Tsn</td><td>0.674</td><td>0.000</td><td><strong>0.867</strong></td></tr>
+          <tr><td rowspan="6" class="task">SIB200</td><td rowspan="6" class="metric">F1↑</td><td>Zul</td><td><strong>0.220</strong></td><td>0.103</td><td>0.106</td></tr>
+          <tr><td>Xho</td><td><strong>0.391</strong></td><td>0.093</td><td>0.180</td></tr>
+          <tr><td>Sot</td><td><strong>0.368</strong></td><td>0.059</td><td>0.100</td></tr>
+          <tr><td>Nso</td><td><strong>0.366</strong></td><td>0.044</td><td>0.132</td></tr>
+          <tr><td>Eng</td><td>0.280</td><td>0.126</td><td><strong>0.253</strong></td></tr>
+          <tr><td>Afr</td><td><strong>0.544</strong></td><td>0.166</td><td>0.147</td></tr>
+          <tr><td rowspan="4" class="task">InjongoIntent</td><td rowspan="4" class="metric">F1↑</td><td>Eng</td><td>-</td><td>0.017</td><td><strong>0.152</strong></td></tr>
+          <tr><td>Xho</td><td>0.006</td><td>0.006</td><td><strong>0.097</strong></td></tr>
+          <tr><td>Zul</td><td>0.006</td><td>0.002</td><td><strong>0.088</strong></td></tr>
+          <tr><td>Sot</td><td>0.009</td><td>0.002</td><td><strong>0.138</strong></td></tr>
+          <tr><td rowspan="1" class="task">T2X</td><td rowspan="1" class="metric">chrF↑</td><td>Xho</td><td><strong>55.385</strong></td><td>32.180</td><td>33.719</td></tr>
+          <tr><td rowspan="2" class="task">AfriHG</td><td rowspan="2" class="metric">chrF↑</td><td>Xho</td><td>14.283</td><td>9.898</td><td><strong>16.594</strong></td></tr>
+          <tr><td>Zul</td><td><strong>19.048</strong></td><td>12.090</td><td>17.270</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="table-block multi">
+      <div class="title">Multilingual tuned model</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Metric</th>
+            <th>Language</th>
+            <th>LLaMA</th>
+            <th>Mamba</th>
+            <th>xLSTM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="2" class="task">MasakhaNews</td><td rowspan="2" class="metric">F1↑</td><td>Eng</td><td>0.608</td><td>0.634</td><td><strong>0.881</strong></td></tr>
+          <tr><td>Xho</td><td>0.785</td><td>0.540</td><td><strong>0.919</strong></td></tr>
+          <tr><td rowspan="3" class="task">MasakhaNER</td><td rowspan="3" class="metric">F1↑</td><td>Xho</td><td><strong>0.693</strong></td><td>0.017</td><td>0.207</td></tr>
+          <tr><td>Zul</td><td><strong>0.702</strong></td><td>0.034</td><td>0.177</td></tr>
+          <tr><td>Tsn</td><td><strong>0.779</strong></td><td>0.020</td><td>0.237</td></tr>
+          <tr><td rowspan="3" class="task">MasakhaPOS</td><td rowspan="3" class="metric">Accuracy↑</td><td>Xho</td><td>0.517</td><td>0.000</td><td><strong>0.960</strong></td></tr>
+          <tr><td>Zul</td><td>0.559</td><td>0.000</td><td><strong>0.967</strong></td></tr>
+          <tr><td>Tsn</td><td>0.684</td><td>0.000</td><td><strong>0.953</strong></td></tr>
+          <tr><td rowspan="6" class="task">SIB200</td><td rowspan="6" class="metric">F1↑</td><td>Zul</td><td><strong>0.472</strong></td><td>0.122</td><td>0.177</td></tr>
+          <tr><td>Xho</td><td><strong>0.404</strong></td><td>0.094</td><td>0.164</td></tr>
+          <tr><td>Sot</td><td><strong>0.347</strong></td><td>0.131</td><td>0.135</td></tr>
+          <tr><td>Nso</td><td><strong>0.305</strong></td><td>0.079</td><td>0.110</td></tr>
+          <tr><td>Eng</td><td><strong>0.333</strong></td><td>0.156</td><td>0.203</td></tr>
+          <tr><td>Afr</td><td><strong>0.296</strong></td><td>0.187</td><td>0.176</td></tr>
+          <tr><td rowspan="4" class="task">InjongoIntent</td><td rowspan="4" class="metric">F1↑</td><td>Eng</td><td>0.029</td><td>0.035</td><td><strong>0.663</strong></td></tr>
+          <tr><td>Xho</td><td>0.010</td><td>0.010</td><td><strong>0.614</strong></td></tr>
+          <tr><td>Zul</td><td>0.007</td><td>0.008</td><td><strong>0.449</strong></td></tr>
+          <tr><td>Sot</td><td>0.007</td><td>0.017</td><td><strong>0.446</strong></td></tr>
+          <tr><td rowspan="2" class="task">AfriHG</td><td rowspan="2" class="metric">chrF↑</td><td>Xho</td><td>16.978</td><td>5.779</td><td><strong>17.017</strong></td></tr>
+          <tr><td>Zul</td><td>17.481</td><td>4.006</td><td><strong>18.898</strong></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="table-block general">
+      <div class="title">General tuned model</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Metric</th>
+            <th>Language</th>
+            <th>LLaMA</th>
+            <th>Mamba</th>
+            <th>xLSTM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="2" class="task">MasakhaNews</td><td rowspan="2" class="metric">F1↑</td><td>Eng</td><td>0.492</td><td>0.444</td><td><strong>0.658</strong></td></tr>
+          <tr><td>Xho</td><td><strong>0.509</strong></td><td>0.424</td><td>0.193</td></tr>
+          <tr><td rowspan="3" class="task">MasakhaNER</td><td rowspan="3" class="metric">F1↑</td><td>Xho</td><td><strong>0.136</strong></td><td>0.004</td><td>0.004</td></tr>
+          <tr><td>Zul</td><td><strong>0.207</strong></td><td>0.003</td><td>0.004</td></tr>
+          <tr><td>Tsn</td><td><strong>0.123</strong></td><td>0.031</td><td>0.009</td></tr>
+          <tr><td rowspan="3" class="task">MasakhaPOS</td><td rowspan="3" class="metric">Accuracy↑</td><td>Xho</td><td>0.000</td><td><strong>0.013</strong></td><td><strong>0.013</strong></td></tr>
+          <tr><td>Zul</td><td>0.000</td><td><strong>0.020</strong></td><td><strong>0.020</strong></td></tr>
+          <tr><td>Tsn</td><td>0.000</td><td>0.033</td><td><strong>0.093</strong></td></tr>
+          <tr><td rowspan="6" class="task">SIB200</td><td rowspan="6" class="metric">F1↑</td><td>Zul</td><td><strong>0.472</strong></td><td>0.111</td><td>0.162</td></tr>
+          <tr><td>Xho</td><td><strong>0.391</strong></td><td>0.101</td><td>0.126</td></tr>
+          <tr><td>Sot</td><td><strong>0.368</strong></td><td>0.104</td><td>0.116</td></tr>
+          <tr><td>Nso</td><td><strong>0.339</strong></td><td>0.116</td><td>0.134</td></tr>
+          <tr><td>Eng</td><td><strong>0.280</strong></td><td>0.253</td><td>0.155</td></tr>
+          <tr><td>Afr</td><td><strong>0.544</strong></td><td>0.241</td><td>0.118</td></tr>
+          <tr><td rowspan="4" class="task">InjongoIntent</td><td rowspan="4" class="metric">F1↑</td><td>Eng</td><td><strong>0.035</strong></td><td>0.001</td><td>0.019</td></tr>
+          <tr><td>Xho</td><td>0.006</td><td>0.001</td><td><strong>0.008</strong></td></tr>
+          <tr><td>Zul</td><td>0.006</td><td>0.001</td><td><strong>0.007</strong></td></tr>
+          <tr><td>Sot</td><td>0.009</td><td>0.001</td><td><strong>0.010</strong></td></tr>
+          <tr><td rowspan="7" class="task">Belebele</td><td rowspan="7" class="metric">Acc Norm↑</td><td>Xho</td><td>0.219</td><td>0.229</td><td><strong>0.290</strong></td></tr>
+          <tr><td>Zul</td><td>0.251</td><td>0.229</td><td><strong>0.301</strong></td></tr>
+          <tr><td>Tsn</td><td>0.219</td><td>0.229</td><td><strong>0.270</strong></td></tr>
+          <tr><td>Ssw</td><td>0.236</td><td>0.229</td><td><strong>0.277</strong></td></tr>
+          <tr><td>Sot</td><td>0.220</td><td>0.229</td><td><strong>0.288</strong></td></tr>
+          <tr><td>Eng</td><td><strong>0.296</strong></td><td>0.229</td><td>0.260</td></tr>
+          <tr><td>Afr</td><td><strong>0.311</strong></td><td>0.229</td><td>0.278</td></tr>
+          <tr><td rowspan="1" class="task">T2X</td><td rowspan="1" class="metric">chrF↑</td><td>Xho</td><td>16.053</td><td>11.979</td><td><strong>22.002</strong></td></tr>
+          <tr><td rowspan="2" class="task">AfriHG</td><td rowspan="2" class="metric">chrF↑</td><td>Xho</td><td><strong>10.985</strong></td><td>6.289</td><td>1.388</td></tr>
+          <tr><td>Zul</td><td><strong>9.987</strong></td><td>5.070</td><td>2.422</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

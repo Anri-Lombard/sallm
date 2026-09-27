@@ -1,0 +1,91 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "${oc.env:GEN_BASE}"
+  peft_adapter: "${oc.env:GEN_ADAPTER}"
+  adapter: "hf"
+  dtype: "${oc.env:GEN_DTYPE,bfloat16}"
+  device: "cuda:0"
+  merge_lora: false
+
+evaluation:
+  output_dir: "${oc.env:GEN_OUTPUT}"
+  generation_tasks:
+    - id: "t2x_xho_validation_canary"
+      split: "validation"
+      max_new_tokens: 512
+      max_samples_per_lang: 16
+      sample_seed: 20260913
+      fewshot: 0
+      system_prompt: "You are a helpful assistant that verbalises knowledge graph triples as fluent isiXhosa sentences."
+      prompt_format: "chat"
+      decoding:
+        strategy: "greedy"
+        batch_size: "auto:4"
+      dataset:
+        hf_name: "github:francois-meyer/t2x"
+        subset: "xho"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates:
+          - {id: "t2x_verbalisation/v1", weight: 1}
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 1024
+    - id: "afrihg_xho_validation_canary"
+      split: "validation"
+      max_new_tokens: 256
+      max_samples_per_lang: 16
+      sample_seed: 20260913
+      fewshot: 0
+      system_prompt: "You are a concise isiXhosa news editor who drafts punchy headlines from article excerpts."
+      prompt_format: "chat"
+      decoding:
+        strategy: "greedy"
+        batch_size: "auto:4"
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "xho"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates:
+          - {id: "afrihg_headline/v1", weight: 1}
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 1024
+    - id: "afrihg_zul_validation_canary"
+      split: "validation"
+      max_new_tokens: 256
+      max_samples_per_lang: 16
+      sample_seed: 20260913
+      fewshot: 0
+      system_prompt: "You are a concise isiZulu news editor who drafts punchy headlines from article excerpts."
+      prompt_format: "chat"
+      decoding:
+        strategy: "greedy"
+        batch_size: "auto:4"
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "zul"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates:
+          - {id: "afrihg_headline/v1", weight: 1}
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 1024
+
+tokenizer: null
+model: null
+data: null
+training: null
+dataset: null
+peft: null
+template: null
+
+wandb:
+  project: "sallm-eval"
+  name: "standardized-generation-validation-canary"

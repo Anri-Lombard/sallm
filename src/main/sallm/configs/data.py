@@ -7,6 +7,7 @@ from dataclasses import dataclass
 class DataConfig:
     path: str | None = None
     hf_name: str | None = None
+    streaming: bool = False
     train_split: str = "train"
     eval_split: str = "validation"
     test_split: str | None = "test"

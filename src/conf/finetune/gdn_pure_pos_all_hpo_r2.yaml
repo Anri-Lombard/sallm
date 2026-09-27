@@ -1,0 +1,51 @@
+mode: FINETUNE
+wandb:
+  project: sallm-ft
+  name: pure-gdn-pos-validation-r2
+model:
+  architecture: gated_deltanet
+  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-pure-gdn-125m/a10080-3epoch-20260802/final_model
+peft:
+  method: lora
+  kwargs:
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+dataset:
+  hf_name: masakhane/masakhapos
+  subset: null
+  languages: [tsn, xho, zul]
+  task: POS_TAGGING
+  splits: {train: train, val: validation}
+  templates:
+    - id: masakhane_pos_tagging/lm_eval_p1
+      weight: 1.0
+    - id: masakhane_pos_tagging/lm_eval_p2
+      weight: 1.0
+    - id: masakhane_pos_tagging/lm_eval_p3
+      weight: 1.0
+    - id: masakhane_pos_tagging/lm_eval_p4
+      weight: 1.0
+  template_choice: CYCLE
+  eval_template_choice: ALL
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 2048
+tokenizer:
+  path: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-pure-gdn-125m/a10080-3epoch-20260802/final_model
+training:
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/pure_gdn_adapter_hpo_r2/pos
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/pure_gdn_adapter_hpo_r2/pos
+  run_name: pure-gdn-pos-validation-r2
+  learning_rate: 3.0e-05
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  num_train_epochs: 15
+  bf16: true
+  eval_strategy: epoch
+  save_strategy: epoch
+  report_to: wandb
+hub:
+  enabled: false
+  push_adapter: false
+  push_merged: false

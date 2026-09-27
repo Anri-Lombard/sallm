@@ -358,7 +358,7 @@ def test_sweep_base_configs_resolve() -> None:
         assert cfg.dataset is not None
         checked += 1
 
-    assert checked == 59
+    assert checked == 66
 
 
 def test_experiment_schema_merges_representative_eval_config() -> None:

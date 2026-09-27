@@ -1,5 +1,8 @@
 include: _masakhanews_val_common.yaml
-dataset_name: eng
+dataset_kwargs:
+  delimiter: "\t"
+  data_files:
+    validation: https://huggingface.co/datasets/masakhane/masakhanews/resolve/fa3b5fff8a91d187bf0c5900a39c4271d08cf7fe/data/eng/dev.tsv
 doc_to_text: |
   Does this topic; '{{headline}} {{text}}' belong to one of the following categories:
   technology, business, politics, sports, health, entertainment, or religion?

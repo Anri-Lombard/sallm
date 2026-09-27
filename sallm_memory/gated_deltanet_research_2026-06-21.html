@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gated DeltaNet Research for SALLM</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8f5;
+      --ink: #17211b;
+      --muted: #5d6b62;
+      --line: #d9ded5;
+      --panel: #ffffff;
+      --accent: #146c5a;
+      --warn: #8a4b12;
+      --bad: #8d2d2d;
+      --good: #1b6b40;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 38px 22px 64px;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 26px;
+      padding-bottom: 22px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 36px 0 12px;
+      font-size: 1.35rem;
+      letter-spacing: 0;
+    }
+    h3 {
+      margin: 22px 0 8px;
+      font-size: 1rem;
+    }
+    p { margin: 0 0 14px; }
+    a { color: var(--accent); }
+    .meta {
+      color: var(--muted);
+      max-width: 760px;
+    }
+    .callout {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--accent);
+      border-radius: 8px;
+      padding: 18px;
+      margin: 20px 0 24px;
+    }
+    .callout strong { color: var(--accent); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0 8px;
+    }
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .tile b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: .92rem;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: block;
+      overflow-x: auto;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 12px;
+      text-align: left;
+      vertical-align: top;
+      min-width: 190px;
+    }
+    th {
+      background: #edf2ed;
+      font-size: .9rem;
+      color: #34423a;
+    }
+    tr:last-child td { border-bottom: 0; }
+    ul, ol { padding-left: 22px; }
+    li { margin: 6px 0; }
+    .sources {
+      columns: 2;
+      column-gap: 30px;
+    }
+    .sources li { break-inside: avoid; }
+    code {
+      background: #eef1ec;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: .92em;
+    }
+    @media (max-width: 760px) {
+      main { padding: 24px 14px 42px; }
+      .grid { grid-template-columns: 1fr; }
+      .sources { columns: 1; }
+      th, td { min-width: 240px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Gated DeltaNet Research for SALLM</h1>
+    <p class="meta">Literature review and go/no-go recommendation for MzansiLM-style low-resource pretraining. Created 2026-06-21. Research only: no SLURM jobs, no training-code edits.</p>
+  </header>
+
+  <section class="callout">
+    <p><strong>Recommendation:</strong> do not spend a full SALLM pretraining run on Gated DeltaNet next. GDN is worth a small FLA-based hybrid feasibility screen, but HGRN2/BabyHGRN still has the stronger direct low-resource/sample-efficiency case.</p>
+  </section>
+
+  <section class="grid" aria-label="decision summary">
+    <div class="tile">
+      <b>Full Run</b>
+      <p class="bad">No-go for now.</p>
+    </div>
+    <div class="tile">
+      <b>Small Screen</b>
+      <p class="good">Go, if compute is available.</p>
+    </div>
+    <div class="tile">
+      <b>Preferred Shape</b>
+      <p class="warn">Hybrid GDN plus periodic attention.</p>
+    </div>
+  </section>
+
+  <h2>What Gated DeltaNet Is</h2>
+  <p>Gated DeltaNet is a linear-attention / recurrent-memory architecture. It keeps a fixed-size matrix state instead of a growing softmax-attention KV cache. DeltaNet updates this state with a delta rule: before writing a new value at a key, it subtracts the current value read from that key, giving targeted overwrite instead of plain accumulation. Gated DeltaNet adds Mamba2-style decay/gating, so the state can forget broadly and edit a selected association.</p>
+
+  <h2>Architecture Comparison</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Architecture</th>
+        <th>Memory mechanism</th>
+        <th>SALLM implication</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Transformer attention</td>
+        <td>Token-level access to past keys and values.</td>
+        <td>Best default for copying, source-conditioned generation, and prompt use; heavier memory cost.</td>
+      </tr>
+      <tr>
+        <td>DeltaNet</td>
+        <td>Fast-weight matrix memory with delta-rule targeted overwrite.</td>
+        <td>Mechanism directly targets associative interference.</td>
+      </tr>
+      <tr>
+        <td>Gated DeltaNet</td>
+        <td>Delta-rule memory plus Mamba2-style adaptive decay.</td>
+        <td>Plausible fit for Mamba's source-preservation gap, but not proven for low-resource SA languages.</td>
+      </tr>
+      <tr>
+        <td>Gated DeltaNet-2</td>
+        <td>Separate erase and write gates over channels.</td>
+        <td>Stronger newer evidence, but newer code path and no direct SALLM fit yet.</td>
+      </tr>
+      <tr>
+        <td>RetNet</td>
+        <td>Retention with parallel, recurrent, and chunkwise modes.</td>
+        <td>Useful related work, less directly tied to source-copy failures.</td>
+      </tr>
+      <tr>
+        <td>Mamba / Mamba-2</td>
+        <td>Selective SSM / SSD recurrent state.</td>
+        <td>SALLM has already seen source-preservation and generation-loss gaps.</td>
+      </tr>
+      <tr>
+        <td>RWKV</td>
+        <td>RNN-like dynamic recurrence and matrix-valued states.</td>
+        <td>Mature efficient-LM family; lower priority than HGRN2/GDN screen.</td>
+      </tr>
+      <tr>
+        <td>xLSTM</td>
+        <td>Exponential gates plus scalar or matrix memory.</td>
+        <td>Already promising versus Mamba locally, still behind LLaMA on clean generation loss.</td>
+      </tr>
+      <tr>
+        <td>HGRN / HGRN2</td>
+        <td>Gated linear recurrence with state expansion.</td>
+        <td>Best direct low-resource/sample-efficiency evidence via BabyHGRN.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Evidence Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Evidence</th>
+        <th>What it says</th>
+        <th>SALLM relevance</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>GDN paper, ICLR 2025</td>
+        <td>GDN combines Mamba2 gating with DeltaNet updates and reports better LM, reasoning, retrieval, length extrapolation, and long-context results than Mamba2 and DeltaNet.</td>
+        <td>Strong reason to screen. Not direct low-resource evidence.</td>
+      </tr>
+      <tr>
+        <td>Official GDN repo</td>
+        <td>Code exists; FLA is recommended for faster kernels and varlen training. The standalone repo gives no pretrained weights and notes evaluation inconvenience before HF/FLA conversion.</td>
+        <td>Integration is doable, but not drop-in for SALLM.</td>
+      </tr>
+      <tr>
+        <td>GDN-2, 2026</td>
+        <td>At 1.3B/100B FineWeb-Edu, GDN-2 beats Mamba-2, GDN, KDA, and Mamba-3 variants on average LM, reasoning, and retrieval. Biggest gains are RULER multi-key retrieval.</td>
+        <td>Best technical evidence for the family, but no low-resource SA evidence.</td>
+      </tr>
+      <tr>
+        <td>Qwen3-Next</td>
+        <td>Production-scale hybrid: 48 layers repeat 3 GDN blocks then 1 gated-attention block; 262K native context, extendable to about 1M.</td>
+        <td>Industry validation favors hybrid GDN, not pure GDN.</td>
+      </tr>
+      <tr>
+        <td>Kimi Linear</td>
+        <td>KDA extends GDN with finer-grained gating and reports full-attention-beating hybrid results with large training runs.</td>
+        <td>Supports the direction, but points to KDA/GDN-2 rather than vanilla GDN.</td>
+      </tr>
+      <tr>
+        <td>Copying/SSM literature</td>
+        <td>Transformers have an advantage on exact copying because fixed-state models compress context; Mamba hybrids recover more than pure SSMs on retrieval tasks.</td>
+        <td>T2X and AfriHG need source preservation, so pure fixed-state GDN is risky.</td>
+      </tr>
+      <tr>
+        <td>BabyHGRN</td>
+        <td>HGRN2 outperforms transformer baselines in 10M/100M word BabyLM tracks across BLiMP, EWoK, GLUE, and BEAR.</td>
+        <td>Stronger direct sample-efficiency evidence than GDN for low-resource thesis framing.</td>
+      </tr>
+      <tr>
+        <td>Local SALLM state</td>
+        <td>Existing repo has Mamba, Mamba2-hybrid, xLSTM, and RWKV configs; no FLA/GDN dependency or config.</td>
+        <td>A GDN run needs an integration spike and must be judged against Mamba/xLSTM/LLaMA gates.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Low-Resource Fit</h2>
+  <p>Evidence for GDN data efficiency is suggestive, not proven. GDN and GDN-2 show better loss and recall than nearby efficient architectures at 400M/1.3B and 100B-ish token regimes, but that is not the same as low-resource South African-language pretraining.</p>
+  <p>The positive SALLM hypothesis is narrow: targeted overwrite may reduce interference in compressed memory and improve source entity/value preservation compared with Mamba. The counter-hypothesis is equally important: if exact copying from prompt context is the bottleneck, GDN may still lose to LLaMA unless attention layers are retained.</p>
+  <p>No reviewed paper makes a direct claim that GDN is unusually good for South African languages, morphology, MzansiText-style mixtures, T2X, or AfriHG. Treat morphology benefits as hypotheses.</p>
+
+  <h2>Implementation Risks</h2>
+  <ul>
+    <li><strong>Dependency gap:</strong> SALLM currently depends on <code>transformers</code>, <code>mamba-ssm</code>, and <code>xlstm</code>, not <code>fla-core</code>.</li>
+    <li><strong>Code path:</strong> the practical route is FLA-first, not a bespoke port of standalone NVLabs code.</li>
+    <li><strong>License:</strong> NVLabs GDN/GDN-2 repos use NVIDIA Source Code License-NC; FLA is MIT.</li>
+    <li><strong>Kernels:</strong> performance depends on Triton/FLA-style kernels. Unsupported hardware paths may be slow or incomplete.</li>
+    <li><strong>Evaluation:</strong> official notes flag generation/evaluation inconvenience and prompt sensitivity.</li>
+    <li><strong>Stability:</strong> GDN-2 uses fp32 decay/state choices and precision-sensitive solves; BF16 parity needs checking.</li>
+    <li><strong>Checkpoints:</strong> no official pretrained GDN weights are released, so SALLM would train from scratch.</li>
+    <li><strong>Context length:</strong> strongest GDN-family wins are long-context retrieval; a 2048-only SALLM run may under-test the architecture.</li>
+    <li><strong>Tokenizer:</strong> GDN does not solve tokenization. Keep the same 65K ByteLevel BPE for fair comparison.</li>
+  </ul>
+
+  <h2>Hypotheses To Test</h2>
+  <ol>
+    <li>A 125M-ish GDN hybrid should beat current Mamba base validation loss by 10K steps and not trail xLSTM by much.</li>
+    <li>On clean T2X Xho, AfriHG Xho, and AfriHG Zul teacher-forced gates, GDN should be closer to xLSTM/LLaMA than to current Mamba.</li>
+    <li>After tiny downstream adaptation, GDN should improve source entity/value coverage over Mamba by at least 20% relative without lowering chrF.</li>
+    <li>GDN plus periodic attention should beat pure GDN on source-copy and prompt-conditioned tasks.</li>
+    <li>GDN should improve MasakhaPOS constrained token accuracy or exact-length sequence behavior over Mamba.</li>
+    <li>GDN must have acceptable tokens/sec and memory versus Mamba2-hybrid and xLSTM.</li>
+  </ol>
+
+  <h2>Smallest Defensible Experiment Plan</h2>
+  <ol>
+    <li><strong>Integration spike:</strong> branch-only FLA dependency; instantiate one 125M-ish GDN model with SALLM vocab; verify forward/backward, BF16, generation, save/load, and eval route.</li>
+    <li><strong>Cheap base screen:</strong> train one GDN hybrid for the same budget as previous 10K screens, using the same tokenizer, splits, optimizer family, and clean-loss probes.</li>
+    <li><strong>Gate criteria:</strong> continue only if base validation and clean conditional loss clearly beat Mamba and are at least competitive with xLSTM.</li>
+    <li><strong>Full-run decision:</strong> full GDN pretraining is a go only if the screen passes base loss, clean generation loss, source preservation, and throughput.</li>
+  </ol>
+
+  <h2>Final Call</h2>
+  <ol>
+    <li>Finish and interpret current xLSTM gates.</li>
+    <li>Prioritize HGRN2 if the goal is low-resource/sample-efficiency evidence.</li>
+    <li>Run GDN only as a bounded hybrid feasibility screen aimed at the known Mamba source-preservation gap.</li>
+    <li>Prefer FLA GDN for maturity; keep GDN-2/KDA as a later refinement if vanilla GDN integration is easy and the first screen is positive.</li>
+  </ol>
+
+  <h2>Sources</h2>
+  <ul class="sources">
+    <li><a href="https://arxiv.org/abs/2412.06464">Gated Delta Networks</a></li>
+    <li><a href="https://openreview.net/forum?id=r8H7xhYPwz">GDN OpenReview page</a></li>
+    <li><a href="https://github.com/NVlabs/GatedDeltaNet">Official GDN repo</a></li>
+    <li><a href="https://arxiv.org/abs/2605.22791">Gated DeltaNet-2</a></li>
+    <li><a href="https://github.com/NVlabs/GatedDeltaNet-2">Official GDN-2 repo</a></li>
+    <li><a href="https://github.com/fla-org/flash-linear-attention">Flash Linear Attention</a></li>
+    <li><a href="https://arxiv.org/abs/2406.06484">DeltaNet</a></li>
+    <li><a href="https://arxiv.org/abs/2312.00752">Mamba</a></li>
+    <li><a href="https://arxiv.org/abs/2405.21060">Mamba-2 / SSD</a></li>
+    <li><a href="https://arxiv.org/abs/2307.08621">RetNet</a></li>
+    <li><a href="https://arxiv.org/abs/2404.05892">RWKV Eagle/Finch</a></li>
+    <li><a href="https://arxiv.org/abs/2405.04517">xLSTM</a></li>
+    <li><a href="https://arxiv.org/abs/2404.07904">HGRN2</a></li>
+    <li><a href="https://arxiv.org/abs/2412.15978">BabyHGRN</a></li>
+    <li><a href="https://arxiv.org/abs/2510.26692">Kimi Linear / KDA</a></li>
+    <li><a href="https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Instruct">Qwen3-Next model card</a></li>
+    <li><a href="https://arxiv.org/abs/2402.01032">Transformers are Better than SSMs at Copying</a></li>
+    <li><a href="https://arxiv.org/abs/2406.07887">Empirical Study of Mamba-based LMs</a></li>
+  </ul>
+</main>
+</body>
+</html>

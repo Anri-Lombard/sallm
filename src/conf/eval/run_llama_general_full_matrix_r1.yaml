@@ -1,0 +1,126 @@
+mode: EVALUATE
+
+eval_model:
+  checkpoint: "anrilombard/sallm-llama-125m-general-tokenbalanced-r1"
+  adapter: "hf"
+  dtype: "bfloat16"
+  device: "cuda:0"
+  merge_lora: true
+  tie_word_embeddings: true
+
+evaluation:
+  wandb: {project: "sallm-eval", name: "eval-llama-general-full-matrix-r1"}
+  task_packs:
+    - "masakhanews_all_test_chat"
+    - "masakhaner_all"
+    - "masakhapos_all"
+    - "sib_all"
+    - "injongointent_all"
+    - "afrimgsm_sa"
+    - "afrimmlu_sa"
+    - "afrixnli_sa"
+    - "belebele_afr"
+    - "belebele_eng"
+    - "belebele_sot"
+    - "belebele_ssw"
+    - "belebele_tsn"
+    - "belebele_tso"
+    - "belebele_xho"
+    - "belebele_zul"
+  overrides:
+    masakhanews_all_test_chat: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    masakhaner_all: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    masakhapos_all: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    sib_all: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    injongointent_all: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    afrimgsm_sa: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    afrimmlu_sa: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    afrixnli_sa: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_afr: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_eng: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_sot: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_ssw: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_tsn: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_tso: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_xho: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+    belebele_zul: {num_fewshot: 0, batch_size: 8, max_batch_size: 16}
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/llama_general_full_matrix_r1"
+  generation_tasks:
+    - id: "t2x_xho"
+      split: "test"
+      max_new_tokens: 512
+      max_samples_per_lang: null
+      fewshot: 0
+      fewshot_split: "train"
+      fewshot_seed: 42
+      fewshot_lang_match: true
+      fewshot_template_mode: "SAME"
+      fewshot_token_budget: 1792
+      prompt_headroom_tokens: 256
+      system_prompt: "You are a helpful assistant that verbalises knowledge graph triples as fluent isiXhosa sentences."
+      decoding: {strategy: "beam", num_beams: 5, length_penalty: 1.0, early_stopping: true}
+      dataset:
+        hf_name: "github:francois-meyer/t2x"
+        subset: "xho"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates: [{id: "t2x_verbalisation/v1", weight: 1}]
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 1024
+    - id: "afrihg_xho"
+      split: "test"
+      max_new_tokens: 256
+      max_samples_per_lang: null
+      fewshot: 0
+      fewshot_split: "train"
+      fewshot_seed: 42
+      fewshot_lang_match: true
+      fewshot_template_mode: "SAME"
+      fewshot_token_budget: 1792
+      prompt_headroom_tokens: 256
+      system_prompt: "You are a concise isiXhosa news editor who drafts punchy headlines from article excerpts."
+      decoding: {strategy: "beam", num_beams: 5, length_penalty: 0.7, batch_size: "auto:4", early_stopping: true}
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "xho"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates: [{id: "afrihg_headline/v1", weight: 1}]
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 2048
+    - id: "afrihg_zul"
+      split: "test"
+      max_new_tokens: 256
+      max_samples_per_lang: null
+      fewshot: 0
+      fewshot_split: "train"
+      fewshot_seed: 42
+      fewshot_lang_match: true
+      fewshot_template_mode: "SAME"
+      fewshot_token_budget: 1792
+      prompt_headroom_tokens: 256
+      decoding: {strategy: "beam", num_beams: 5, length_penalty: 0.7, batch_size: "auto:4", early_stopping: true}
+      dataset:
+        hf_name: "github:dadelani/AfriHG"
+        subset: "zul"
+        splits: {train: "train", val: "validation", test: "test"}
+        task: INSTRUCTION
+        templates: [{id: "afrihg_headline/v1", weight: 1}]
+        template_choice: ALL
+        packing: false
+        assistant_only_loss: true
+        max_seq_length: 2048
+
+wandb: {project: "sallm-eval", name: "eval-llama-general-full-matrix-r1"}
+
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

@@ -44,6 +44,7 @@ training:
   max_grad_norm: 1.0
   num_train_epochs: 10
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_news_xho
+  pad_to_multiple_of: 64
   per_device_eval_batch_size: 4
   per_device_train_batch_size: 4
   report_to: wandb
