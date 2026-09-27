@@ -4,7 +4,6 @@ data/**/
 !data/cleaning/README.md
 !data/cleaning/clean_mzansi_text.py
 !data/cleaning/config.toml.example
-trash/
 reports/
 output/
 outputs/
@@ -14,10 +13,12 @@ slurm-*.out
 *.log
 *.csv
 *.json
-!tokenizer/sallm_bpe_tokenizer/*.json
 
-# Local protocol staging (one-off preflights, execution manifests, dataset copies)
-.audit/
+# Paper tokenizer; download it with the command in the README
+tokenizer/sallm_bpe_tokenizer/
+
+# Research notes live outside the repo (~/Desktop/Masters/Notes/sallm_memory)
+sallm_memory/
 
 # Python
 __pycache__/
@@ -26,8 +27,6 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
-ENV/
-env/
 /src/sallm.egg-info/
 build/
 dist/
@@ -37,15 +36,3 @@ dist/
 .vscode/
 .DS_Store
 .env
-
-# Tools
-.github/chatmodes
-.bmad-core
-.playwright-cli/
-# Research notes live outside the repo (~/Desktop/Masters/Notes/sallm_memory)
-sallm_memory/
-node_modules/
-observability_app/dist/
-observability_app/node_modules/
-!observability_app/package.json
-!observability_app/package-lock.json
