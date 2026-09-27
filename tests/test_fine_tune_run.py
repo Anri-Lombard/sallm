@@ -46,6 +46,28 @@ def test_build_hub_repo_id_rejects_invalid_explicit_id() -> None:
         _build_hub_repo_id(config)
 
 
+def test_build_hub_repo_id_derives_a_safe_name_from_the_run() -> None:
+    config = ExperimentConfig(
+        mode=RunMode.FINETUNE,
+        wandb=None,
+        model=ModelConfig(architecture="mamba2", config={}),
+        dataset=FinetuneDatasetConfig(
+            hf_name="github:dadelani/AfriHG",
+            languages=["xho", "zul"],
+            max_seq_length=1024,
+            packing=False,
+            assistant_only_loss=True,
+        ),
+        hub=HubConfig(organization="owner"),
+    )
+
+    assert (
+        _build_hub_repo_id(config)
+        == "owner/sallm-mamba2-github-dadelani-afrihg-xho-zul"
+    )
+    assert _build_hub_repo_id(config, merged=True).endswith("-xho-zul-merged")
+
+
 @pytest.mark.parametrize(
     ("task_type", "expected"),
     [

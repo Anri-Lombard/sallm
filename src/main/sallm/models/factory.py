@@ -41,6 +41,27 @@ def _get_torch_dtype(config: ExperimentConfig) -> torch.dtype:
     return torch.float32
 
 
+def _use_tokenizer_special_tokens(
+    target: Any, tokenizer: PreTrainedTokenizerBase
+) -> None:
+    """Copy BOS/EOS/PAD ids from the tokenizer; architecture defaults differ."""
+    if target is None:
+        return
+    for name in ("bos", "eos", "pad"):
+        token_id = getattr(tokenizer, f"{name}_token_id", None)
+        if token_id is None:
+            continue
+        current = getattr(target, f"{name}_token_id", None)
+        if current is not None and current != token_id:
+            logger.warning(
+                "Replacing %s_token_id %s with the tokenizer's %s.",
+                name,
+                current,
+                token_id,
+            )
+        setattr(target, f"{name}_token_id", token_id)
+
+
 def build_tokenizer(config: ExperimentConfig) -> PreTrainedTokenizerBase:
     tokenizer_conf: TokenizerConfig | None = config.tokenizer
     if tokenizer_conf is None:
@@ -94,6 +115,10 @@ def build_model(
         if model_conf.architecture == "gated_deltanet":
             # FLA 0.5.1 ignores num_items_in_batch despite accepting **kwargs.
             cast(Any, model).accepts_loss_kwargs = False
+        _use_tokenizer_special_tokens(model.config, tokenizer)
+        _use_tokenizer_special_tokens(
+            getattr(model, "generation_config", None), tokenizer
+        )
         return model
 
     config_class = MODEL_CONFIG_REGISTRY[model_conf.architecture]
@@ -105,6 +130,7 @@ def build_model(
     model_config = to_resolved_dict(model_conf.config, name="model config")
     model_config_obj = config_class(**model_config)
     model_config_obj.vocab_size = len(tokenizer)
+    _use_tokenizer_special_tokens(model_config_obj, tokenizer)
 
     torch_dtype = _get_torch_dtype(config)
     model_config_obj.dtype = torch_dtype

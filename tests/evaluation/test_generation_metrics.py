@@ -173,3 +173,18 @@ def test_raw_base_prompt_has_one_bos_and_no_chat_markers() -> None:
     assert "<|system|>" not in prompt_text
     assert "<|user|>" not in prompt_text
     assert "<|assistant|>" not in prompt_text
+
+
+def test_xlstm_generation_always_uses_batch_size_one() -> None:
+    evaluator = GenerationEvaluator.__new__(GenerationEvaluator)
+    evaluator.batch_size = 8
+    xlstm = SimpleNamespace(config=SimpleNamespace(model_type="xlstm"))
+    llama = SimpleNamespace(config=SimpleNamespace(model_type="llama"))
+
+    def resolve(model):
+        return evaluator._resolve_batch_size(
+            model, None, 0, 100, None, torch.device("cpu"), 2048, 2, 1
+        )
+
+    assert resolve(xlstm) == (1, None)
+    assert resolve(llama) == (8, None)

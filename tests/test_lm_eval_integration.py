@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 from sallm.config import ModelEvalConfig
 from sallm.evaluation import lm_eval_runner
 from sallm.evaluation.config import TaskPack
@@ -330,3 +331,20 @@ def test_run_pack_resolves_raw_override_before_tokenizer_and_model_args(
     assert "add_bos_token=true" in calls["eval_kwargs"]["model_args"]
     assert summary["apply_chat_template"] is False
     assert summary["add_bos_token"] is True
+
+
+def test_task_packs_skip_afrixnli_prompt_1() -> None:
+    # lm-eval 0.4.12 writes {premise}/{hypothesis} in single braces for every
+    # AfriXNLI prompt_1, so the prompt never contains the example (fixed in 0.4.13).
+    conf = Path(__file__).resolve().parents[1] / "src" / "conf"
+    packs = list((conf / "eval" / "tasks").glob("*.yaml"))
+    packs += list((conf / "rerank" / "tasks").glob("*.yaml"))
+
+    offending = [
+        f"{path.name}: {task}"
+        for path in packs
+        for task in (yaml.safe_load(path.read_text()) or {}).get("tasks", [])
+        if str(task).startswith("afrixnli_") and str(task).endswith("_prompt_1")
+    ]
+
+    assert offending == []

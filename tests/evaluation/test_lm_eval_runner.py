@@ -109,6 +109,48 @@ def test_run_pack_summary_records_effective_fewshot(tmp_path, monkeypatch) -> No
     assert summary["apply_chat_template"] is False
 
 
+def test_run_pack_uses_batch_size_one_for_xlstm(tmp_path, monkeypatch) -> None:
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        "sallm.evaluation.lm_eval_runner._load_pack",
+        lambda *_: TaskPack(name="bench", tasks=["task"], batch_size="auto:4"),
+    )
+    monkeypatch.setattr(
+        "sallm.evaluation.lm_eval_runner._prepare_tokenizer_for_lm_eval",
+        lambda *_: None,
+    )
+    monkeypatch.setattr(
+        "sallm.evaluation.lm_eval_runner._format_model_args",
+        lambda **_: "pretrained=owner/xlstm",
+    )
+    monkeypatch.setattr(
+        "sallm.evaluation.lm_eval_runner.evaluator.simple_evaluate",
+        lambda **kwargs: calls.append(kwargs) or {"results": {}, "metrics": {}},
+    )
+    model_cfg = SimpleNamespace(
+        dtype="bfloat16",
+        device="cuda:0",
+        peft_adapter=None,
+        tie_word_embeddings=None,
+        lm_eval_model_args={},
+    )
+
+    summary = _run_pack(
+        "bench",
+        model_cfg,
+        tmp_path,
+        tmp_path / "work",
+        None,
+        "owner/xlstm",
+        None,
+        "eval",
+        is_xlstm=True,
+    )
+
+    assert calls[0]["batch_size"] == 1
+    assert summary["batch_size"] == 1
+
+
 def test_xlstm_lm_eval_uses_inference_mode() -> None:
     model = SimpleNamespace(
         config=SimpleNamespace(
