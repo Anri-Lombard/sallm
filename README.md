@@ -67,7 +67,7 @@ sbatch ops/slurm/launch_hpo.sh llama_t2x_xho 10      # sweep in src/conf/sweeps
 | Path | Contents |
 | --- | --- |
 | `src/main/sallm` | Library: `training/` (pretraining), `fine_tune/`, `evaluation/`, `hpo/`, `data/`, `models/`, `configs/` (typed schema), `main.py` (Hydra entrypoint), `cli.py` (recipe CLI) |
-| `src/conf` | Hydra configs: `base/`, `finetune/`, `eval/`, `rerank/`, `sweeps/`, `templates/`, `datasets/`, `tokenizers/` |
+| `src/conf` | Hydra configs: `base/`, `finetune/`, `eval/`, `rerank/`, `sweeps/`, `templates/`, `datasets/`, `tokenizers/`; see [docs/configuration.md](docs/configuration.md) |
 | `data/`, `tokenizer/` | Corpus preparation and tokenizer training |
 | `ops/slurm/` | SLURM launchers |
 | `tests/` | CPU test suite, run in CI |
