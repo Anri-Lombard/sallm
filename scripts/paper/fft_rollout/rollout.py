@@ -1340,7 +1340,7 @@ def cmd_lane(args) -> None:
     signal.signal(signal.SIGTERM, lambda *_: os._exit(143))
     hours = float(os.environ.get("LANE_HOURS", "47.5"))
     start = time.time()
-    idle_exit = float(os.environ.get("IDLE_EXIT_MIN", "15")) * 60
+    idle_exit = float(os.environ.get("IDLE_EXIT_MIN", "480")) * 60
     idle_since = None
     print(f"LANE {lane} job={os.environ.get('SLURM_JOB_ID')} host={socket.gethostname()} gpu={gpu_name()} arch={r.arch} out={out}", flush=True)
     while True:
