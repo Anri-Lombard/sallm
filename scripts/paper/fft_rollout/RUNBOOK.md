@@ -225,8 +225,13 @@ rel. error <= 0.012 and every gradient cosine >= 0.999 vs native_custbw fp32); i
 swap fails, the unit trains with the native kernel and `train_settings.json` / `run_info` record `train_kernel`
 native plus `tfla_fallback` (a resume stays native). Generation and scoring stay native at batch 1 (separate
 processes loading the saved checkpoint; the config is untouched). train.log: `FFT_XLSTM_TRAIN_KERNEL <kernel> <self-check>`.
-Kernel per xLSTM run: native_autograd for every xLSTM unit started before 08:40 (POS Multi lr3e-5/1e-4/3e-4 done,
-AfriHG Multi lr3e-5/1e-4/3e-4 running, and their resumes); tfla_padded128 for every later one unless it fell back.
+Kernel per xLSTM run: native_autograd for the POS Multi sweep (lr3e-5/1e-4/3e-4, done before 08:40);
+tfla_padded128 for every later unit unless it fell back. The AfriHG Multi sweep (lr3e-5/1e-4/3e-4) had started at
+06:55 on native and was RESTARTED FROM SCRATCH at 09:10 SAST on padded TFLA (user decision; ~1080 of 6164 steps, still
+in epoch 1, no epoch checkpoint): lanes 1375262-1375264 cancelled, partial runs and state archived in
+`runs/xlstm/archive_restart_20260927T091042/`, new lanes 1375342-1375344. All three AfriHG points used the same kernel
+and settings (tfla_padded128, fused AdamW, TF32); L40S self-check h_rel 0.00564, grad cos min 0.99982. Speed over the
+first 80 steps: 2.71 s/step vs 7.30 s/step for the native runs over the same steps (2.7x).
 End-to-end check (Kombuys 5090, train_fft.py, xLSTM base, SIB Multi, 12 steps): step-12 loss 3.0801 vs 3.0837
 native, 0.53 vs 1.02 s/step; the no-mlstm_kernels case fell back and recorded it.
 `tfla_check.sbatch` repeats the kernel and parity checks on one L40S (not yet run: all 10 were busy);
