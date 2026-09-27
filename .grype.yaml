@@ -13,3 +13,11 @@ ignore:
     reason: false-positive
     package:
       name: jaraco-context
+
+  # Accepted risk: nltk is required by rouge-score (AfriHG ROUGE), which uses only its
+  # Porter stemmer; the model-artifact path APIs are never called. No fix released yet.
+  - vulnerability: GHSA-8mgp-746c-j5xp
+    reason: accepted-risk
+    package:
+      name: nltk
+    expires: "2026-12-31"
