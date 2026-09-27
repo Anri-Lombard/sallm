@@ -23,6 +23,7 @@ import importlib.util
 import json
 import os
 import runpy
+import sys
 import time
 from pathlib import Path
 
@@ -34,6 +35,38 @@ RUNNER = (
 )
 info_path = Path(os.environ["FFT_RUN_INFO"])
 info: dict = {"runner": RUNNER}
+
+# Speed settings (27 Sep 2026): TF32 matmuls and fused AdamW (same betas/eps/wd/schedule). xLSTM keeps transformers'
+# native training kernel: the TFLA Triton kernels gave intermittently wrong results at this model's head dims (92/184),
+# see tfla_check.py and the RUNBOOK. Runs started before this keep the old settings, also when resumed after a lane
+# death: the choice is stored in RUN/train_settings.json at first start, and a resumed run without that file is an
+# old-settings run. FFT_SPEED=legacy|new forces one.
+ARCH = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("finetune.model.architecture=")), None)
+KERNEL = "chunkwise--native_autograd (transformers 4.57.3)" if ARCH == "xlstm" else "model default"
+RESUMING = any("resume_from_checkpoint=" in a and not a.endswith("=null") for a in sys.argv)
+SETTINGS = {
+    "legacy": {"settings": "legacy", "optimizer_impl": "adamw_torch", "tf32": False, "train_kernel": KERNEL},
+    "new": {"settings": "new-20260927", "optimizer_impl": "adamw_torch_fused", "tf32": True, "train_kernel": KERNEL},
+}
+
+
+def pick_settings(forced, stored, resuming):
+    if forced in SETTINGS:
+        return SETTINGS[forced]
+    if stored is not None:  # this run's own choice at its first start
+        return stored
+    return SETTINGS["legacy" if resuming else "new"]  # resumed without a record = started before 27 Sep
+
+
+_ctrl_run = Path(json.loads(os.environ["FFT_CTRL"])["run"]) if os.environ.get("FFT_CTRL") else None
+_marker = _ctrl_run / "train_settings.json" if _ctrl_run else None
+settings = pick_settings(os.environ.get("FFT_SPEED"), json.loads(_marker.read_text()) if _marker and _marker.exists() else None, RESUMING)
+if _marker and not _marker.exists() and not os.environ.get("FFT_SPEED") and str(info_path) != "/dev/null":  # not the --cfg dry run
+    _marker.write_text(json.dumps(settings, indent=1) + "\n")
+info["train_settings"] = settings
+if settings["tf32"]:  # legacy leaves the torch defaults (matmul off, cuDNN on)
+    torch.backends.cuda.matmul.allow_tf32 = torch.backends.cudnn.allow_tf32 = True
+print(f"FFT_TRAIN_SETTINGS {json.dumps(settings)}", flush=True)
 
 if os.environ.get("FFT_T2X_LOADER") == "1":
     spec = importlib.util.spec_from_file_location("v9_train_validation_only_runner", RUNNER)
@@ -90,6 +123,32 @@ _build_trainer = fine_tune_run.build_trainer
 
 def _build_trainer_and_record(*args, **kwargs):
     trainer = _build_trainer(*args, **kwargs)
+    from transformers import TrainerCallback
+    from transformers.training_args import OptimizerNames
+
+    trainer.args.optim = OptimizerNames(settings["optimizer_impl"])  # the optimizer is created later, in train()
+
+    class _RecordOptimizer(TrainerCallback):
+        def on_train_begin(self, args, state, control, optimizer=None, **kw):
+            opt = getattr(optimizer, "optimizer", optimizer)  # accelerate wraps it
+            d = opt.defaults
+            info["optimizer"] = {"class": type(opt).__name__, "fused": d.get("fused"), "foreach": d.get("foreach"),
+                                 "betas": list(d["betas"]), "eps": d["eps"], "weight_decay": [g["weight_decay"] for g in opt.param_groups],
+                                 "tf32_matmul": torch.backends.cuda.matmul.allow_tf32, "tf32_cudnn": torch.backends.cudnn.allow_tf32}
+            print(f"FFT_OPTIMIZER {json.dumps(info['optimizer'])}", flush=True)
+            info_path.write_text(json.dumps(info, indent=1) + "\n")
+            self.t = []
+
+        def on_step_end(self, args, state, control, **kw):
+            self.t.append(time.time())
+
+        def on_train_end(self, args, state, control, **kw):  # optimizer-step time, first 5 steps (compilation) dropped
+            d = sorted(b - a for a, b in zip(self.t[5:], self.t[6:]) if b - a < 60)  # skips epoch-end scoring pauses
+            if d:
+                info["step_s_median"] = round(d[len(d) // 2], 4)
+                info_path.write_text(json.dumps(info, indent=1) + "\n")
+
+    trainer.add_callback(_RecordOptimizer())
     try:  # token accounting (non-padding tokens as stored after SFT tokenization; padding is added by the collator)
         for split, ds in (("train", trainer.train_dataset), ("val", trainer.eval_dataset)):
             lengths = [len(ids) for ids in ds["input_ids"]]

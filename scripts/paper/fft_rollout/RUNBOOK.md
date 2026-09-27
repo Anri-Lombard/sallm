@@ -175,6 +175,30 @@ any edge-extension LR that won); ties go to the lower LR. `train-general-general
 validation and epoch selection use the six-family mean on the fixed subsample; test runs in-unit, then
 `beam-general-s42`. Mono T2X seeds 43/44 stay.
 
+Speed settings (27 Sep 2026, ~08:30 SAST; disclose in the paper). Training units that START after this sync use
+fused AdamW (`adamw_torch_fused`: same AdamW, betas 0.9/0.95, eps 1e-8, wd 0.01, cosine schedule, clip 1.0) and TF32
+matmuls (`torch.backends.cuda.matmul.allow_tf32` and `cudnn.allow_tf32` on), for all four architectures. Applied in
+`train_fft.py` (the per-unit training subprocess), so running lanes pick it up at their next unit. Units already
+started keep the old settings (foreach AdamW, TF32 matmul off), also when resumed after a lane death: each run writes
+`runs/<run>/train_settings.json` at first start and a resumed run without it counts as old. `run_info.json` (and so
+RUN_DONE.json's `run_info`) records `train_settings` (`settings` legacy | new-20260927, `optimizer_impl`, `tf32`,
+`train_kernel`) and `optimizer` (class, fused, betas, eps, weight decay per group, TF32 flags as the Trainer saw them);
+train.log has `FFT_TRAIN_SETTINGS` / `FFT_OPTIMIZER` lines. Old-settings runs: every unit done or running at the sync
+(for xLSTM: the POS Multi sweep and the AfriHG Multi sweep; see the notes file for the full list).
+Checks: fused AdamW was bit-identical to foreach in the matched-pretraining parity (max param diff 0.0, all four);
+a 20-step xLSTM loop with the recipe (tfla_check.py loop, RTX 5090) gives final losses 4.05781 vs 4.05739 (16x256) and
+3.60121 vs 3.60132 (4x1024 x 4 accum), with no measurable xLSTM speedup (noise from a shared GPU).
+
+xLSTM training kernel: unchanged (transformers' native chunkwise kernel, as every earlier paper xLSTM run). The TFLA
+Triton kernels of mlstm_kernels 2.0.2 (chunkwise--triton_xl_chunk, the matched base's pretraining kernel, and
+triton_limit_chunk) were ~2.5x faster at 4x1024 but failed the check on an RTX 5090: at this model's head dims (qk 92,
+v 184; also 96/192) repeated calls on identical inputs intermittently give a wrong forward (rel. error 0.07-0.11
+instead of 0.006) or near-orthogonal gradients (cosine 0.02-0.04); at 64/128 and 128/256 every call agrees. Model
+level: one first call gave grad norm 1.05e6 vs 2.73; a 20-step loop at 16x256 drifted ~1% in loss. `tfla.py` (the
+swap) and `tfla_check.py` (parity/kernel/loop) are kept for the record; `pydeps_tfla/` on HEX holds mlstm_kernels
+2.0.2 + einops 0.8.2. Not re-checked on an L40S (all 10 were busy); the matched xLSTM pretraining used this kernel on
+L40S with the same head dims.
+
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
 Every selected fine-tuned model is kept, weights only (~0.51 GB fp32): each Mono and seed run's best epoch, and

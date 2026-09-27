@@ -6,6 +6,12 @@ src = open(R.HERE / "train_fft.py").read()
 ns: dict = {}
 exec(src[src.index("def early_stop_decision"):src.index("if CTRL:")], ns)
 d = ns["early_stop_decision"]
+ns = {"ARCH": "xlstm", "sys": type("S", (), {"argv": []})}
+exec(src[src.index("KERNEL = "):src.index("_ctrl_run =")], ns)
+ps, S = ns["pick_settings"], ns["SETTINGS"]
+assert ps(None, None, False) == S["new"] and ps(None, None, True) == S["legacy"]  # a pre-27-Sep run resumed stays legacy
+assert ps(None, S["new"], True) == S["new"] and ps("legacy", S["new"], False) == S["legacy"]
+assert S["new"]["optimizer_impl"] == "adamw_torch_fused" and S["new"]["train_kernel"] == S["legacy"]["train_kernel"]
 assert d([1, 2, 3], 3) == (3, False)
 assert d([5, 4, 4, 4], 3) == (1, True)  # 3 epochs without a strictly greater score
 assert d([5, 5, 5, 5], 3) == (1, True)  # ties are not improvement; the earlier epoch stays best
