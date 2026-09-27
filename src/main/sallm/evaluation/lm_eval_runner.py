@@ -412,6 +412,11 @@ def _prepare_tokenizer_for_lm_eval(
         return None
 
 
+def _is_xlstm_checkpoint(pretrained_path: str) -> bool:
+    config = AutoConfig.from_pretrained(pretrained_path, trust_remote_code=True)
+    return getattr(config, "model_type", None) == "xlstm"
+
+
 def _load_pack(pack_name: str, task_pack_scope: str) -> TaskPack:
     if task_pack_scope == "eval":
         return load_task_pack(pack_name)
@@ -433,6 +438,7 @@ def _run_pack(
     pretrained_path: str,
     peft_adapter: str | None,
     task_pack_scope: str,
+    is_xlstm: bool = False,
 ) -> dict[str, Any]:
     pack: TaskPack = _load_pack(pack_name, task_pack_scope)
     pack_out = output_dir / pack_name
@@ -485,6 +491,10 @@ def _run_pack(
     eval_kwargs["apply_chat_template"] = effective_apply_chat_template
     task_manager_kwargs.update(task_manager_overrides)
     eval_kwargs.update(evaluator_overrides)
+    if is_xlstm and eval_kwargs.get("batch_size") != 1:
+        # xLSTM ignores the attention mask, so padded batches leak into its state.
+        logger.info("Using batch_size=1 for xLSTM lm-eval.")
+        eval_kwargs["batch_size"] = 1
 
     if eval_kwargs.get("use_cache") is not None:
         raise ValueError("lm-eval response caching is disabled")
@@ -545,7 +555,7 @@ def _run_pack(
         "task_pack_scope": task_pack_scope,
         "tasks": pack.tasks,
         "fewshot": effective_fewshot,
-        "batch_size": pack.batch_size,
+        "batch_size": eval_kwargs.get("batch_size", pack.batch_size),
         "apply_chat_template": effective_apply_chat_template,
         "add_bos_token": add_bos_token,
         "results": result.get("results", {}),
@@ -578,6 +588,7 @@ def run_task_pack_evaluations(
         pretrained_path, peft_adapter = _materialize_model_for_lm_eval(
             model_cfg, work_root / "_lm_eval"
         )
+        is_xlstm = _is_xlstm_checkpoint(model_cfg.checkpoint)
 
         summaries: list[dict[str, Any]] = []
         try:
@@ -602,6 +613,7 @@ def run_task_pack_evaluations(
                     pretrained_path,
                     peft_adapter,
                     task_pack_scope,
+                    is_xlstm=is_xlstm,
                 )
                 summaries.append(summary)
             return summaries

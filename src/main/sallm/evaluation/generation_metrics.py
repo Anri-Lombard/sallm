@@ -215,7 +215,7 @@ class GenerationEvaluator:
         return "out of memory" in message or "cublas_status_alloc_failed" in message
 
     @staticmethod
-    def _is_mamba_model(model: PreTrainedModel) -> bool:
+    def _is_model_family(model: PreTrainedModel, family: str) -> bool:
         candidates: list[object] = [getattr(model, "config", None)]
 
         base_model = getattr(model, "base_model", None)
@@ -229,13 +229,17 @@ class GenerationEvaluator:
             if config is None:
                 continue
             model_type = str(getattr(config, "model_type", "")).lower()
-            if "mamba" in model_type:
+            if family in model_type:
                 return True
             architectures = getattr(config, "architectures", None) or []
             for architecture in architectures:
-                if "mamba" in str(architecture).lower():
+                if family in str(architecture).lower():
                     return True
         return False
+
+    @classmethod
+    def _is_mamba_model(cls, model: PreTrainedModel) -> bool:
+        return cls._is_model_family(model, "mamba")
 
     def _effective_max_batch_size(self, model: PreTrainedModel) -> int:
         if not self._is_mamba_model(model):
@@ -427,6 +431,9 @@ class GenerationEvaluator:
         pad_id: int | None,
         eos_id: int | None,
     ) -> tuple[int, int | None]:
+        if self._is_model_family(model, "xlstm"):
+            # xLSTM ignores the attention mask, so left padding leaks into its state.
+            return 1, None
         if self.batch_size != "auto":
             return max(1, int(self.batch_size)), None
 
