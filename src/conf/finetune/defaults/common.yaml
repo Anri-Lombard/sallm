@@ -1,0 +1,24 @@
+mode: FINETUNE
+wandb:
+  project: sallm-ft
+peft:
+  method: lora
+  kwargs:
+    lora_dropout: 0.1
+tokenizer:
+  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
+training:
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+  per_device_eval_batch_size: 4
+  eval_accumulation_steps: 1
+  logging_steps: 10
+  eval_strategy: epoch
+  report_to: wandb
+hub:
+  enabled: true
+  organization: anrilombard
+  private: true
+  push_adapter: true
+  push_merged: false

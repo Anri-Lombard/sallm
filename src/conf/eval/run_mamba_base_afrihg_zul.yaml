@@ -1,42 +1,34 @@
-mode: EVALUATE
-
+defaults:
+  - defaults/run@_here_
+  - _self_
 eval_model:
-  checkpoint: "anrilombard/sallm-mamba-125m"
-  dtype: "bfloat16"
-  device: "cuda:0"
-
+  checkpoint: anrilombard/sallm-mamba-125m
 evaluation:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_base_afrihg_zul_beam_rp"
   generation_tasks:
-    - id: "afrihg_zul"
-      split: "test"
-      max_new_tokens: 128
-      max_samples_per_lang: null
+    - dataset:
+        assistant_only_loss: true
+        hf_name: github:dadelani/AfriHG
+        max_seq_length: 2048
+        packing: false
+        splits:
+          test: test
+          train: train
+          val: validation
+        subset: zul
+        task: INSTRUCTION
+        template_choice: ALL
+        templates:
+          - id: afrihg_headline/v1
+            weight: 1
       decoding:
-        strategy: "beam"
+        no_repeat_ngram_size: 3
         num_beams: 5
         repetition_penalty: 1.2
-        no_repeat_ngram_size: 3
-      dataset:
-        hf_name: "github:dadelani/AfriHG"
-        subset: "zul"
-        splits: {train: "train", val: "validation", test: "test"}
-        task: INSTRUCTION
-        templates:
-          - {id: "afrihg_headline/v1", weight: 1}
-        template_choice: ALL
-        packing: false
-        assistant_only_loss: true
-        max_seq_length: 2048
-
-tokenizer: null
-model: null
-data: null
-training: null
-dataset: null
-peft: null
-template: null
-
+        strategy: beam
+      id: afrihg_zul
+      max_new_tokens: 128
+      max_samples_per_lang: null
+      split: test
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_base_afrihg_zul_beam_rp
 wandb:
-  project: "sallm-eval"
-  name: "eval-mamba-125m-base-afrihg-zul"
+  name: eval-mamba-125m-base-afrihg-zul

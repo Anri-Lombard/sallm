@@ -1,81 +1,77 @@
-mode: EVALUATE
-
+defaults:
+  - defaults/run@_here_
+  - _self_
 eval_model:
-  checkpoint: "anrilombard/sallm-mamba-afrihg_all"
-  adapter: "hf"
-  dtype: "bfloat16"
-  device: "cuda:0"
+  adapter: hf
+  checkpoint: anrilombard/sallm-mamba-afrihg_all
   merge_lora: false
-
 evaluation:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_afrihg_all"
   generation_tasks:
-    - id: "afrihg_xho"
-      split: "test"
+    - dataset:
+        assistant_only_loss: true
+        hf_name: github:dadelani/AfriHG
+        max_seq_length: 2048
+        packing: false
+        splits:
+          test: test
+          train: train
+          val: validation
+        subset: xho
+        task: INSTRUCTION
+        template_choice: ALL
+        templates:
+          - id: afrihg_headline/v1
+            weight: 1
+      decoding:
+        batch_size: auto:4
+        early_stopping: true
+        length_penalty: 0.7
+        num_beams: 5
+        strategy: beam
+      fewshot: 0
+      fewshot_lang_match: true
+      fewshot_seed: 42
+      fewshot_split: train
+      fewshot_template_mode: SAME
+      fewshot_token_budget: 1792
+      id: afrihg_xho
       max_new_tokens: 256
       max_samples_per_lang: null
-      fewshot: 0
-      fewshot_split: "train"
-      fewshot_seed: 42
-      fewshot_lang_match: true
-      fewshot_template_mode: "SAME"
-      fewshot_token_budget: 1792
       prompt_headroom_tokens: 256
-      system_prompt: "You are a concise isiXhosa news editor who drafts punchy headlines from article excerpts."
-      decoding:
-        strategy: "beam"
-        num_beams: 5
-        length_penalty: 0.7
-        batch_size: "auto:4"
-        early_stopping: true
-      dataset:
-        hf_name: "github:dadelani/AfriHG"
-        subset: "xho"
-        splits: {train: "train", val: "validation", test: "test"}
-        task: INSTRUCTION
-        templates:
-          - {id: "afrihg_headline/v1", weight: 1}
-        template_choice: ALL
-        packing: false
+      split: test
+      system_prompt: You are a concise isiXhosa news editor who drafts punchy headlines from article excerpts.
+    - dataset:
         assistant_only_loss: true
+        hf_name: github:dadelani/AfriHG
         max_seq_length: 2048
-    - id: "afrihg_zul"
-      split: "test"
+        packing: false
+        splits:
+          test: test
+          train: train
+          val: validation
+        subset: zul
+        task: INSTRUCTION
+        template_choice: ALL
+        templates:
+          - id: afrihg_headline/v1
+            weight: 1
+      decoding:
+        batch_size: auto:4
+        early_stopping: true
+        length_penalty: 0.7
+        num_beams: 5
+        strategy: beam
+      fewshot: 0
+      fewshot_lang_match: true
+      fewshot_seed: 42
+      fewshot_split: train
+      fewshot_template_mode: SAME
+      fewshot_token_budget: 1792
+      id: afrihg_zul
       max_new_tokens: 256
       max_samples_per_lang: null
-      fewshot: 0
-      fewshot_split: "train"
-      fewshot_seed: 42
-      fewshot_lang_match: true
-      fewshot_template_mode: "SAME"
-      fewshot_token_budget: 1792
       prompt_headroom_tokens: 256
-      decoding:
-        strategy: "beam"
-        num_beams: 5
-        length_penalty: 0.7
-        batch_size: "auto:4"
-        early_stopping: true
-      dataset:
-        hf_name: "github:dadelani/AfriHG"
-        subset: "zul"
-        splits: {train: "train", val: "validation", test: "test"}
-        task: INSTRUCTION
-        templates:
-          - {id: "afrihg_headline/v1", weight: 1}
-        template_choice: ALL
-        packing: false
-        assistant_only_loss: true
-        max_seq_length: 2048
-
-tokenizer: null
-model: null
-data: null
-training: null
-dataset: null
-peft: null
-template: null
-
+      split: test
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_afrihg_all
 wandb:
-  project: "sallm-eval"
-  name: "eval-mamba-125m-afrihg-all"
+  name: eval-mamba-125m-afrihg-all

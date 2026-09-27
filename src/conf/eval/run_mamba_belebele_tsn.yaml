@@ -1,24 +1,12 @@
-mode: EVALUATE
-
+defaults:
+  - defaults/run@_here_
+  - _self_
 eval_model:
-  checkpoint: "anrilombard/sallm-mamba-125m"
-  adapter: "hf"
-  dtype: "bfloat16"
-  device: "cuda:0"
-
+  adapter: hf
+  checkpoint: anrilombard/sallm-mamba-125m
 evaluation:
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_belebele_tsn
   task_packs:
-    - "belebele_tsn"
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_belebele_tsn"
-
+    - belebele_tsn
 wandb:
-  project: "sallm-eval"
-  name: "eval-mamba-125m-belebele-tsn"
-
-model: null
-data: null
-tokenizer: null
-training: null
-dataset: null
-peft: null
-template: null
+  name: eval-mamba-125m-belebele-tsn

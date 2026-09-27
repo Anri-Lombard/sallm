@@ -1,13 +1,9 @@
 mode: EVALUATE
-
 eval_model:
-  adapter: hf
-  dtype: bfloat16
   device: cuda:0
-
+  dtype: bfloat16
 wandb:
   project: sallm-eval
-
 model: null
 data: null
 tokenizer: null

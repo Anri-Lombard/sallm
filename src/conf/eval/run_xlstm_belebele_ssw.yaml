@@ -1,22 +1,11 @@
-mode: EVALUATE
-
+defaults:
+  - defaults/run@_here_
+  - _self_
 eval_model:
-  checkpoint: "anrilombard/sallm-xlstm-125m"
-  dtype: "bfloat16"
-  device: "cuda:0"
-
+  checkpoint: anrilombard/sallm-xlstm-125m
 evaluation:
-  task_packs: ["belebele_ssw"]
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_belebele_ssw"
-
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_belebele_ssw
+  task_packs:
+    - belebele_ssw
 wandb:
-  project: "sallm-eval"
-  name: "eval-xlstm-125m-belebele-ssw"
-
-model: null
-data: null
-tokenizer: null
-training: null
-dataset: null
-peft: null
-template: null
+  name: eval-xlstm-125m-belebele-ssw

@@ -1,27 +1,15 @@
-mode: EVALUATE
-
+defaults:
+  - defaults/run@_here_
+  - _self_
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/final_mamba/manual/mamba_sa_general_all/final_adapter"
-  adapter: "hf"
-  dtype: "bfloat16"
-  device: "cuda:0"
+  adapter: hf
+  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/final_mamba/manual/mamba_sa_general_all/final_adapter
   merge_lora: true
-
 evaluation:
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/final_mamba/manual/mamba_sa_general_all
   task_packs:
-    - "afrimgsm_sa"
-    - "afrimmlu_sa"
-    - "afrixnli_sa"
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/final_mamba/manual/mamba_sa_general_all"
-
+    - afrimgsm_sa
+    - afrimmlu_sa
+    - afrixnli_sa
 wandb:
-  project: "sallm-eval"
-  name: "eval-mamba-sa-general-all"
-
-model: null
-data: null
-tokenizer: null
-training: null
-dataset: null
-peft: null
-template: null
+  name: eval-mamba-sa-general-all

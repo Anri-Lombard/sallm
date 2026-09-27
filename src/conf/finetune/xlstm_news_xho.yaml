@@ -1,57 +1,32 @@
 defaults:
   - defaults/datasets/masakhanews@_here_
+  - defaults/common@_here_
+  - defaults/arch/xlstm@_here_
   - _self_
-dataset:
-  max_seq_length: 1024
-  subset: xho
-hub:
-  enabled: true
-  organization: anrilombard
-  private: true
-  push_adapter: true
-  push_merged: false
-  base_model_id: anrilombard/sallm-xlstm-125m
-mode: FINETUNE
-model:
-  architecture: xlstm
-  init_checkpoint: anrilombard/sallm-xlstm-125m
+wandb:
+  name: xlstm-125m-news-xho
 peft:
   kwargs:
+    r: 16
     lora_alpha: 32
     lora_dropout: 0.05
-    r: 16
     target_modules:
       - q
       - k
       - v
       - out_proj
-  method: lora
-tokenizer:
-  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
+dataset:
+  subset: xho
+  max_seq_length: 1024
 training:
-  adam_beta2: 0.95
-  bf16: false
-  dataloader_num_workers: 4
-  ddp_find_unused_parameters: true
-  eval_accumulation_steps: 1
-  eval_strategy: epoch
-  gradient_accumulation_steps: 16
-  gradient_checkpointing: true
-  learning_rate: 0.00038639058877167623
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_news_xho
-  logging_steps: 10
-  lr_scheduler_type: linear
-  max_grad_norm: 1.0
-  num_train_epochs: 10
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_news_xho
-  pad_to_multiple_of: 64
-  per_device_eval_batch_size: 4
-  per_device_train_batch_size: 4
-  report_to: wandb
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_news_xho
   run_name: xlstm-125m-news-lora-finetune-xho
-  save_strategy: 'no'
-  warmup_ratio: 0.05
+  learning_rate: 0.00038639058877167623
   weight_decay: 0.012759111604081186
-wandb:
-  name: xlstm-125m-news-xho
-  project: sallm-ft
+  gradient_accumulation_steps: 16
+  lr_scheduler_type: linear
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 4
+  num_train_epochs: 10
+  pad_to_multiple_of: 64

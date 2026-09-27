@@ -1,39 +1,31 @@
-mode: EVALUATE
-
+defaults:
+  - defaults/run@_here_
+  - _self_
 eval_model:
-  checkpoint: "anrilombard/sallm-xlstm-125m"
-  dtype: "bfloat16"
-  device: "cuda:0"
-
+  checkpoint: anrilombard/sallm-xlstm-125m
 evaluation:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_afrihg_eng"
   generation_tasks:
-    - id: "afrihg_eng"
-      split: "test"
+    - dataset:
+        assistant_only_loss: true
+        hf_name: github:dadelani/AfriHG
+        max_seq_length: 2048
+        packing: false
+        splits:
+          test: test
+          train: train
+          val: validation
+        subset: eng
+        task: INSTRUCTION
+        template_choice: ALL
+        templates:
+          - id: afrihg_headline/v1
+            weight: 1
+      decoding:
+        strategy: greedy
+      id: afrihg_eng
       max_new_tokens: 128
       max_samples_per_lang: null
-      decoding:
-        strategy: "greedy"
-      dataset:
-        hf_name: "github:dadelani/AfriHG"
-        subset: "eng"
-        splits: {train: "train", val: "validation", test: "test"}
-        task: INSTRUCTION
-        templates:
-          - {id: "afrihg_headline/v1", weight: 1}
-        template_choice: ALL
-        packing: false
-        assistant_only_loss: true
-        max_seq_length: 2048
-
-tokenizer: null
-model: null
-data: null
-training: null
-dataset: null
-peft: null
-template: null
-
+      split: test
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_afrihg_eng
 wandb:
-  project: "sallm-eval"
-  name: "eval-xlstm-125m-afrihg-eng"
+  name: eval-xlstm-125m-afrihg-eng

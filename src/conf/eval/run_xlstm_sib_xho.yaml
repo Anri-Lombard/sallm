@@ -1,13 +1,12 @@
 defaults:
   - defaults/run@_here_
   - _self_
-
 eval_model:
-  checkpoint: "anrilombard/sallm-xlstm-125m"
-
+  adapter: hf
+  checkpoint: anrilombard/sallm-xlstm-125m
 evaluation:
-  task_packs: ["sib_xho"]
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_sib_xho"
-
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/xlstm_125m_sib_xho
+  task_packs:
+    - sib_xho
 wandb:
-  name: "eval-xlstm-125m-sib-xho"
+  name: eval-xlstm-125m-sib-xho

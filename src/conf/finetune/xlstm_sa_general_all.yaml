@@ -1,15 +1,13 @@
 defaults:
   - defaults/datasets/sa_general@_here_
+  - defaults/common@_here_
+  - defaults/arch/xlstm@_here_
   - _self_
-mode: FINETUNE
 wandb:
-  project: sallm-ft
   name: xlstm-125m-sa-general-all
 model:
-  architecture: xlstm
   init_checkpoint: anrilombard/sallm-xlstm-125m-native-3epoch-20260531
 peft:
-  method: lora
   kwargs:
     r: 128
     lora_alpha: 256
@@ -21,53 +19,31 @@ peft:
       - out_proj
 dataset:
   subset: null
-  languages: null
   max_seq_length: 1024
-  mix_weights:
-    sib: 1.0
-    news: 1.0
-    ner: 1.0
-    pos: 1.0
-    afrihg: 1.0
-    t2x: 1.0
-  mix_temperature: 0.0
+  languages: null
   mix_epoch_size: sum
-  mix_min_prob: 0.05
   mix_max_prob: 0.35
-tokenizer:
-  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
+  mix_min_prob: 0.05
+  mix_temperature: 0.0
+  mix_weights:
+    afrihg: 1.0
+    ner: 1.0
+    news: 1.0
+    pos: 1.0
+    sib: 1.0
+    t2x: 1.0
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sa_general_all_targetsafe
   logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sa_general_all_targetsafe
   run_name: xlstm-125m-sa-general-all-targetsafe
-  learning_rate: 0.0001
-  weight_decay: 0.1
-  adam_beta2: 0.95
-  lr_scheduler_type: cosine
-  warmup_ratio: 0.1
-  per_device_train_batch_size: 8
-  per_device_eval_batch_size: 4
-  pad_to_multiple_of: 64
   gradient_accumulation_steps: 16
+  per_device_train_batch_size: 8
   num_train_epochs: 3
-  max_grad_norm: 1.0
-  bf16: false
-  gradient_checkpointing: true
-  logging_steps: 10
-  eval_strategy: epoch
   save_strategy: epoch
-  dataloader_num_workers: 4
-  eval_accumulation_steps: 1
-  report_to: wandb
-  ddp_find_unused_parameters: true
   save_total_limit: 1
   load_best_model_at_end: true
   metric_for_best_model: eval_loss
   greater_is_better: false
+  pad_to_multiple_of: 64
 hub:
-  enabled: true
-  organization: anrilombard
-  private: true
-  push_adapter: true
-  push_merged: false
   base_model_id: anrilombard/sallm-xlstm-125m-native-3epoch-20260531
