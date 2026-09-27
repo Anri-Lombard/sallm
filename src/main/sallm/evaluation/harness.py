@@ -189,6 +189,20 @@ def _load_tokenizer_and_pretrained(
     tokenizer_root = adapter_tokenizer
     if tokenizer_root is None and checkpoint_path.exists():
         tokenizer_root = checkpoint_path
+        # Fine-tuning rollout checkpoints (runs/<arch>/{runs,keep}/...) may hold weights
+        # only; they share the tokenizer of runs/<arch>/base.
+        if not (checkpoint_path / "tokenizer.json").exists():
+            base = next(
+                (
+                    p / "base"
+                    for p in checkpoint_path.parents
+                    if (p / "base" / "tokenizer.json").exists()
+                ),
+                None,
+            )
+            if base is not None:
+                logger.warning("No tokenizer in %s; using %s", checkpoint_path, base)
+                tokenizer_root = base
 
     if tokenizer_root is not None and tokenizer_root.exists():
         try:

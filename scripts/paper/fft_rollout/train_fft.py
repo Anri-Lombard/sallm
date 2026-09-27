@@ -199,7 +199,8 @@ def _build_trainer_and_record(*args, **kwargs):
 # once `patience` epochs pass without a strictly better score. Divergence: a non-finite logged loss, or a loss above
 # 3x the first-epoch mean for 200 consecutive steps, writes RUN/DIVERGED.json and aborts the unit (never retried).
 CTRL = json.loads(os.environ["FFT_CTRL"]) if os.environ.get("FFT_CTRL") else None
-WEIGHT_FILES = ("config.json", "generation_config.json", "model.safetensors", "pytorch_model.bin")
+WEIGHT_FILES = ("config.json", "generation_config.json", "model.safetensors", "pytorch_model.bin",
+                "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json")
 
 
 def early_stop_decision(vals: list[float], patience: int) -> tuple[int, bool]:
