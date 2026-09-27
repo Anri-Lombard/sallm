@@ -42,9 +42,8 @@ dist/
 .github/chatmodes
 .bmad-core
 .playwright-cli/
-sallm_memory/artifacts/
-sallm_memory/.obsidian/
-sallm_memory/observability/
+# Research notes live outside the repo (~/Desktop/Masters/Notes/sallm_memory)
+sallm_memory/
 node_modules/
 observability_app/dist/
 observability_app/node_modules/

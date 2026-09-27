@@ -180,11 +180,15 @@ Nothing was posted. The draft comments below need the user's go-ahead.
 
 ## Follow-ups that need the user's judgement
 
-1. **Where `sallm_memory/` should live.** Options: keep it in the repo; move
-   it to `~/Desktop/Masters/Notes/`; or keep only the 48 sealed
-   preregistration notes and their `.sha256` files and move the rest. Moving
-   it breaks the hash guard in `run_pure_gdn_hpo_correction_canary.py` and
-   the observability app unless those move or are archived too.
+1. **`sallm_memory/` (decided: move to Notes, not in git).** A snapshot was
+   copied to `~/Desktop/Masters/Notes/sallm_memory/` on 27 September, and
+   this branch ignores `sallm_memory/`. What remains, after the rollout ends:
+   re-sync the copy, then commit `git rm -r --cached sallm_memory` on the
+   paper branch before #135 merges. Other clones that pull that commit lose
+   their copy of the files. The files stay in the public history of the paper
+   branch unless history is rewritten, which is out of scope. Archive the hash
+   guard in `run_pure_gdn_hpo_correction_canary.py` and the observability app
+   at the same time.
 2. **How to land PR #135 against main's dependency upgrade.** Either merge
    with the paper pins (reverting PR #126's security floors), or merge the
    code and keep main's pins plus `requirements-paper-2026-09.lock` for
