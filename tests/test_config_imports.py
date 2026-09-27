@@ -443,3 +443,17 @@ def test_hpo_base_config_loader_accepts_conf_file_paths() -> None:
     assert cfg.model.architecture == "xlstm"
     assert cfg.dataset.hf_name == "Davlan/sib200"
     assert cfg.dataset.subset == "xho_Latn"
+
+
+def test_every_entry_config_merges_into_the_schema() -> None:
+    schema = OmegaConf.structured(domain_config.ExperimentConfig)
+    targets = [
+        f"{group}/{path.stem}"
+        for group in ("base", "finetune", "eval")
+        for path in sorted((CONF_ROOT / group).glob("*.yaml"))
+    ]
+
+    for target in targets:
+        OmegaConf.merge(schema, compose_config_target(target))
+
+    assert len(targets) > 200
