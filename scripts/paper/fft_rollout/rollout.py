@@ -749,7 +749,7 @@ def loop_4gram(text: str) -> bool:
 
 
 def sanity_flags(family: str, per_lang: dict, items: dict) -> dict:
-    """items[lang] = {"gold": [...], "pred": [...]} (classification, POS tags), or {"pred": [texts]} (NER, generation)."""
+    """items[lang] = {"gold": [...], "pred": [...]} (classification, POS tags), NER gold/predicted span strings, or {"pred": [texts]} (generation)."""
     from collections import Counter
     out = {}
     for lang, it in items.items():
@@ -769,9 +769,17 @@ def sanity_flags(family: str, per_lang: dict, items: dict) -> dict:
             if score is not None and score <= base:
                 flags.append(f"score {score:.2f} <= majority baseline {base:.2f}")
         elif family in ("ner", "pos"):
-            empty = sum(1 for x in pred if not x or (isinstance(x, str) and not x.strip())) / len(pred)
+            is_empty = [not x or (isinstance(x, str) and not x.strip()) for x in pred]
+            empty = sum(is_empty) / len(pred)
             stats["empty_share"] = round(empty, 4)
-            if empty > 0.2:
+            if family == "ner":
+                # an empty output is correct when the sentence has no entities: flag only missed entities
+                has_ents = [bool(str(g).strip()) for g in it["gold"]]
+                missed = sum(e and h for e, h in zip(is_empty, has_ents)) / max(1, sum(has_ents))
+                stats["empty_share_where_gold_has_entities"] = round(missed, 4)
+                if missed > 0.2:
+                    flags.append(f"{100 * missed:.0f}% empty outputs on sentences that have entities")
+            elif empty > 0.2:
                 flags.append(f"{100 * empty:.0f}% empty or unparseable outputs")
             if family == "ner":
                 base = 0.0  # all-O: no entity spans
@@ -825,7 +833,9 @@ def sanity_items(family: str, out: Path) -> dict:
         d = json.loads(out.with_suffix(".json").read_text())
         lang_of = {name: ev["language"] for name, ev in d["task_evidence"].items()}
         for row in d["rows"]:
-            items.setdefault(lang_of[row["task"]], {"pred": []})["pred"].append(row["prediction"])
+            it = items.setdefault(lang_of[row["task"]], {"gold": [], "pred": []})
+            it["gold"].append(row["target"])
+            it["pred"].append(row["prediction"])
     elif family == "pos":
         for row in json.loads(out.with_suffix(".json").read_text())["rows"]:
             d = items.setdefault(row["language"], {"gold": [], "pred": []})
