@@ -22,6 +22,20 @@ def test_temperature_one_is_proportional_to_size() -> None:
     assert mix.probabilities == pytest.approx([0.1, 0.9])
 
 
+def test_cap_gives_examples_proportional_mixing_up_to_the_cap() -> None:
+    mix = WeightedMultiTaskDataset(
+        [_component("small", 20), _component("mid", 60), _component("big", 900)], cap=60
+    )
+
+    assert mix.probabilities == pytest.approx([1 / 7, 3 / 7, 3 / 7])
+    assert len(mix) == 980
+
+
+def test_cap_rejects_a_temperature() -> None:
+    with pytest.raises(ValueError, match="cap"):
+        WeightedMultiTaskDataset([_component("a", 5)], cap=3, temperature=0.5)
+
+
 def test_probability_bounds_clamp_and_renormalise() -> None:
     mix = WeightedMultiTaskDataset(
         [_component("a", 1), _component("b", 1), _component("c", 98)],

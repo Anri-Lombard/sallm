@@ -32,6 +32,7 @@ class WeightedMultiTaskDataset(TorchDataset):
         *,
         seed: int = 0,
         temperature: float = 0.0,
+        cap: int | None = None,
         epoch_size: int | None = None,
         min_prob: float | None = None,
         max_prob: float | None = None,
@@ -45,7 +46,10 @@ class WeightedMultiTaskDataset(TorchDataset):
         self._components = components
         self._base_seed = seed
         self._epoch = 0
+        if cap is not None and (cap <= 0 or temperature):
+            raise ValueError("cap needs a positive value and no temperature")
         self._temperature = temperature
+        self._cap = cap
         self._epoch_size = epoch_size or sum(c.size for c in components)
         if self._epoch_size <= 0:
             raise ValueError("epoch_size must be positive")
@@ -58,7 +62,10 @@ class WeightedMultiTaskDataset(TorchDataset):
     ) -> list[float]:
         adjusted = []
         for component in self._components:
-            if self._temperature:
+            if self._cap is not None:
+                # examples-proportional with a cap (T5, Raffel et al., 2020; FLAN)
+                size_factor = float(min(component.size, self._cap))
+            elif self._temperature:
                 size_factor = component.size**self._temperature
             else:
                 size_factor = 1.0

@@ -1,0 +1,13 @@
+defaults:
+  - defaults/datasets/sa_general@_here_
+  - defaults/common@_here_
+  - defaults/arch/mamba2@_here_
+  - _self_
+wandb:
+  name: mamba-125m-sa-multitask
+dataset:
+  max_seq_length: 1024
+training:
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_sa_multitask
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_sa_multitask
+  run_name: mamba-125m-sa-multitask
