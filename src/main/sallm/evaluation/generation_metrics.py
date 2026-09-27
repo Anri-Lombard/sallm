@@ -3,7 +3,6 @@ from __future__ import annotations
 import collections
 import hashlib
 import logging
-import os
 import random
 import unicodedata
 from collections.abc import Iterator
@@ -71,10 +70,6 @@ class GenerationEvaluator:
         self.max_new_tokens = max_new_tokens
         self.max_samples_per_lang = max_samples_per_lang
         self.sample_seed = sample_seed
-        max_input_tokens = os.getenv("SALLM_EVAL_MAX_INPUT_TOKENS")
-        self.max_input_tokens = int(max_input_tokens) if max_input_tokens else None
-        if self.max_input_tokens is not None and self.max_input_tokens < 1:
-            raise ValueError("SALLM_EVAL_MAX_INPUT_TOKENS must be positive.")
         self.skip_special_tokens = skip_special_tokens
         self.decoding_config = DecodingConfig.from_any(decoding)
         self.task_type = task_type
@@ -87,21 +82,14 @@ class GenerationEvaluator:
         ):
             raise ValueError("GenerationEvaluator supports a single return sequence.")
 
-        env_bs = os.getenv("SALLM_EVAL_BATCH_SIZE")
-        env_max_bs = os.getenv("SALLM_EVAL_MAX_BATCH_SIZE")
-        default_bs: int | str = "auto:4"
         cfg_bs = getattr(self.decoding_config, "batch_size", None)
         resolved_bs = (
             batch_size
             if batch_size is not None
-            else (cfg_bs if cfg_bs is not None else (env_bs if env_bs else default_bs))
+            else (cfg_bs if cfg_bs is not None else "auto:4")
         )
         cfg_max_bs = getattr(self.decoding_config, "max_batch_size", None)
-        resolved_max_bs = (
-            cfg_max_bs
-            if cfg_max_bs is not None
-            else (int(env_max_bs) if env_max_bs and env_max_bs.isdigit() else 64)
-        )
+        resolved_max_bs = cfg_max_bs if cfg_max_bs is not None else 64
         self.max_batch_size = max(1, int(resolved_max_bs))
         self.auto_batch_schedule = 1
         self._auto_batch_sizes: dict[int, int] = {}
@@ -253,22 +241,12 @@ class GenerationEvaluator:
         if not self._is_mamba_model(model):
             return self.max_batch_size
 
-        raw_cap = os.getenv("SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE", "1")
-        try:
-            cap = max(1, int(raw_cap))
-        except ValueError:
-            logger.warning(
-                "Ignoring invalid SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE=%r; using 1.",
-                raw_cap,
-            )
-            cap = 1
-
-        effective = min(self.max_batch_size, cap)
+        # Larger Mamba generation batches made CUDA auto-batch probing unstable.
+        effective = 1
         if effective < self.max_batch_size and not self._logged_mamba_batch_cap:
             logger.info(
                 "Clamping Mamba generation max batch size from %d to %d to avoid "
-                "unstable CUDA auto-batch probing. Override with "
-                "SALLM_MAMBA_GENERATION_MAX_BATCH_SIZE if needed.",
+                "unstable CUDA auto-batch probing.",
                 self.max_batch_size,
                 effective,
             )
@@ -356,9 +334,6 @@ class GenerationEvaluator:
 
         max_input_len = int(input_lengths.max().item())
         window_len = max(1, model_ctx_limit - self.max_new_tokens - 1)
-        configured_input_cap = getattr(self, "max_input_tokens", None)
-        if configured_input_cap is not None:
-            window_len = min(window_len, configured_input_cap)
         if max_input_len >= window_len:
             input_ids = input_ids[:, -window_len:]
             attn = (input_ids != pad_id).long()
@@ -687,9 +662,6 @@ class GenerationEvaluator:
                                         "references": reference_lists[b_idx],
                                         "input_token_count": int(
                                             attn[b_idx].sum().item()
-                                        ),
-                                        "max_input_tokens": getattr(
-                                            self, "max_input_tokens", None
                                         ),
                                         "generated_token_count": generated_token_count,
                                         "padded_generated_token_count": len(

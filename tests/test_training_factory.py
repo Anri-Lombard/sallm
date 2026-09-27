@@ -36,6 +36,7 @@ class _FakeTrainer:
     def __init__(self, **kwargs) -> None:
         self.args = kwargs["args"]
         self.processing_class = kwargs["processing_class"]
+        self.general_selection = kwargs["general_selection"]
 
 
 def _build(
@@ -78,10 +79,19 @@ def test_pretraining_packing_defaults_to_false(monkeypatch) -> None:
     assert trainer.args.packing is False
 
 
-def test_task_metrics_can_be_disabled_for_loss_only_validation(monkeypatch) -> None:
-    monkeypatch.setenv("SALLM_DISABLE_TASK_METRICS", "1")
+def test_selection_options_reach_the_trainer_not_sft_config(monkeypatch) -> None:
+    trainer = _build(
+        monkeypatch,
+        {
+            "output_dir": "unused",
+            "max_length": 2048,
+            "task_metrics": False,
+            "general_selection": True,
+        },
+    )
 
-    assert factory._task_metrics_enabled() is False
+    assert trainer.general_selection is True
+    assert not hasattr(trainer.args, "task_metrics")
 
 
 def test_pretraining_non_flattening_packing_options_reach_sft_config(
