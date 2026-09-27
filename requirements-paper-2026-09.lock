@@ -3,9 +3,10 @@
 # paper/architecture-comparison-2026-09 at commit d55520e. The sallm package itself is
 # omitted (it is this repository). Python 3.12.8.
 #
-# Not captured here: the Linux GPU packages installed on the HEX and Kombuys
-# clusters (flash-linear-attention 0.5.1 via the pure-gdn extra, triton, and any
-# mamba_ssm / causal-conv1d / mlstm_kernels builds). The paper branch's uv.lock
+# Not in this freeze: the Linux GPU packages on the HEX and Kombuys clusters.
+# The cluster venv records in scripts/paper and the research notes give torch
+# 2.9.1+cu128, triton 3.5.1, flash-linear-attention 0.5.1, mamba_ssm 2.3.2.post1,
+# causal-conv1d 1.6.2.post1, xlstm 2.0.5 and mlstm_kernels 2.0.2. The paper branch's uv.lock
 # resolves the same pure-Python stack (transformers 4.57.3). Main's pyproject
 # requires transformers>=5.5, so this file documents the paper stack, not main's.
 absl-py==2.3.1
