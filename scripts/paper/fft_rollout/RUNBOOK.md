@@ -118,7 +118,7 @@ checkpoints per run shipped Kombuys -> Mac -> HEX login node. Not worth it at ~0
 | prep | copy weights + tokenizer, checks, protocols |
 | Base 0-shot | `base-gen` (untuned T2X/AfriHG test generation), `base-prompt` (News, Intent, SIB, Belebele, AfriXNLI, AfriMMLU, AfriMGSM official unit), `base-ner`, `base-pos` |
 | LR sweep | 3 LRs {3e-5, 1e-4, 3e-4} x 7 families: News/SIB/Intent/NER/POS/AfriHG on the Multi model, T2X on Mono xho (General: no sweep, LR transferred, see below) |
-| selection | `select-<family>`: best (lr, epoch) on validation; if the best LR is 3e-5 or 3e-4, trains 1e-5 or 1e-3 and reselects |
+| selection | `select-<family>`: best (lr, epoch) on validation; edge rule (amended 27 Sep, below): while the best LR is at a grid edge, trains the next x3 point beyond it (up to 2) and reselects |
 | Mono / seeds | 20 Mono runs at the family's selected LR (seed 42); seeds 43, 44 for T2X Mono; one General model (seed 42) |
 | test | `test-<family>-...` on the selected sweep checkpoint; Mono and seed runs test their own best epoch in-unit |
 
@@ -166,6 +166,21 @@ Safeguards (no protocol change):
   unit is FAILED and alerted. A Python error is retried once, then FAILED and alerted.
 - Retiring lanes that run older code: `echo "jobs <id> <id>" > $R/runs/<name>/STOP` stops only those lane jobs after
   their current unit; any other STOP content stops every lane. `python3 selfcheck.py` checks the rules offline.
+
+LR edge rule, AMENDED 27 Sep 2026 09:10 SAST (user decision, pre-registered before any extension result existed;
+all four architectures, every swept task). Old rule: if the best LR is 3e-5 or 3e-4, train one more point (1e-5 or
+1e-3) and reselect. New rule: if the best LR is at an edge of the evaluated grid, train the next point beyond it on
+the x3 ladder 3e-6, 1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3 (upward 3e-4 -> 1e-3 -> 3e-3, downward 3e-5 -> 1e-5 -> 3e-6)
+and reselect; repeat until the best is interior, at most 2 extra points per (architecture, task). If the best is
+still at an edge after that, SELECTED.json records `best_at_grid_edge: true` (it also lists `extensions` and
+`final_grid`). Ties are unchanged: maximum validation score over (lr, epoch); ties go to the smaller LR, then the
+earlier epoch. Mechanism: the extension runs are trained inside the `select-<family>` unit (as before), so the DAG and
+units.json are unchanged (downstream units already wait for `select-<family>`); `rollout.next_edge_lr`, checked by
+selfcheck.py. Evidence of a clean amendment at 09:04 SAST: no `select-*` unit had a state file in any run, no
+`SELECTED.json` existed, and no run directory had an extension LR (1e-3, 1e-5, 3e-3, 3e-6). Selection runs inside the
+lane process, which holds rollout.py in memory, so every lane running at the amendment was retired gracefully with
+`STOP = "jobs <ids>"` (each exits after its current unit, before claiming another; no work is lost) and replaced by
+new lanes (rebalance.py / addlane.sh) that load the amended code.
 
 General regime, trimmed (user decision 26 Sep 2026, recorded before any Multi result was read): no General LR
 sweep and no General seeds 43/44 (nor their beam units). Each architecture trains ONE General model, seed 42, at the

@@ -6,6 +6,11 @@ src = open(R.HERE / "train_fft.py").read()
 ns: dict = {}
 exec(src[src.index("def early_stop_decision"):src.index("if CTRL:")], ns)
 d = ns["early_stop_decision"]
+n = R.next_edge_lr
+G = ["3e-5", "1e-4", "3e-4"]
+assert n(G, "1e-4", 0) is None and n(G, "3e-4", 0) == "1e-3" and n(G, "3e-5", 0) == "1e-5"
+assert n(G + ["1e-3"], "1e-3", 1) == "3e-3" and n(G + ["1e-3", "3e-3"], "3e-3", 2) is None  # at most 2 extra points
+assert n(["1e-5"] + G, "1e-5", 1) == "3e-6" and n(["1e-5"] + G, "3e-5", 1) is None
 ns = {"ARCH": "xlstm", "sys": type("S", (), {"argv": []})}
 exec(src[src.index("KERNEL = "):src.index("_ctrl_run =")], ns)
 ps, S = ns["pick_settings"], ns["SETTINGS"]

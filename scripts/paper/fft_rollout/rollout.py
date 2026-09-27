@@ -15,7 +15,7 @@ Protocol (identical for all four architectures; notes sallm_architecture_paper_c
 full fine-tuning, AdamW (0.9, 0.95), wd 0.01, cosine, 10% warmup, effective batch 16, clip 1.0, fp32 master + bf16
 autocast, label smoothing 0; 10 epochs if the train set has fewer than 5000 examples else 4; every epoch saved and
 scored on validation with the paper's protocol scorers; LR grid {3e-5, 1e-4, 3e-4} swept on the Multi model (Mono for
-T2X, the General model for General), one more point beyond an edge optimum, the swept LR reused for Mono; seeds 42/43/44
+T2X, the General model for General), edge rule (amended 27 Sep): up to 2 extra x3 points beyond an edge optimum, the swept LR reused for Mono; seeds 42/43/44
 for General and Mono T2X; test scored once on the selected checkpoint; all scoring on L40S.
 """
 
@@ -64,7 +64,19 @@ TOKENIZER_SHA = "446895905ea9b20c746317eefd0c6a3b097bcbbef71e8e44b0bf9772d664782
 
 # ------------------------------------------------------------------------------------------------------ protocol
 LRS = ("3e-5", "1e-4", "3e-4")
-EDGE = {"3e-5": "1e-5", "3e-4": "1e-3"}  # one more point beyond an edge optimum
+# Edge rule (amended 27 Sep 2026 ~09:10 SAST, user decision, before any extension result existed): while the best LR is at
+# an edge of the evaluated grid, add the next point beyond it on this x3 ladder; at most MAX_EXT extra points per
+# (arch, task); still at the edge after that -> best_at_grid_edge=true. (Old rule: one extra point, 3e-5->1e-5, 3e-4->1e-3.)
+LADDER = ("3e-6", "1e-5", "3e-5", "1e-4", "3e-4", "1e-3", "3e-3")
+MAX_EXT = 2
+
+
+def next_edge_lr(grid: list[str], best_lr: str, n_ext: int) -> str | None:
+    """The next LR to train under the edge rule, or None (best interior, extension budget used, or ladder end)."""
+    if n_ext >= MAX_EXT or len(grid) < 2 or best_lr not in (grid[0], grid[-1]):
+        return None
+    i = LADDER.index(best_lr) + (1 if best_lr == grid[-1] else -1)
+    return LADDER[i] if 0 <= i < len(LADDER) and LADDER[i] not in grid else None
 SEEDS_HEADLINE = (43, 44)  # plus seed 42 (the sweep run)
 # Early stopping (user decision 26 Sep): stop once PATIENCE epochs pass without a strictly greater validation score
 # (protocol scorer, fixed subsample; General: six-family mean). Minimum epochs = PATIENCE + 1. Best epoch as before.
@@ -299,10 +311,9 @@ def estimate(arch: str, u: dict, smoke: bool) -> float:
         ep = expected_epochs(arch, u["family"], epochs_for(rows))
         h = train_hours(arch, u["family"], rows, ep) + ep * family_minutes(arch, u, "val") / 60 + 0.1
         return h + (family_minutes(arch, u, "test") / 60 if u["test"] else 0)
-    if u["kind"] == "select":  # expected cost: an edge extension about half the time
-        rows = sum(FAMILIES[u["family"]]["rows"].values())
+    if u["kind"] == "select":  # expected cost: one extension about half the time, a second about a quarter
         probe = {"kind": "train", "family": u["family"], "regime": u["regime"], "langs": u["langs"], "test": False}
-        return 0.5 * estimate(arch, probe, smoke) if u["edge"] else 0.01
+        return 0.75 * estimate(arch, probe, smoke) if u["edge"] else 0.01
     if u["kind"] == "test":
         return family_minutes(arch, u, "test") / 60 + 0.05
     if u["kind"] == "beam":
@@ -1053,7 +1064,7 @@ def do_train(r: Run, u: dict) -> dict:
 
 
 def do_select(r: Run, u: dict) -> dict:
-    """Best (lr, epoch) over the sweep; if the best LR is at an edge, train one more point beyond it and reselect."""
+    """Best (lr, epoch) over the sweep; while the best LR is at an edge, train the next point beyond it (<= 2) and reselect."""
     def runs(lrs):
         return {lr: json.loads((r.out / "runs" / run_id({**u, "seed": 42}, lr) / "RUN_DONE.json").read_text()) for lr in lrs}
 
@@ -1062,20 +1073,20 @@ def do_select(r: Run, u: dict) -> dict:
         top = max(cands)
         return top[3], top[4], top[0]
 
-    lrs = list(u["lrs"])
+    lrs = sorted(u["lrs"], key=float)
     rs = runs(lrs)
     lr, ep, val = best(rs)
-    record = {"grid": lrs, "core_best": [lr, ep, val], "extension": None}
-    if u["edge"] and len(lrs) > 1 and lr in (lrs[0], lrs[-1]) and lr in EDGE:
-        ext = EDGE[lr]
-        record["extension"] = ext
+    record = {"grid": lrs, "core_best": [lr, ep, val], "extensions": []}
+    while u["edge"] and (ext := next_edge_lr(lrs, lr, len(record["extensions"]))):
+        record["extensions"].append(ext)
         train_run(r, {**u, "seed": 42, "keep": True, "test": False, "lr": ext}, ext)
         lrs = sorted(lrs + [ext], key=float)
         rs = runs(lrs)
         lr, ep, val = best(rs)
-    sel = {**record, "final_grid": lrs, "lr": lr, "epoch": ep, "val": val,
-           "checkpoint": rs[lr]["kept"],
-           "rule": "max validation score over (lr, epoch); ties -> smaller lr, earlier epoch; one extra point beyond an edge optimum",
+    sel = {**record, "final_grid": lrs, "lr": lr, "epoch": ep, "val": val, "checkpoint": rs[lr]["kept"],
+           "best_at_grid_edge": bool(u["edge"] and len(lrs) > 1 and lr in (lrs[0], lrs[-1])),
+           "rule": ("max validation score over (lr, epoch); ties -> smaller lr, earlier epoch; edge rule (amended 27 Sep "
+                    "2026): while the best LR is at a grid edge, add the next x3 point beyond it, at most 2 extra points"),
            "note": "the selected epoch is the kept (best) epoch of its LR run",
            "by_lr": {k: [e["val"] for e in d["epochs"]] for k, d in rs.items()}}
     assert Path(sel["checkpoint"]).is_dir() and sel["checkpoint"].endswith(f"_e{ep}"), sel["checkpoint"]
