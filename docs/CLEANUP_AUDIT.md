@@ -19,6 +19,12 @@ marked *inference* are judgements, not checked facts.
 | Notes (`sallm_memory/`) | none | 304 files, 7.4 MB |
 | Paper runners (`scripts/paper/`) | none | 176 files, 1.6 MB |
 
+PR #135 already conflicts with `main` in 16 files (`git merge-tree`: the
+`ops/slurm` launchers, `pyproject.toml`, `uv.lock`, most evaluation modules,
+and two files that main deleted but the paper branch modified). Merging the
+paper branch into this cleanup branch gives exactly the same 16 conflicts, so
+the cleanup adds none.
+
 Main is already fairly lean. Most of the sprawl the cleanup was meant to
 address (dated notes, probes, canaries, duplicate runners) arrives with PR #135.
 
