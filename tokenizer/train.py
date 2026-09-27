@@ -9,7 +9,7 @@ import yaml
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 import datasets
-from tokenizers import Tokenizer
+from tokenizers import Tokenizer, decoders
 from tokenizers.models import BPE
 from tokenizers.normalizers import NFD, Sequence
 from tokenizers.pre_tokenizers import ByteLevel
@@ -36,8 +36,8 @@ def train_tokenizer(config: dict) -> None:
 
     vocab_size = model_config["vocab_size"]
     special_tokens = model_config["special_tokens"]
-    train_dir = Path(path_config["train_data_file"])
-    output_dir = Path(path_config["output_file"])
+    train_dir = Path(path_config["train_data_dir"])
+    output_dir = Path(path_config["output_dir"])
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
     # TODO these necessary/useful according to research?
@@ -47,6 +47,8 @@ def train_tokenizer(config: dict) -> None:
     # without needing to change libraries. Tokens will now be bytes which has been
     # shown to help with the morphologically rich languages we're working with
     tokenizer.pre_tokenizer = ByteLevel()
+    # Without a decoder, decode() returns raw byte-level symbols ("Ġword").
+    tokenizer.decoder = decoders.ByteLevel()
 
     trainer = BpeTrainer(
         vocab_size=vocab_size,
@@ -113,7 +115,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/tokenizers/bpe.yaml",
+        default="src/conf/tokenizers/bpe.yaml",
         help="Path to the tokenizer training configuration YAML file.",
     )
     args = parser.parse_args()

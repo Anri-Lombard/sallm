@@ -1,0 +1,7 @@
+include: _masakhanews_test_common.yaml
+dataset_name: eng
+doc_to_text: |
+  Does this topic; '{{headline}} {{text}}' belong to one of the following categories:
+  technology, business, politics, sports, health, entertainment, or religion?
+  category only
+task: sallm_masakhanews_eng_test_prompt_2

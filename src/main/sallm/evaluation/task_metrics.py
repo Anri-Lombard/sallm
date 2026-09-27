@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import collections
 import re
+import unicodedata
 
 UPOS_TAGS = {
     "ADJ",
@@ -278,7 +279,8 @@ def _split_ner_segments(text: str) -> list[str]:
 
 def _parse_ner_entities(text: str) -> list[tuple[str, str]]:
     entities: list[tuple[str, str]] = []
-    for segment in _split_ner_segments(text):
+    # NFD model outputs vs NFC references: compare entity text in NFC.
+    for segment in _split_ner_segments(unicodedata.normalize("NFC", text)):
         raw_label, separator, raw_entity = segment.partition(":")
         if not separator:
             continue

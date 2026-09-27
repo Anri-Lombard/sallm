@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from time import sleep
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from datasets import Dataset, concatenate_datasets
 
 from sallm.config import FinetuneDatasetConfig
 from sallm.data.adapters.base import RawDatasetSplits, required_languages
+from sallm.data.adapters.sources import read_url
 from sallm.data.loaders.base import VALIDATION_ALIASES
 
 MASAKHAPOS_DATASET = "masakhane/masakhapos"
@@ -106,19 +105,8 @@ def load_masakhapos_split(lang_code: str, split: str) -> Dataset:
                 f"?ref={MASAKHAPOS_REVISION}",
                 headers={"Accept": "application/vnd.github.raw+json"},
             )
-            for attempt in range(3):
-                try:
-                    with urlopen(request, timeout=30) as response:
-                        content = response.read().decode("utf-8")
-                    return parse_masakhapos_conll(content, lang_code)
-                except HTTPError as err:
-                    transient = err.code in {408, 429} or 500 <= err.code < 600
-                    if not transient or attempt == 2:
-                        raise
-                except (URLError, TimeoutError):
-                    if attempt == 2:
-                        raise
-                sleep(2**attempt)
+            content = read_url(request).decode("utf-8")
+            return parse_masakhapos_conll(content, lang_code)
         except Exception as err:  # noqa: BLE001 - try alternate filename candidates
             last_err = err
 

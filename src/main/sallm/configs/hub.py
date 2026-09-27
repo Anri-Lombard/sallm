@@ -18,6 +18,7 @@ class WandbConfig:
 class HubConfig:
     enabled: bool = False
     organization: str = "anrilombard"
+    repo_id: str | None = None
     private: bool = True
     push_adapter: bool = True
     push_merged: bool = False

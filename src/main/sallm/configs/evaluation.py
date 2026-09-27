@@ -37,6 +37,7 @@ class ModelEvalConfig:
     peft_adapter: str | None = None
     merge_lora: bool | None = None
     tie_word_embeddings: bool | None = None
+    lm_eval_model_args: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         adapter_path = None
@@ -334,6 +335,7 @@ class GenerationEvalTaskConfig:
     fewshot_token_budget: int | None = None
     prompt_headroom_tokens: int | None = None
     system_prompt: str | None = None
+    prompt_format: str = "chat"
 
 
 @dataclass

@@ -7,7 +7,7 @@ wandb:
   name: xlstm-125m-sa-general-all
 model:
   architecture: xlstm
-  init_checkpoint: anrilombard/sallm-xlstm-125m
+  init_checkpoint: anrilombard/sallm-xlstm-125m-native-3epoch-20260531
 peft:
   method: lora
   kwargs:
@@ -19,11 +19,10 @@ peft:
       - k
       - v
       - out_proj
-      - embeddings
 dataset:
   subset: null
   languages: null
-  max_seq_length: 2048
+  max_seq_length: 1024
   mix_weights:
     sib: 1.0
     news: 1.0
@@ -38,9 +37,9 @@ dataset:
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sa_general_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sa_general_all
-  run_name: xlstm-125m-sa-general-all
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sa_general_all_targetsafe
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sa_general_all_targetsafe
+  run_name: xlstm-125m-sa-general-all-targetsafe
   learning_rate: 0.0001
   weight_decay: 0.1
   adam_beta2: 0.95
@@ -48,6 +47,7 @@ training:
   warmup_ratio: 0.1
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 4
+  pad_to_multiple_of: 64
   gradient_accumulation_steps: 16
   num_train_epochs: 3
   max_grad_norm: 1.0
@@ -55,15 +55,19 @@ training:
   gradient_checkpointing: true
   logging_steps: 10
   eval_strategy: epoch
-  save_strategy: 'no'
+  save_strategy: epoch
   dataloader_num_workers: 4
   eval_accumulation_steps: 1
   report_to: wandb
   ddp_find_unused_parameters: true
+  save_total_limit: 1
+  load_best_model_at_end: true
+  metric_for_best_model: eval_loss
+  greater_is_better: false
 hub:
   enabled: true
   organization: anrilombard
   private: true
   push_adapter: true
   push_merged: false
-  base_model_id: anrilombard/sallm-xlstm-125m
+  base_model_id: anrilombard/sallm-xlstm-125m-native-3epoch-20260531

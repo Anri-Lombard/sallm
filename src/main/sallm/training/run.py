@@ -56,8 +56,11 @@ def run(config: ExperimentConfig) -> None:
 
     if not is_hpo_run:
         out = os.path.join(str(trainer.args.output_dir), "final_model")
-        trainer.save_model(out)
-        logger.info(f"Saved model → {out}")
+        trainer.accelerator.wait_for_everyone()
+        if trainer.args.should_save:
+            trainer.save_model(out)
+            logger.info(f"Saved model → {out}")
+        trainer.accelerator.wait_for_everyone()
 
         if config.hub and config.hub.enabled and i_am_main:
             if config.model is None:

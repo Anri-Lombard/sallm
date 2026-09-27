@@ -11,6 +11,11 @@ from sallm.data.transforms.language_filter import (
 )
 
 PARQUET_REVISION = "refs/convert/parquet"
+DATASET_REVISIONS = {
+    "masakhane/masakhanews": "fa3b5fff8a91d187bf0c5900a39c4271d08cf7fe",
+    "anrilombard/masakhaner-x-parquet": "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1",
+    "Davlan/sib200": "38977a667f6fc264d5c26ec57a01e16db040b358",
+}
 
 
 def load_train_val_with_revision_fallback(
@@ -20,7 +25,9 @@ def load_train_val_with_revision_fallback(
     val_split: str,
 ) -> tuple[Dataset, Dataset]:
     last_err: Exception | None = None
-    for revision in (None, PARQUET_REVISION):
+    pinned_revision = DATASET_REVISIONS.get(hf_name)
+    revisions = (pinned_revision,) if pinned_revision else (None, PARQUET_REVISION)
+    for revision in revisions:
         try:
             train_ds = load_dataset(
                 hf_name,

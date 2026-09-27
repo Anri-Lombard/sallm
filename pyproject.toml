@@ -14,7 +14,8 @@ dependencies = [
     "transformers>=5.5.0,<6",
     "protobuf==5.29.6",
     "tornado>=6.5.7",
-    "datasets>=3.6.0",
+    "anyio>=4.14.2",
+    "datasets>=4.4.2,<5",
     "wandb>=0.29.0",
     "pydantic>=2.11.7",
     "pyyaml>=6.0.2",
@@ -47,6 +48,9 @@ sallm = "sallm.cli:main"
 gpu = [
     "kernels>=0.11.0",  # pure Python, can be in lockfile
 ]
+pure-gdn = [
+    "flash-linear-attention>=0.5.2; sys_platform == 'linux'",
+]
 dev = [
     "pytest>=9.0.3",
     "types-pyyaml>=6.0.12.20250516",
@@ -66,7 +70,7 @@ packages = ["src/main/sallm"]
 line-length = 88
 target-version = "py312"
 src = ["src", "tokenizer"]
-exclude = ["build", "dist", "trash", "__pycache__"]
+exclude = ["build", "dist", "__pycache__"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -79,7 +83,6 @@ root = ["src/main"]
 
 [tool.ty.src]
 include = ["src/main/sallm"]
-exclude = ["trash"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -89,13 +92,6 @@ testpaths = [
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-
-[tool.yamllint]
-extends = "default"
-
-[tool.yamllint.rules]
-line-length = { max = 120, level = "warning" }
-indentation = { spaces = 2 }
 
 [tool.uv]
 exclude-dependencies = ["sqlitedict"]

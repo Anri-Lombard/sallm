@@ -80,6 +80,7 @@ components:
       - id: masakhane_named_entity_recognition/lm_eval_p5
         weight: 1.0
     template_choice: cycle
+    eval_template_choice: all
 
   - name: pos
     hf_name: masakhane/masakhapos
@@ -101,9 +102,16 @@ components:
         weight: 1.0
       - id: masakhane_pos_tagging/lm_eval_p4
         weight: 1.0
-      - id: masakhane_pos_tagging/lm_eval_p5
-        weight: 1.0
     template_choice: cycle
+    eval_templates:
+      - id: masakhane_pos_tagging/lm_eval_p1
+        weight: 1.0
+      - id: masakhane_pos_tagging/lm_eval_p2
+        weight: 1.0
+      - id: masakhane_pos_tagging/lm_eval_p3
+        weight: 1.0
+      - id: masakhane_pos_tagging/lm_eval_p4
+        weight: 1.0
 
   - name: afrihg
     hf_name: github:dadelani/AfriHG

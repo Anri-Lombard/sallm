@@ -1,15 +1,15 @@
-dataset_path: masakhane/masakhanews
+dataset_path: csv
 output_type: multiple_choice
 validation_split: validation
-doc_to_target: category
+doc_to_target: !function utils.doc_to_target
 doc_to_choice:
-  - "business"
-  - "entertainment"
-  - "health"
-  - "politics"
-  - "religion"
-  - "sports"
-  - "technology"
+  - " business"
+  - " entertainment"
+  - " health"
+  - " politics"
+  - " religion"
+  - " sports"
+  - " technology"
 should_decontaminate: false
 metric_list:
   - metric: f1

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from sallm.evaluation.task_metrics import (
+    _normalize_ner_prediction,
+    _tags_to_spans,
     build_ner_debug_record,
     build_pos_debug_record,
     compute_ner_quality_metrics,
@@ -84,3 +86,45 @@ def test_pos_quality_metrics_capture_length_and_repetition() -> None:
     assert metrics["length_match_rate"] == 1 / 2
     assert metrics["empty_prediction_rate"] == 0.0
     assert metrics["repetition_rate"] == 1 / 2
+
+
+def test_ner_parser_preserves_punctuation_and_entity_substrings() -> None:
+    text = (
+        "PER: David A. Gross $$ LOC: Kazan, Russia $$ "
+        "ORG: The Bomb Shelter Film Company $$ ORG: Stimela"
+    )
+
+    assert _normalize_ner_prediction(text) == (
+        "PER: David A. Gross $ LOC: Kazan, Russia $ "
+        "ORG: The Bomb Shelter Film Company $ ORG: Stimela"
+    )
+    assert _tags_to_spans(text) == [
+        ("per", "david a. gross"),
+        ("loc", "kazan, russia"),
+        ("org", "the bomb shelter film company"),
+        ("org", "stimela"),
+    ]
+
+
+def test_ner_tags_to_spans_maps_only_complete_label_fields() -> None:
+    text = "PERSON: Alice\nLOCATION: Cape Town\ncompanywide: Ignore Me"
+
+    assert _tags_to_spans(text) == [
+        ("per", "alice"),
+        ("loc", "cape town"),
+    ]
+
+
+def test_pos_prefix_plus_extra_label_is_not_full_credit() -> None:
+    score = compute_pos_token_accuracy(["NOUN VERB"], ["NOUN VERB X"])
+
+    assert score == 2 / 3
+
+
+def test_ner_span_f1_matches_nfd_prediction_to_nfc_reference() -> None:
+    import unicodedata
+
+    reference = "PER: Mošweu $$ LOC: Tšhwane"  # NFC, as in MasakhaNER
+    prediction = unicodedata.normalize("NFD", reference)  # as decoded by the tokenizer
+    assert prediction != reference
+    assert compute_ner_span_f1([reference], [prediction]) > 0.99

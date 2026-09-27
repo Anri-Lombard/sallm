@@ -1,49 +1,38 @@
+# Data and outputs
 data/**/
 !data/cleaning/
 !data/cleaning/README.md
 !data/cleaning/clean_mzansi_text.py
 !data/cleaning/config.toml.example
-trash/
-.mypy_cache
-.ruff_cache
+reports/
+output/
+outputs/
+logs/
+wandb/
+slurm-*.out
+*.log
+*.csv
 *.json
-__pycache__
-*.pyc
-.mypy_cache/
-/src/sallm.egg-info/
-build/
-dist/
 
-.idea/
-.vscode/
-.env
+# Paper tokenizer; download it with the command in the README
+tokenizer/sallm_bpe_tokenizer/
 
-data/**/
-!data/cleaning/
-!data/cleaning/README.md
-!data/cleaning/clean_mzansi_text.py
-!data/cleaning/config.toml.example
-trash/
-.mypy_cache/
-.ruff_cache/
-*.json
+# Research notes live outside the repo (~/Desktop/Masters/Notes/sallm_memory)
+sallm_memory/
+
+# Python
 __pycache__/
 *.py[cod]
-.pyc
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
-ENV/
-env/
 /src/sallm.egg-info/
 build/
 dist/
 
+# Editors and OS
 .idea/
 .vscode/
-.env
-
 .DS_Store
-.github/chatmodes
-.bmad-core
-reports/
-*.csv
+.env
