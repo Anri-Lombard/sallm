@@ -64,7 +64,7 @@ TOKENIZER_SHA = "446895905ea9b20c746317eefd0c6a3b097bcbbef71e8e44b0bf9772d664782
 
 # ------------------------------------------------------------------------------------------------------ protocol
 LRS = ("3e-5", "1e-4", "3e-4")
-# Edge rule (amended 27 Sep 2026 ~09:10 SAST, user decision, before any extension result existed): while the best LR is at
+# Edge rule (amended 27 Sep 2026 09:06 SAST, user decision, before any extension result existed): while the best LR is at
 # an edge of the evaluated grid, add the next point beyond it on this x3 ladder; at most MAX_EXT extra points per
 # (arch, task); still at the edge after that -> best_at_grid_edge=true. (Old rule: one extra point, 3e-5->1e-5, 3e-4->1e-3.)
 LADDER = ("3e-6", "1e-5", "3e-5", "1e-4", "3e-4", "1e-3", "3e-3")

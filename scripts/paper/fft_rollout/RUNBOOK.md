@@ -167,7 +167,7 @@ Safeguards (no protocol change):
 - Retiring lanes that run older code: `echo "jobs <id> <id>" > $R/runs/<name>/STOP` stops only those lane jobs after
   their current unit; any other STOP content stops every lane. `python3 selfcheck.py` checks the rules offline.
 
-LR edge rule, AMENDED 27 Sep 2026 09:10 SAST (user decision, pre-registered before any extension result existed;
+LR edge rule, AMENDED 27 Sep 2026 09:06 SAST (user decision, pre-registered before any extension result existed;
 all four architectures, every swept task). Old rule: if the best LR is 3e-5 or 3e-4, train one more point (1e-5 or
 1e-3) and reselect. New rule: if the best LR is at an edge of the evaluated grid, train the next point beyond it on
 the x3 ladder 3e-6, 1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3 (upward 3e-4 -> 1e-3 -> 3e-3, downward 3e-5 -> 1e-5 -> 3e-6)
@@ -176,11 +176,11 @@ still at an edge after that, SELECTED.json records `best_at_grid_edge: true` (it
 `final_grid`). Ties are unchanged: maximum validation score over (lr, epoch); ties go to the smaller LR, then the
 earlier epoch. Mechanism: the extension runs are trained inside the `select-<family>` unit (as before), so the DAG and
 units.json are unchanged (downstream units already wait for `select-<family>`); `rollout.next_edge_lr`, checked by
-selfcheck.py. Evidence of a clean amendment at 09:04 SAST: no `select-*` unit had a state file in any run, no
+selfcheck.py. Evidence of a clean amendment (checked 09:04 and again 09:06 SAST, just before the sync): no `select-*` unit had a state file in any run, no
 `SELECTED.json` existed, and no run directory had an extension LR (1e-3, 1e-5, 3e-3, 3e-6). Selection runs inside the
 lane process, which holds rollout.py in memory, so every lane running at the amendment was retired gracefully with
 `STOP = "jobs <ids>"` (each exits after its current unit, before claiming another; no work is lost) and replaced by
-new lanes (rebalance.py / addlane.sh) that load the amended code.
+new lanes (rebalance.py / addlane.sh) that load the amended code. Retired: jobs 1375257 1375259-1375266 1375290 (STOP written 09:06).
 
 General regime, trimmed (user decision 26 Sep 2026, recorded before any Multi result was read): no General LR
 sweep and no General seeds 43/44 (nor their beam units). Each architecture trains ONE General model, seed 42, at the
