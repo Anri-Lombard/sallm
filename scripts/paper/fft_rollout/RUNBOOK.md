@@ -201,8 +201,19 @@ native_custbw fp32 >= 0.99997 for q/k/v/i and 0.9998/0.9999/0.9990/0.9985 for th
 kernel: loss rel. diff <= 1.3e-4, grad cosine 0.9998/0.9981/0.9904 at 16x256/4x1024/4x2048, where the pure-torch
 native_custbw kernel gets 0.9993/0.9982/0.9858 (custom-backward kernels treat the stabiliser differently from
 autograd). 20-step recipe loop: loss within 0.02% of native, 0.163 -> 0.095 s/step (16x256) and 0.98 -> 0.43 s/step
-(4x1024 x 4 accum). The strict gate (every gradient cosine >= 0.999) fails at long sequences, so padded TFLA is NOT
-enabled; wiring it in is `use_tfla(model)` in train_fft.py's model hook plus `train_kernel=tfla_padded128`.
+(4x1024 x 4 accum). The strict gate (every gradient cosine >= 0.999) fails at long sequences (forget-gate gradient at the kernel
+level, whole-model gradient vs autograd). USER DECISION (27 Sep ~08:40): enable it anyway for NEW xLSTM training
+units, accepting that the gap is the custom-backward stabiliser convention (native_custbw shows the same gap vs
+autograd; the base was pretrained with TFLA) rather than an error. Live from the sync at ~08:45 SAST: new xLSTM units
+record `train_kernel=tfla_padded128`; before the swap train_fft.py runs `tfla.self_check()` (3 calls, 2x256, forward
+rel. error <= 0.012 and every gradient cosine >= 0.999 vs native_custbw fp32); if the import, the self-check or the
+swap fails, the unit trains with the native kernel and `train_settings.json` / `run_info` record `train_kernel`
+native plus `tfla_fallback` (a resume stays native). Generation and scoring stay native at batch 1 (separate
+processes loading the saved checkpoint; the config is untouched). train.log: `FFT_XLSTM_TRAIN_KERNEL <kernel> <self-check>`.
+Kernel per xLSTM run: native_autograd for every xLSTM unit started before ~08:45 (POS Multi lr3e-5/1e-4/3e-4 done,
+AfriHG Multi lr3e-5/1e-4/3e-4 running, and their resumes); tfla_padded128 for every later one unless it fell back.
+End-to-end check (Kombuys 5090, train_fft.py, xLSTM base, SIB Multi, 12 steps): step-12 loss 3.0801 vs 3.0837
+native, 0.53 vs 1.02 s/step; the no-mlstm_kernels case fell back and recorded it.
 `tfla_check.sbatch` repeats the kernel and parity checks on one L40S (not yet run: all 10 were busy);
 `pydeps_tfla/` on HEX holds mlstm_kernels 2.0.2 + einops 0.8.2. The matched xLSTM pretraining used the unpadded
 kernel on L40S at 92/184.

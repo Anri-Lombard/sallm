@@ -36,17 +36,19 @@ RUNNER = (
 info_path = Path(os.environ["FFT_RUN_INFO"])
 info: dict = {"runner": RUNNER}
 
-# Speed settings (27 Sep 2026): TF32 matmuls and fused AdamW (same betas/eps/wd/schedule). xLSTM keeps transformers'
-# native training kernel: the TFLA Triton kernels gave intermittently wrong results at this model's head dims (92/184),
-# see tfla_check.py and the RUNBOOK. Runs started before this keep the old settings, also when resumed after a lane
-# death: the choice is stored in RUN/train_settings.json at first start, and a resumed run without that file is an
-# old-settings run. FFT_SPEED=legacy|new forces one.
+# Speed settings (27 Sep 2026): TF32 matmuls and fused AdamW (same betas/eps/wd/schedule); for xLSTM also the padded
+# TFLA training kernel (tfla.py; the unpadded kernel is unreliable at head dims 92/184, see the RUNBOOK). Runs started
+# before this keep the old settings, also when resumed after a lane death: the choice is stored in
+# RUN/train_settings.json at first start, and a resumed run without that file is an old-settings run.
+# FFT_SPEED=legacy|new forces one.
 ARCH = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("finetune.model.architecture=")), None)
 KERNEL = "chunkwise--native_autograd (transformers 4.57.3)" if ARCH == "xlstm" else "model default"
+TFLA = "tfla_padded128"  # tfla.NAME
 RESUMING = any("resume_from_checkpoint=" in a and not a.endswith("=null") for a in sys.argv)
 SETTINGS = {
     "legacy": {"settings": "legacy", "optimizer_impl": "adamw_torch", "tf32": False, "train_kernel": KERNEL},
-    "new": {"settings": "new-20260927", "optimizer_impl": "adamw_torch_fused", "tf32": True, "train_kernel": KERNEL},
+    "new": {"settings": "new-20260927", "optimizer_impl": "adamw_torch_fused", "tf32": True,
+            "train_kernel": TFLA if ARCH == "xlstm" else KERNEL},
 }
 
 
@@ -99,8 +101,28 @@ if os.environ.get("SALLM_FLA_MAMBA2") == "1":
 _apply_peft = fine_tune_run._apply_peft_if_needed
 
 
+def _use_tfla(model) -> None:
+    """Padded TFLA for xLSTM training; on any failure (import, self-check, swap) the run trains with the native kernel,
+    and its train_settings.json says so (a resume then stays native)."""
+    global settings
+    try:
+        import tfla  # this script's directory is sys.path[0]
+
+        info["tfla_self_check"] = tfla.self_check()
+        info["tfla_backends_swapped"] = tfla.use_tfla(model)
+    except Exception as exc:  # noqa: BLE001 - fall back, never fail the unit
+        settings = {**settings, "train_kernel": KERNEL, "tfla_fallback": f"{type(exc).__name__}: {exc}"[:500]}
+        info["train_settings"] = settings
+        if _marker and str(info_path) != "/dev/null":
+            _marker.write_text(json.dumps(settings, indent=1) + "\n")
+    print(f"FFT_XLSTM_TRAIN_KERNEL {settings['train_kernel']} {json.dumps(info.get('tfla_self_check') or settings.get('tfla_fallback'))}",
+          flush=True)
+
+
 def _apply_peft_and_record(**kwargs):
     model = _apply_peft(**kwargs)
+    if ARCH == "xlstm" and settings["train_kernel"] == TFLA:
+        _use_tfla(model)
     params = list(model.parameters())  # tied tensors are yielded once
     info["model_class"] = type(model).__name__
     info["n_params"] = sum(p.numel() for p in params)

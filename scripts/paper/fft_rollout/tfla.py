@@ -1,6 +1,6 @@
 """xLSTM training kernel: TFLA (mlstm_kernels 2.0.2 chunkwise--triton_xl_chunk) at padded power-of-two head dims.
-NOT wired into train_fft.py (27 Sep 2026): the strict gradient-cosine gate (>= 0.999) is not met at long sequences;
-see the RUNBOOK "Speed settings" and tfla_check.py / tfla_check.sbatch.
+Used by train_fft.py for new xLSTM training units from 27 Sep 2026 (user decision; checks and the gate override in
+the RUNBOOK "Speed settings", tfla_check.py / tfla_check.sbatch). self_check() runs before the swap.
 
 At this model's head dims (qk 92, v 184; also 96/192) the TFLA Triton kernels intermittently return a wrong forward or
 near-orthogonal gradients on identical inputs; at 64/128 and 128/256 every call agrees (tfla_check.py kernel). So the
@@ -57,18 +57,45 @@ def _train_fn(kw, query, key, value, igate, fgate, c_initial=None, n_initial=Non
     return tfla_padded(query, key, value, igate, fgate, c_initial, n_initial, m_initial, return_last_states, **kw)
 
 
+def self_check(dq: int = 92, dv: int = 184, calls: int = 3) -> dict:
+    """Padded TFLA vs mlstm_kernels' native_custbw in fp32 on random inputs (2 x 4 heads x 256, this model's head
+    dims), `calls` repeated calls: forward rel. error <= 0.012 and every input-gradient cosine >= 0.999, else raises."""
+    if PYDEPS not in sys.path:
+        sys.path.insert(0, PYDEPS)
+    from mlstm_kernels.torch import get_mlstm_kernel
+
+    g = torch.Generator(device="cuda").manual_seed(0)
+    base = [torch.randn(2, 4, 256, d, device="cuda", generator=g) * 0.5 for d in (dq, dq, dv)]
+    base += [torch.randn(2, 4, 256, device="cuda", generator=g), torch.randn(2, 4, 256, device="cuda", generator=g) + 3]
+    dh = torch.randn(2, 4, 256, dv, device="cuda", generator=g)
+
+    def run(fn, dtype):
+        ts = [t.detach().clone().to(dtype).requires_grad_() for t in base]
+        h = fn(*ts, eps=1e-6, chunk_size=64, autocast_kernel_dtype=dtype)
+        (h.float() * dh).sum().backward()
+        return h.detach().float(), [t.grad.float().flatten() for t in ts]
+
+    href, gref = run(get_mlstm_kernel("chunkwise--native_custbw"), torch.float32)
+    res = []
+    for _ in range(calls):
+        h, gs = run(tfla_padded, torch.bfloat16)
+        res.append({"h_rel": round(float((h - href).norm() / href.norm()), 5),
+                    "grad_cos_min": round(min(float(F.cosine_similarity(a, b, dim=0)) for a, b in zip(gs, gref)), 5)})
+    if not all(r["h_rel"] <= 0.012 and r["grad_cos_min"] >= 0.999 for r in res):
+        raise RuntimeError(f"tfla_padded self-check failed: {res}")
+    return {"calls": res, "gpu": torch.cuda.get_device_name(0)}
+
+
 def use_tfla(model) -> int:
-    """Swap every mLSTM backend's training kernel for padded TFLA; returns the number of backends swapped."""
+    """Swap every mLSTM backend's training kernel for padded TFLA (all or none); returns the number swapped."""
     from transformers.utils import is_xlstm_available
 
     assert not is_xlstm_available(), "the xlstm package would change the model code path"
-    n = 0
-    for m in model.modules():
-        if type(m).__name__ == "xLSTMBackend":
-            c = m.config
-            assert c.mode == "train", c.mode  # no padding wrapper: sequences are padded to multiples of chunk_size
-            m._train_fn = partial(_train_fn, dict(eps=c.eps, chunk_size=c.chunk_size,
-                                                  autocast_kernel_dtype=getattr(torch, c.autocast_kernel_dtype)))
-            n += 1
-    assert n == model.config.num_hidden_layers, (n, model.config.num_hidden_layers)
-    return n
+    backends = [m for m in model.modules() if type(m).__name__ == "xLSTMBackend"]
+    assert len(backends) == model.config.num_hidden_layers, (len(backends), model.config.num_hidden_layers)
+    assert all(m.config.mode == "train" for m in backends)  # no padding wrapper: inputs are padded to chunk multiples
+    for m in backends:
+        c = m.config
+        m._train_fn = partial(_train_fn, dict(eps=c.eps, chunk_size=c.chunk_size,
+                                              autocast_kernel_dtype=getattr(torch, c.autocast_kernel_dtype)))
+    return len(backends)

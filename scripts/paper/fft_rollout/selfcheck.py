@@ -11,7 +11,8 @@ exec(src[src.index("KERNEL = "):src.index("_ctrl_run =")], ns)
 ps, S = ns["pick_settings"], ns["SETTINGS"]
 assert ps(None, None, False) == S["new"] and ps(None, None, True) == S["legacy"]  # a pre-27-Sep run resumed stays legacy
 assert ps(None, S["new"], True) == S["new"] and ps("legacy", S["new"], False) == S["legacy"]
-assert S["new"]["optimizer_impl"] == "adamw_torch_fused" and S["new"]["train_kernel"] == S["legacy"]["train_kernel"]
+assert S["new"]["optimizer_impl"] == "adamw_torch_fused" and S["new"]["train_kernel"] == "tfla_padded128"
+assert S["legacy"]["train_kernel"].startswith("chunkwise--native_autograd")
 assert d([1, 2, 3], 3) == (3, False)
 assert d([5, 4, 4, 4], 3) == (1, True)  # 3 epochs without a strictly greater score
 assert d([5, 5, 5, 5], 3) == (1, True)  # ties are not improvement; the earlier epoch stays best
