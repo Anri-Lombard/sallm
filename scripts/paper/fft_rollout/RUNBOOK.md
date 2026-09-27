@@ -175,7 +175,7 @@ any edge-extension LR that won); ties go to the lower LR. `train-general-general
 validation and epoch selection use the six-family mean on the fixed subsample; test runs in-unit, then
 `beam-general-s42`. Mono T2X seeds 43/44 stay.
 
-Speed settings (27 Sep 2026, ~08:30 SAST; disclose in the paper). Training units that START after this sync use
+Speed settings (27 Sep 2026, synced 07:59 SAST; disclose in the paper). Training units that START after this sync use
 fused AdamW (`adamw_torch_fused`: same AdamW, betas 0.9/0.95, eps 1e-8, wd 0.01, cosine schedule, clip 1.0) and TF32
 matmuls (`torch.backends.cuda.matmul.allow_tf32` and `cudnn.allow_tf32` on), for all four architectures. Applied in
 `train_fft.py` (the per-unit training subprocess), so running lanes pick it up at their next unit. Units already
