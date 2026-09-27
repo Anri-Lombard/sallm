@@ -238,6 +238,16 @@ native, 0.53 vs 1.02 s/step; the no-mlstm_kernels case fell back and recorded it
 `pydeps_tfla/` on HEX holds mlstm_kernels 2.0.2 + einops 0.8.2. The matched xLSTM pretraining used the unpadded
 kernel on L40S at 92/184.
 
+xLSTM generation cache (27 Sep 2026 ~09:35 SAST): transformers 4.57.3 allocates xLSTMCache states in the embedding
+dtype and ignores `inference_state_dtype`. The rollout loads xLSTM in fp32 for generation (no autocast), so its cache
+states were already fp32: on the final xLSTM base (Kombuys 5090, 32 prompts x 64 greedy tokens) cached vs full-forward
+greedy agree 32/32 with and without the patch, and the generations are identical. `runners/xlstm_cache_fp32.py`
+(imported by `gen_direct_bs1.py`, the xLSTM generation runner for validation, test and base-gen) now forces fp32
+cache states anyway and logs `XLSTM_CACHE_FP32_PATCH active` on first use. The bf16 finding applies to bf16-loaded
+xLSTM only (the LM-analysis efficiency runs): 16/32 sequences agree (98.97% of tokens) unpatched, 18/32 (99.17%) with
+fp32 cache states, since the rest of a bf16 model still differs between the step and chunkwise paths. Disclosure: no
+xLSTM rollout scoring used a bf16 cache (and no xLSTM generation scoring had run before the patch).
+
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
 Every selected fine-tuned model is kept, weights only (~0.51 GB fp32): each Mono and seed run's best epoch, and

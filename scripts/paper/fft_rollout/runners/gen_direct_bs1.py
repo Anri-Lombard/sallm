@@ -35,6 +35,9 @@ INTERFACE = {
 }
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import xlstm_cache_fp32  # noqa: E402,F401  (xLSTM cache states in fp32; logs XLSTM_CACHE_FP32_PATCH on first use)
+
 _load_model_and_tokenizer = eval_run.load_model_and_tokenizer
 
 
