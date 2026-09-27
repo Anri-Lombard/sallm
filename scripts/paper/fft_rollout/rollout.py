@@ -117,7 +117,7 @@ FAMILIES = {
     "afrihg": dict(sweep="multi", langs=("xho", "zul"), mono="llama_afrihg_{}", multi="llama_afrihg_all",
                    rows={"xho": 12300, "zul": 12349}),
     "t2x": dict(sweep="mono", langs=("xho",), mono="llama_t2x_{}", multi=None, rows={"xho": 3859}),
-    "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_general_tokenbalanced_r1", rows={"all": 43637}),
+    "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_general_examplesprop_k3000", rows={"all": 43637}),
 }
 # Per-device micro-batch (x gradient accumulation = effective batch 16), same for all four architectures. Families
 # whose examples reach 2048 tokens (News, AfriHG, the General mix) or 1311 (POS) run out of L40S memory at 16 x 1

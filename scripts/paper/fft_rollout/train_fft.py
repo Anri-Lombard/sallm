@@ -41,6 +41,10 @@ info: dict = {"runner": RUNNER}
 # before this keep the old settings, also when resumed after a lane death: the choice is stored in
 # RUN/train_settings.json at first start, and a resumed run without that file is an old-settings run.
 # FFT_SPEED=legacy|new forces one.
+# General mixture (user decision 27 Sep 2026, before any General run): FLAN-style examples-proportional mixing with a
+# 3,000-example cap replaces the token-balanced weights. Lanes started earlier still pass the old config name.
+GENERAL_OLD, GENERAL_NEW = "finetune/llama_sa_general_tokenbalanced_r1", "finetune/llama_sa_general_examplesprop_k3000"
+sys.argv = [GENERAL_NEW if a == GENERAL_OLD else a for a in sys.argv]
 ARCH = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("finetune.model.architecture=")), None)
 KERNEL = "chunkwise--native_autograd (transformers 4.57.3)" if ARCH == "xlstm" else "model default"
 TFLA = "tfla_padded128"  # tfla.NAME

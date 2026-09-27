@@ -1,0 +1,74 @@
+mode: FINETUNE
+
+wandb: {project: "sallm-ft", name: "llama-125m-general-examplesprop-k3000"}
+
+model:
+  architecture: "llama"
+  init_checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model"
+
+peft:
+  method: "lora"
+  kwargs: {r: 16, lora_alpha: 32, lora_dropout: 0.0}
+
+dataset:
+  hf_name: "mix:sa_general"
+  subset: null
+  languages: null
+  task: INSTRUCTION
+  splits: {train: "train", val: "validation"}
+  templates: []
+  template_choice: CYCLE
+  packing: false
+  assistant_only_loss: true
+  max_seq_length: 2048
+  # Examples-proportional mixing with a mixing-rate maximum of 3,000 examples per task (Wei et al., 2022, FLAN,
+  # following Raffel et al., 2020, T5): weight = min(train examples, 3000); temperature 0 -> p proportional to weight.
+  # Train examples: news 4341, sib 4206, ner 4323, pos 2259, afrihg 24649, t2x 3859 (43,637 in total).
+  mix_weights:
+    sib: 3000
+    news: 3000
+    ner: 3000
+    pos: 2259
+    afrihg: 3000
+    t2x: 3000
+  mix_temperature: 0.0
+  mix_epoch_size: "sum"
+  mix_min_prob: null
+  mix_max_prob: null
+
+tokenizer: {path: "${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer"}
+
+training:
+  output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_general_examplesprop_k3000"
+  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_general_examplesprop_k3000"
+  run_name: "llama-125m-general-examplesprop-k3000"
+  learning_rate: 8.0e-05
+  adam_beta2: 0.95
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 3
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: false
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 3
+  dataloader_num_workers: 8
+  eval_accumulation_steps: 1
+  report_to: "wandb"
+  ddp_find_unused_parameters: false
+
+hub:
+  enabled: true
+  organization: "anrilombard"
+  repo_id: "anrilombard/sallm-llama-125m-general-examplesprop-k3000"
+  private: true
+  push_adapter: true
+  push_merged: true
+  base_model_id: "anrilombard/sallm-llama-125m"
+  collection_slug: null

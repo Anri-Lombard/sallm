@@ -337,3 +337,11 @@ Smoke = 4 optimizer steps per run (one checkpoint), 20 items per language for ev
 SIB/NER/POS/T2X/General cells (+ a tokenization-only count of every training config). 50-minute lanes backfill
 single free GPUs and resubmit themselves. Delete smoke checkpoints afterwards: `rm -rf $R/runs/smoke-*/keep/*/*_e* $R/runs/smoke-*/base`.
 While any `mp-full-*` job is pending, hold smoke jobs (`scontrol hold <id>`); pretraining has priority.
+
+General mixture, amended 27 Sep 2026 ~20:30 (user decision, before any General run started or any General result
+existed): examples-proportional mixing with a mixing-rate maximum of 3,000 examples per task (Wei et al., 2022, FLAN;
+Raffel et al., 2020, T5) replaces the token-balanced weights inherited from the LoRA-era runs, which gave POS 1.5% of
+samples (0.28 passes of its data per epoch) and repeated SIB/News ~2.8x per epoch. Config
+`finetune/llama_sa_general_examplesprop_k3000` (weights = min(train examples, 3000): news/sib/ner/afrihg/t2x 3000,
+pos 2259 -> p = 0.174 each, pos 0.131). Epoch size unchanged (43,637 draws), LR transfer and six-family-mean selection
+unchanged. Lanes started before the change pass the old config name; train_fft.py maps it to the new one.
