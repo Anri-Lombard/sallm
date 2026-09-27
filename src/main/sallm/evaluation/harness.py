@@ -190,19 +190,20 @@ def _load_tokenizer_and_pretrained(
     if tokenizer_root is None and checkpoint_path.exists():
         tokenizer_root = checkpoint_path
         # Fine-tuning rollout checkpoints (runs/<arch>/{runs,keep}/...) may hold weights
-        # only; they share the tokenizer of runs/<arch>/base.
+        # only. Fine-tuning adds chat tokens, so use the rollout's shared fine-tuned
+        # tokenizer (runs/ft_tokenizer), never the base one.
         if not (checkpoint_path / "tokenizer.json").exists():
-            base = next(
+            shared = next(
                 (
-                    p / "base"
+                    p / "ft_tokenizer"
                     for p in checkpoint_path.parents
-                    if (p / "base" / "tokenizer.json").exists()
+                    if (p / "ft_tokenizer" / "tokenizer.json").exists()
                 ),
                 None,
             )
-            if base is not None:
-                logger.warning("No tokenizer in %s; using %s", checkpoint_path, base)
-                tokenizer_root = base
+            if shared is not None:
+                logger.warning("No tokenizer in %s; using %s", checkpoint_path, shared)
+                tokenizer_root = shared
 
     if tokenizer_root is not None and tokenizer_root.exists():
         try:
