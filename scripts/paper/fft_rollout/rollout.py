@@ -685,8 +685,9 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
         for pack in packs:
             res = json.loads((out / pack / "results.json").read_text())
             for task, vals in res["results"].items():
-                if task.startswith("belebele_"):
-                    lang = task.split("_")[1]
+                lang = task.split("_")[1] if task.startswith("belebele_") else None
+                # prompt 1 only, as in the Base protocol; the pack also scores prompts 2-5
+                if lang and task == f"belebele_{lang}_prompt_1":
                     per[lang] = 100 * float(vals["acc_norm,none"])
                     n[lang] = len(res["samples"][task])
     elif family == "transfer":  # AfriXNLI / AfriMMLU / AfriMGSM with the General protocol runner
@@ -802,6 +803,8 @@ def sanity_items(family: str, out: Path) -> dict:
         for res_path in out.glob("belebele_*/results.json"):
             res = json.loads(res_path.read_text())
             for task, samples in res["samples"].items():
+                if task != f"belebele_{task.split('_')[1]}_prompt_1":
+                    continue
                 d = items.setdefault(task.split("_")[1], {"gold": [], "pred": []})
                 for smp in samples:
                     lls = [float(v[0]) for v in smp["filtered_resps"]]
