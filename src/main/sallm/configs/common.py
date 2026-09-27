@@ -10,7 +10,7 @@ def to_resolved_dict(value: Any, *, name: str = "config") -> dict[str, Any]:
     if isinstance(value, DictConfig):
         resolved = OmegaConf.to_container(value, resolve=True)
     elif isinstance(value, dict):
-        resolved = value
+        resolved = OmegaConf.to_container(OmegaConf.create(value), resolve=True)
     else:
         raise TypeError(f"{name} must be a mapping, got {type(value)!r}.")
 

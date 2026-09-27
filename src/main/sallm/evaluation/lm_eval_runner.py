@@ -15,17 +15,22 @@ import torch
 from lm_eval import evaluator
 from lm_eval.tasks import TaskManager
 from tokenizers.processors import TemplateProcessing
-from transformers import AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TASK_MANAGER_KWARG_KEYS, TaskPack
-from sallm.evaluation.harness import load_model_and_tokenizer
+from sallm.evaluation.harness import (
+    load_model_and_tokenizer,
+    prepare_model_for_evaluation,
+    use_exact_xlstm_head_dims,
+)
 from sallm.evaluation.registry import (
     CONF_DIR,
     RERANK_LM_EVAL_TASK_DIR,
     load_rerank_task_pack,
     load_task_pack,
 )
+from sallm.models.optional import register_fla_gated_deltanet
 from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -88,17 +93,21 @@ TASK_PACK_SCOPES = {"eval", "rerank"}
 
 
 def _format_model_args(
+    *,
     pretrained_path: str,
     dtype: str | None,
     peft_adapter: str | None,
     tokenizer_override: str | None = None,
     tie_word_embeddings: bool | None = None,
-    add_bos_token: bool = False,
+    extra_model_args: dict[str, Any] | None = None,
+    default_add_bos_token: bool = False,
 ) -> str:
     args: list[str] = [
         f"pretrained={pretrained_path}",
         "trust_remote_code=true",
     ]
+    if "add_bos_token" not in (extra_model_args or {}):
+        args.append(f"add_bos_token={str(default_add_bos_token).lower()}")
     if dtype:
         args.append(f"dtype={dtype}")
     if peft_adapter:
@@ -107,7 +116,12 @@ def _format_model_args(
         args.append(f"tokenizer={tokenizer_override}")
     if tie_word_embeddings is not None:
         args.append(f"tie_word_embeddings={str(tie_word_embeddings).lower()}")
-    args.append(f"add_bos_token={str(add_bos_token).lower()}")
+    for key, value in (extra_model_args or {}).items():
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            value = str(value).lower()
+        args.append(f"{key}={value}")
     return ",".join(args)
 
 
@@ -120,6 +134,10 @@ def _to_serializable(value: Any) -> Any:
         return [_to_serializable(v) for v in value]
     if isinstance(value, datetime | date):
         return value.isoformat()
+    if callable(value):
+        module = getattr(value, "__module__", type(value).__module__)
+        name = getattr(value, "__qualname__", type(value).__qualname__)
+        return f"{module}.{name}"
     if isinstance(value, np.generic):
         return value.item()
     if hasattr(value, "tolist"):
@@ -132,8 +150,86 @@ def _to_serializable(value: Any) -> Any:
 def _materialize_model_for_lm_eval(
     model_cfg: ModelEvalConfig, cache_root: Path
 ) -> tuple[str, str | None]:
+    # This precedes the AutoConfig and every AutoModel retry/materialization below.
+    register_fla_gated_deltanet()
     if not model_cfg.peft_adapter:
-        return model_cfg.checkpoint, None
+        config = AutoConfig.from_pretrained(
+            model_cfg.checkpoint,
+            trust_remote_code=True,
+        )
+        _use_exact_xlstm_head_dims(config)
+        if (
+            getattr(config, "model_type", None) != "xlstm"
+            or getattr(config, "mode", None) != "train"
+        ):
+            return model_cfg.checkpoint, None
+
+        base_dir = cache_root / "eval_safe_base_model"
+        if not base_dir.exists():
+            logger.info(
+                "Materializing eval-safe xLSTM base checkpoint at %s",
+                base_dir,
+            )
+            dtype = getattr(torch, str(model_cfg.dtype), None)
+            model = AutoModelForCausalLM.from_pretrained(
+                model_cfg.checkpoint,
+                torch_dtype=dtype,
+                trust_remote_code=True,
+                low_cpu_mem_usage=True,
+            )
+            tokenizer = cast(
+                Any,
+                AutoTokenizer.from_pretrained(
+                    model_cfg.checkpoint,
+                    trust_remote_code=True,
+                ),
+            )
+            _set_eval_safe_model_config(model)
+            _sync_weight_tying_flag(model)
+            base_dir.mkdir(parents=True, exist_ok=True)
+            tokenizer.save_pretrained(base_dir)
+            try:
+                model.save_pretrained(base_dir)
+            except RuntimeError as exc:
+                if "shared tensors" not in str(exc):
+                    raise
+                logger.warning(
+                    "Retrying save_pretrained with safe_serialization=False due to "
+                    "shared tensors."
+                )
+                model.save_pretrained(base_dir, safe_serialization=False)
+        return str(base_dir), None
+    if not model_cfg.merge_lora:
+        base_dir = cache_root / "resized_base_model"
+        if not base_dir.exists():
+            tokenizer = cast(
+                Any,
+                AutoTokenizer.from_pretrained(
+                    model_cfg.peft_adapter,
+                    trust_remote_code=True,
+                ),
+            )
+            dtype = getattr(torch, str(model_cfg.dtype), None)
+            model = AutoModelForCausalLM.from_pretrained(
+                model_cfg.checkpoint,
+                torch_dtype=dtype,
+                trust_remote_code=True,
+                low_cpu_mem_usage=True,
+            )
+            model.resize_token_embeddings(len(tokenizer))
+            base_dir.mkdir(parents=True, exist_ok=True)
+            tokenizer.save_pretrained(base_dir)
+            try:
+                model.save_pretrained(base_dir)
+            except RuntimeError as exc:
+                if "shared tensors" not in str(exc):
+                    raise
+                logger.warning(
+                    "Retrying save_pretrained with safe_serialization=False due to "
+                    "shared tensors."
+                )
+                model.save_pretrained(base_dir, safe_serialization=False)
+        return str(base_dir), model_cfg.peft_adapter
 
     cache_root.mkdir(parents=True, exist_ok=True)
     merged_dir = cache_root / "merged_model"
@@ -158,6 +254,7 @@ def _materialize_model_for_lm_eval(
     merged_dir.mkdir(parents=True, exist_ok=True)
     tokenizer.save_pretrained(merged_dir)
     _sync_weight_tying_flag(model)
+    _set_eval_safe_model_config(model)
     try:
         model.save_pretrained(merged_dir)
     except RuntimeError as exc:
@@ -177,6 +274,14 @@ def _materialize_model_for_lm_eval(
         pass
 
     return str(merged_dir), None
+
+
+def _set_eval_safe_model_config(model) -> None:
+    prepare_model_for_evaluation(model)
+
+
+def _use_exact_xlstm_head_dims(config) -> None:
+    use_exact_xlstm_head_dims(config)
 
 
 def _sync_weight_tying_flag(model) -> None:
@@ -355,12 +460,13 @@ def _run_pack(
         effective_apply_chat_template,
     )
     model_args = _format_model_args(
-        pretrained_path,
-        model_cfg.dtype,
-        peft_adapter,
-        tokenizer_override,
-        model_cfg.tie_word_embeddings,
-        add_bos_token,
+        pretrained_path=pretrained_path,
+        dtype=model_cfg.dtype,
+        peft_adapter=peft_adapter,
+        tokenizer_override=tokenizer_override,
+        tie_word_embeddings=model_cfg.tie_word_embeddings,
+        extra_model_args=model_cfg.lm_eval_model_args,
+        default_add_bos_token=add_bos_token,
     )
 
     if model_cfg.peft_adapter and peft_adapter is None:
@@ -382,6 +488,8 @@ def _run_pack(
 
     if eval_kwargs.get("use_cache") is not None:
         raise ValueError("lm-eval response caching is disabled")
+
+    effective_fewshot = int(eval_kwargs.get("num_fewshot", pack.fewshot))
 
     if task_pack_scope == "rerank":
         task_manager_kwargs["include_path"] = _append_include_path(
@@ -406,8 +514,8 @@ def _run_pack(
         task_pack_scope,
         pack_name,
         ",".join(pack.tasks),
-        pack.fewshot,
-        pack.batch_size,
+        effective_fewshot,
+        eval_kwargs.get("batch_size", pack.batch_size),
         effective_apply_chat_template,
         add_bos_token,
     )
@@ -419,6 +527,9 @@ def _run_pack(
     raw_result = evaluator.simple_evaluate(**eval_kwargs)
 
     result = _to_serializable(raw_result)
+    result_config = result.get("config", {})
+    if isinstance(result_config, dict) and result_config.get("num_fewshot") is not None:
+        effective_fewshot = int(result_config["num_fewshot"])
 
     result_path = pack_out / "results.json"
     with result_path.open("w") as handle:
@@ -433,7 +544,7 @@ def _run_pack(
         "task_pack": pack_name,
         "task_pack_scope": task_pack_scope,
         "tasks": pack.tasks,
-        "fewshot": pack.fewshot,
+        "fewshot": effective_fewshot,
         "batch_size": pack.batch_size,
         "apply_chat_template": effective_apply_chat_template,
         "add_bos_token": add_bos_token,

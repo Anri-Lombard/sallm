@@ -59,6 +59,10 @@ def _save_tokenizer(checkpoint: Path) -> PreTrainedTokenizerFast:
 def test_checked_in_base_model_config_constructs(config_path: Path) -> None:
     document = yaml.safe_load(config_path.read_text())
     model_values = document["model"]
+    if model_values["architecture"] == "gated_deltanet":
+        pytest.importorskip(
+            "fla", reason="pure GDN needs the Linux-only pure-gdn extra"
+        )
 
     config_class = MODEL_CONFIG_REGISTRY[model_values["architecture"]]
     config_class(**model_values["config"])

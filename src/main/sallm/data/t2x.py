@@ -6,7 +6,10 @@ from pathlib import Path
 import requests
 from datasets import Dataset, DatasetDict
 
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/francois-meyer/t2x/main"
+GITHUB_RAW_BASE = (
+    "https://raw.githubusercontent.com/francois-meyer/t2x/"
+    "3bb75b0d8d7c702f5702c06cc5fb46842c6a6976"
+)
 
 
 def _read_lines(path: str) -> list[str]:
@@ -24,7 +27,10 @@ def _make_dataset_from_files(data_file: str, text_file: str) -> Dataset:
 
 def load_t2x_from_github(cache_dir: str | None = None) -> DatasetDict:
     if cache_dir is None:
-        cache_dir = os.path.join(os.getcwd(), "data", "t2x_cache")
+        cache_dir = os.environ.get(
+            "SALLM_T2X_CACHE_DIR",
+            os.path.join(os.getcwd(), "data", "t2x_cache"),
+        )
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
     files = {

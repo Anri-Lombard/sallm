@@ -4,7 +4,7 @@ import logging
 from dataclasses import is_dataclass, replace
 from typing import Protocol, cast
 
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import Dataset as TorchDataset
 from transformers import PreTrainedTokenizerBase
@@ -61,7 +61,11 @@ def _dataset_config_with_template_choice(
 
 def build_datasets(
     config: ExperimentConfig, tokenizer: PreTrainedTokenizerBase, is_hpo: bool
-) -> tuple[Dataset | TorchDataset, Dataset, Dataset | None]:
+) -> tuple[
+    Dataset | IterableDataset | TorchDataset,
+    Dataset | IterableDataset,
+    Dataset | IterableDataset | None,
+]:
     """Build train, validation, and optional test datasets.
 
     Args:

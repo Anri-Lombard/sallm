@@ -344,8 +344,9 @@ def test_representative_instruction_finetune_configs_share_dataset_defaults() ->
 
 
 def test_sweep_base_configs_resolve() -> None:
+    sweeps = sorted((CONF_ROOT / "sweeps").glob("*.yaml"))
     checked = 0
-    for path in sorted((CONF_ROOT / "sweeps").glob("*.yaml")):
+    for path in sweeps:
         data = yaml.safe_load(path.read_text()) or {}
         command = data.get("command") or []
         if "--base-config" not in command:
@@ -358,7 +359,7 @@ def test_sweep_base_configs_resolve() -> None:
         assert cfg.dataset is not None
         checked += 1
 
-    assert checked == 59
+    assert checked == len(sweeps)
 
 
 def test_experiment_schema_merges_representative_eval_config() -> None:
