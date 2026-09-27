@@ -36,8 +36,8 @@ def train_tokenizer(config: dict) -> None:
 
     vocab_size = model_config["vocab_size"]
     special_tokens = model_config["special_tokens"]
-    train_dir = Path(path_config["train_data_file"])
-    output_dir = Path(path_config["output_file"])
+    train_dir = Path(path_config["train_data_dir"])
+    output_dir = Path(path_config["output_dir"])
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
     # TODO these necessary/useful according to research?
