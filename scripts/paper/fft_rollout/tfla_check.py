@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""xLSTM TFLA training-kernel checks (27 Sep 2026; results in RUNBOOK "Speed settings").
+"""xLSTM padded-TFLA training-kernel checks (27 Sep 2026; results in RUNBOOK "Speed settings").
 
-  tfla_check.py parity BASE OUT.json      one batch per shape, transformers' native kernel vs TFLA (tfla.use_tfla) on the
+  tfla_check.py parity BASE OUT.json      one batch per shape, transformers' native kernel vs padded TFLA (tfla.use_tfla) on the
                                          fp32 model under bf16 autocast: loss, grad norm/cosine, fwd+bwd time
-  tfla_check.py kernel OUT.json           kernel level: repeat calls on identical inputs, head dims 92/184 vs 64/128
+  tfla_check.py kernel OUT.json           kernel level, head dims 92/184: padded TFLA on repeated identical calls (+ raw TFLA)
   tfla_check.py loop BASE SPEED OUT.json [MICRO SEQ STEPS]   20-step AdamW loop with the rollout recipe;
-                                         SPEED legacy (native, foreach AdamW) | opt (fused AdamW + TF32) | new (opt + TFLA)
+                                         SPEED legacy (native, foreach AdamW) | opt (fused AdamW + TF32) | new (opt + padded TFLA)
 Text for the batches: $FFT_CHECK_TEXT (plain text or a parquet with a `text` column).
 """
 
@@ -84,9 +84,10 @@ def loop(base: str, speed: str, out: str, micro: str = "16", seq: str = "256", s
 
 
 def kernel(out: str) -> None:
-    """Kernel level, random inputs, head dims 92/184 (this xLSTM) and 64/128: TFLA (xl_chunk), limit_chunk and the
-    custom-backward native kernel vs mlstm_kernels' native autograd kernel in fp32. Each Triton kernel is called
-    three times on the same inputs (third after filling the allocator with NaN) to expose nondeterministic results."""
+    """Kernel level, random inputs at this model's head dims (qk 92, v 184): padded TFLA (tfla.tfla_padded, repeated
+    calls on identical inputs) and, for contrast, the raw TFLA kernel, against mlstm_kernels' native kernels in fp32
+    (forward vs native_autograd; input gradients vs native_custbw, the same stabiliser-gradient convention as TFLA).
+    Pass: every padded call has forward rel. error <= 0.012 and every gradient cosine >= 0.999."""
     import torch
     import torch.nn.functional as F
 
@@ -95,36 +96,35 @@ def kernel(out: str) -> None:
     sys.path.insert(0, tfla.PYDEPS)
     from mlstm_kernels.torch import get_mlstm_kernel
 
-    K = {n: get_mlstm_kernel(f"chunkwise--{n}") for n in ("native_autograd", "native_custbw", "triton_xl_chunk", "triton_limit_chunk")}
-    rows = []
-    for dq, dv in [(92, 184), (64, 128)]:
-        for B, S in [(16, 256), (16, 256), (16, 192), (4, 1024)]:
-            g = torch.Generator(device="cuda").manual_seed(B * 7 + S)
-            base = [torch.randn(B, 4, S, d, device="cuda", generator=g) * 0.5 for d in (dq, dq, dv)]
-            base += [torch.randn(B, 4, S, device="cuda", generator=g), torch.randn(B, 4, S, device="cuda", generator=g) + 3]
-            dh = torch.randn(B, 4, S, dv, device="cuda", generator=g)
+    ref_fw, ref_bw, raw = (get_mlstm_kernel(f"chunkwise--{n}") for n in ("native_autograd", "native_custbw", "triton_xl_chunk"))
+    rows, ok = [], True
+    for B, S, reps in [(16, 256, 12), (16, 192, 3), (4, 1024, 3), (12, 2048, 3)]:
+        g = torch.Generator(device="cuda").manual_seed(B * 7 + S)
+        base = [torch.randn(B, 4, S, d, device="cuda", generator=g) * 0.5 for d in (92, 92, 184)]
+        base += [torch.randn(B, 4, S, device="cuda", generator=g), torch.randn(B, 4, S, device="cuda", generator=g) + 3]
+        dh = torch.randn(B, 4, S, 184, device="cuda", generator=g)
 
-            def run(fn, dtype, junk=False):
-                if junk:
-                    x = torch.full((1 << 28,), float("nan"), device="cuda")
-                    del x
-                ts = [t.detach().clone().to(dtype).requires_grad_() for t in base]
-                h = fn(*ts, eps=1e-6, chunk_size=64, autocast_kernel_dtype=dtype)
-                (h.float() * dh).sum().backward()
-                return h.detach().float(), [t.grad.float().flatten() for t in ts]
+        def run(fn, dtype):
+            ts = [t.detach().clone().to(dtype).requires_grad_() for t in base]
+            h = fn(*ts, eps=1e-6, chunk_size=64, autocast_kernel_dtype=dtype)
+            (h.float() * dh).sum().backward()
+            return h.detach().float(), [t.grad.float().flatten() for t in ts]
 
-            href, gref = run(K["native_autograd"], torch.float32)
-            row = {"dq": dq, "dv": dv, "B": B, "S": S}
-            calls = [("native_autograd_bf16", "native_autograd", torch.bfloat16, False), ("native_custbw_fp32", "native_custbw", torch.float32, False)]
-            for name in ("triton_xl_chunk", "triton_limit_chunk"):
-                calls += [(f"{name}_bf16_{j}", name, torch.bfloat16, j == 3) for j in (1, 2, 3)]
-            for label, name, dt, junk in calls:
-                h, gs = run(K[name], dt, junk)
-                row[label] = {"h_rel": round(float((h - href).norm() / href.norm()), 5),
-                              "grad_cos_qkvif": [round(float(F.cosine_similarity(a, b, dim=0)), 4) for a, b in zip(gs, gref)]}
-            rows.append(row)
-            print(json.dumps(row), flush=True)
-    Path(out).write_text(json.dumps(rows, indent=1) + "\n")
+        href, _ = run(ref_fw, torch.float32)
+        _, gref = run(ref_bw, torch.float32)
+        row = {"B": B, "S": S, "padded": [], "raw": [], "native_custbw_bf16": []}  # the last = bf16 floor of the reference
+        for label, fn, n in (("padded", tfla.tfla_padded, reps), ("raw", raw, reps), ("native_custbw_bf16", ref_bw, 1)):
+            for _ in range(n):
+                h, gs = run(fn, torch.bfloat16)
+                row[label].append({"h_rel": round(float((h - href).norm() / href.norm()), 5),
+                                   "grad_cos_qkvif": [round(float(F.cosine_similarity(a, b, dim=0)), 5) for a, b in zip(gs, gref)]})
+        row["padded_pass"] = all(c["h_rel"] <= 0.012 and min(c["grad_cos_qkvif"]) >= 0.999 for c in row["padded"])
+        ok &= row["padded_pass"]
+        rows.append(row)
+        print(json.dumps(row), flush=True)
+    res = {"gpu": torch.cuda.get_device_name(0), "torch": torch.__version__, "pass": ok, "rows": rows}
+    Path(out).write_text(json.dumps(res, indent=1) + "\n")
+    print(json.dumps({"gpu": res["gpu"], "pass": ok}))
 
 
 def parity(base: str, out: str) -> None:
@@ -172,7 +172,8 @@ def parity(base: str, out: str) -> None:
         loss, g = run(x)
         loss_r, g_r = ref[k]
         t = bench(x)
-        res["batches"][k] = {"loss_native": loss_r, "loss_tfla": loss, "loss_rel_diff": abs(loss - loss_r) / abs(loss_r),
+        _, g2 = run(x)  # again after the benchmark calls (repeat-call check)
+        res["batches"][k] = {"grad_cosine_repeat": float(torch.nn.functional.cosine_similarity(g2, g_r, dim=0)),"loss_native": loss_r, "loss_tfla": loss, "loss_rel_diff": abs(loss - loss_r) / abs(loss_r),
                              "gradnorm_native": float(g_r.norm()), "gradnorm_tfla": float(g.norm()),
                              "gradnorm_rel_diff": float((g.norm() - g_r.norm()).abs() / g_r.norm()),
                              "grad_cosine": float(torch.nn.functional.cosine_similarity(g, g_r, dim=0)),
@@ -184,7 +185,8 @@ def parity(base: str, out: str) -> None:
         res["tfla_accepts_len_200"] = True
     except Exception as exc:  # noqa: BLE001
         res["tfla_accepts_len_200"] = f"{type(exc).__name__}: {str(exc)[:200]}"
-    res["pass"] = all(b["loss_rel_diff"] <= 1e-3 for b in res["batches"].values()) and res["config_unchanged"]
+    res["pass"] = res["config_unchanged"] and all(b["loss_rel_diff"] <= 1e-3 and min(b["grad_cosine"], b["grad_cosine_repeat"]) >= 0.999
+                                                  for b in res["batches"].values())
     Path(out).write_text(json.dumps(res, indent=1) + "\n")
     print(json.dumps(res, indent=1))
 

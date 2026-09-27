@@ -191,13 +191,21 @@ a 20-step xLSTM loop with the recipe (tfla_check.py loop, RTX 5090) gives final 
 
 xLSTM training kernel: unchanged (transformers' native chunkwise kernel, as every earlier paper xLSTM run). The TFLA
 Triton kernels of mlstm_kernels 2.0.2 (chunkwise--triton_xl_chunk, the matched base's pretraining kernel, and
-triton_limit_chunk) were ~2.5x faster at 4x1024 but failed the check on an RTX 5090: at this model's head dims (qk 92,
-v 184; also 96/192) repeated calls on identical inputs intermittently give a wrong forward (rel. error 0.07-0.11
-instead of 0.006) or near-orthogonal gradients (cosine 0.02-0.04); at 64/128 and 128/256 every call agrees. Model
-level: one first call gave grad norm 1.05e6 vs 2.73; a 20-step loop at 16x256 drifted ~1% in loss. `tfla.py` (the
-swap) and `tfla_check.py` (parity/kernel/loop) are kept for the record; `pydeps_tfla/` on HEX holds mlstm_kernels
-2.0.2 + einops 0.8.2. Not re-checked on an L40S (all 10 were busy); the matched xLSTM pretraining used this kernel on
-L40S with the same head dims.
+triton_limit_chunk) intermittently give a wrong forward (rel. error 0.07-0.11 instead of 0.006) or near-orthogonal
+gradients (cosine 0.02-0.05) on identical repeated calls at this model's head dims (qk 92, v 184; also 96/192); at
+64/128 and 128/256 every call agrees (RTX 5090; model level one first call gave grad norm 1.05e6 vs 2.73).
+`tfla.py` pads q/k to 128 and v to 256 (scale 1/sqrt(92) passed to the kernel, outputs sliced): on the 5090 every
+repeated call then agrees (12 x 16x256), forward rel. error 0.006 (bf16 native 0.011), input-gradient cosine vs
+native_custbw fp32 >= 0.99997 for q/k/v/i and 0.9998/0.9999/0.9990/0.9985 for the forget gate at
+16x256/16x192/4x1024/12x2048 (bf16 native_custbw: 0.9991/0.9996/0.9977/0.9955). Model level vs transformers' native
+kernel: loss rel. diff <= 1.3e-4, grad cosine 0.9998/0.9981/0.9904 at 16x256/4x1024/4x2048, where the pure-torch
+native_custbw kernel gets 0.9993/0.9982/0.9858 (custom-backward kernels treat the stabiliser differently from
+autograd). 20-step recipe loop: loss within 0.02% of native, 0.163 -> 0.095 s/step (16x256) and 0.98 -> 0.43 s/step
+(4x1024 x 4 accum). The strict gate (every gradient cosine >= 0.999) fails at long sequences, so padded TFLA is NOT
+enabled; wiring it in is `use_tfla(model)` in train_fft.py's model hook plus `train_kernel=tfla_padded128`.
+`tfla_check.sbatch` repeats the kernel and parity checks on one L40S (not yet run: all 10 were busy);
+`pydeps_tfla/` on HEX holds mlstm_kernels 2.0.2 + einops 0.8.2. The matched xLSTM pretraining used the unpadded
+kernel on L40S at 92/184.
 
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
