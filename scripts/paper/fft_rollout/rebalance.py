@@ -10,7 +10,7 @@ Readiness is computed here from units.json + state/*.json (the head node only ru
 ready when it has not started and its deps are done (and its ordering-only `after` units are terminal).
 New lines of each run's ALERTS.txt are appended to ~/.sallm_fire/alerts.log.
 It never cancels anything and never lowers MAX_LANES: lanes free their GPU by themselves (LANE_IDLE_EXIT after
-IDLE_EXIT_MIN minutes with nothing runnable, or LANE_FINISHED). Lanes are added with addlane.sh, NICE=1000.
+IDLE_EXIT_MIN minutes with nothing runnable, or LANE_FINISHED). Lanes are added with addlane.sh, NICE=0 (pretraining finished; NICE=1000 only mattered while mp-full-* jobs were queued).
 A run with work left but no lane at all (e.g. every lane idled out while a stale unit waited) gets one lane first.
 """
 
@@ -136,7 +136,7 @@ def step() -> None:
     for a, k in plan:
         print(f"{time.strftime('%F %T')} add {k} lane(s) to {a} (left {info[a]['left']} h, ready {info[a]['ready']})", flush=True)
         if not DRY:
-            print(hex_(f"NICE=1000 bash {R}/code/fft_rollout/addlane.sh {a} {k}").strip(), flush=True)
+            print(hex_(f"NICE=0 bash {R}/code/fft_rollout/addlane.sh {a} {k}").strip(), flush=True)
 
 
 def main() -> None:
