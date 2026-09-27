@@ -225,7 +225,9 @@ rel. error <= 0.012 and every gradient cosine >= 0.999 vs native_custbw fp32); i
 swap fails, the unit trains with the native kernel and `train_settings.json` / `run_info` record `train_kernel`
 native plus `tfla_fallback` (a resume stays native). Generation and scoring stay native at batch 1 (separate
 processes loading the saved checkpoint; the config is untouched). train.log: `FFT_XLSTM_TRAIN_KERNEL <kernel> <self-check>`.
-Kernel per xLSTM run: native_autograd for the POS Multi sweep (lr3e-5/1e-4/3e-4, done before 08:40);
+Kernel per xLSTM run: native_autograd for the POS Multi sweep (lr3e-5/1e-4/3e-4, done before 08:40); NOTE the POS
+edge extension lr1e-3 (trained by select-pos from 09:26 on a new lane) used tfla_padded128 + fused AdamW + TF32, so
+the xLSTM POS grid mixes kernels (disclose, or retrain one side);
 tfla_padded128 for every later unit unless it fell back. The AfriHG Multi sweep (lr3e-5/1e-4/3e-4) had started at
 06:55 on native and was RESTARTED FROM SCRATCH at 09:10 SAST on padded TFLA (user decision; ~1080 of 6164 steps, still
 in epoch 1, no epoch checkpoint): lanes 1375262-1375264 cancelled, partial runs and state archived in
@@ -238,7 +240,7 @@ native, 0.53 vs 1.02 s/step; the no-mlstm_kernels case fell back and recorded it
 `pydeps_tfla/` on HEX holds mlstm_kernels 2.0.2 + einops 0.8.2. The matched xLSTM pretraining used the unpadded
 kernel on L40S at 92/184.
 
-xLSTM generation cache (27 Sep 2026 ~09:35 SAST): transformers 4.57.3 allocates xLSTMCache states in the embedding
+xLSTM generation cache (27 Sep 2026, synced 11:12 SAST): transformers 4.57.3 allocates xLSTMCache states in the embedding
 dtype and ignores `inference_state_dtype`. The rollout loads xLSTM in fp32 for generation (no autocast), so its cache
 states were already fp32: on the final xLSTM base (Kombuys 5090, 32 prompts x 64 greedy tokens) cached vs full-forward
 greedy agree 32/32 with and without the patch, and the generations are identical. `runners/xlstm_cache_fp32.py`
@@ -246,7 +248,8 @@ greedy agree 32/32 with and without the patch, and the generations are identical
 cache states anyway and logs `XLSTM_CACHE_FP32_PATCH active` on first use. The bf16 finding applies to bf16-loaded
 xLSTM only (the LM-analysis efficiency runs): 16/32 sequences agree (98.97% of tokens) unpatched, 18/32 (99.17%) with
 fp32 cache states, since the rest of a bf16 model still differs between the step and chunkwise paths. Disclosure: no
-xLSTM rollout scoring used a bf16 cache (and no xLSTM generation scoring had run before the patch).
+xLSTM rollout scoring used a bf16 cache. Scored before the patch (fp32 cache, so unaffected): AfriHG Multi validation
+epochs 1-2 of lr3e-5/1e-4/3e-4 (10:03-10:55).
 
 ## 3a. Checkpoints (kept) and the Kombuys archive
 
