@@ -1,0 +1,26 @@
+model:
+  architecture: mamba2
+  init_checkpoint: anrilombard/sallm-mamba-125m
+peft:
+  kwargs:
+    r: 16
+    lora_alpha: 32
+    target_modules:
+      - in_proj
+      - x_proj
+training:
+  learning_rate: 8.0e-05
+  weight_decay: 0.01
+  gradient_accumulation_steps: 8
+  warmup_ratio: 0.03
+  per_device_train_batch_size: 16
+  num_train_epochs: 15
+  bf16: true
+  save_strategy: epoch
+  dataloader_num_workers: 4
+  ddp_find_unused_parameters: false
+  adam_beta1: 0.9
+  save_total_limit: 1
+  load_best_model_at_end: true
+  early_stopping_patience: 3
+  early_stopping_threshold: 0.001

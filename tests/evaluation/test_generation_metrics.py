@@ -62,7 +62,6 @@ def test_seeded_generation_sample_indices_are_stable() -> None:
 def test_generation_batch_reserves_requested_output_tokens() -> None:
     evaluator = GenerationEvaluator.__new__(GenerationEvaluator)
     evaluator.max_new_tokens = 64
-    evaluator.max_input_tokens = 1024
     evaluator.prompt_format = "chat"
     evaluator.decoding_config = MagicMock()
     evaluator.decoding_config.to_generate_kwargs.return_value = {}
@@ -101,7 +100,7 @@ def test_generation_batch_reserves_requested_output_tokens() -> None:
     )
 
     assert prepared is not None
-    assert prepared[3].shape[1] == 1024
+    assert prepared[3].shape[1] == 2048 - 64 - 1
     assert prepared[5]["max_new_tokens"] == 64
     assert prepared[5]["use_cache"] is False
     tokenizer.assert_called_once_with(

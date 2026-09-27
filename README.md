@@ -39,7 +39,7 @@ environment; override any value on the command line.
 | Tokenize the corpus | `uv run python tokenizer/process.py` |
 | Pretrain | `uv run python -m sallm.main --config-name base/llama_125m` |
 | Fine-tune | `uv run python -m sallm.main --config-name finetune/llama_t2x_xho` |
-| Evaluate | `uv run python -m sallm.main --config-name eval/run_llama_t2x_xho` |
+| Evaluate | `uv run python -m sallm.main --config-name eval/run eval_model.checkpoint=<model> 'evaluation.task_packs=[sib_xho]' wandb.name=<run>` |
 
 Base configs exist for `llama_125m`, `llama_400m`, `mamba_125m`, `xlstm_125m`
 and `gated_deltanet_125m`. The Mamba, xLSTM and Gated DeltaNet ones read the
@@ -67,7 +67,7 @@ sbatch ops/slurm/launch_hpo.sh llama_t2x_xho 10      # sweep in src/conf/sweeps
 | Path | Contents |
 | --- | --- |
 | `src/main/sallm` | Library: `training/` (pretraining), `fine_tune/`, `evaluation/`, `hpo/`, `data/`, `models/`, `configs/` (typed schema), `main.py` (Hydra entrypoint), `cli.py` (recipe CLI) |
-| `src/conf` | Hydra configs: `base/`, `finetune/`, `eval/`, `rerank/`, `sweeps/`, `templates/`, `datasets/`, `tokenizers/` |
+| `src/conf` | Hydra configs: `base/`, `finetune/`, `eval/`, `rerank/`, `sweeps/`, `templates/`, `datasets/`, `tokenizers/`; see [docs/configuration.md](docs/configuration.md) |
 | `data/`, `tokenizer/` | Corpus preparation and tokenizer training |
 | `ops/slurm/` | SLURM launchers |
 | `tests/` | CPU test suite, run in CI |

@@ -74,8 +74,10 @@ source .venv/bin/activate
 echo "--- CUDA kernel status ---"
 IS_MAMBA=false
 IS_XLSTM=false
-[[ "$CONFIG_NAME" == *mamba* ]] && IS_MAMBA=true
-[[ "$CONFIG_NAME" == *xlstm* ]] && IS_XLSTM=true
+# The generic eval/run config names the model in its overrides, not its name.
+RUN_SPEC="$CONFIG_NAME ${EXTRA_ARGS[*]:-}"
+[[ "$RUN_SPEC" == *mamba* ]] && IS_MAMBA=true
+[[ "$RUN_SPEC" == *xlstm* ]] && IS_XLSTM=true
 
 if $IS_MAMBA; then
   if python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn" 2>/dev/null; then

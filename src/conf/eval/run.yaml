@@ -1,0 +1,19 @@
+# @package _global_
+mode: EVALUATE
+eval_model:
+  checkpoint: ???
+  dtype: bfloat16
+  device: cuda:0
+evaluation:
+  task_packs: []
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/${..wandb.name}
+wandb:
+  project: sallm-eval
+  name: ???
+model: null
+data: null
+tokenizer: null
+training: null
+dataset: null
+peft: null
+template: null

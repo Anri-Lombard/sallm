@@ -1,25 +1,12 @@
-mode: EVALUATE
-
+# @package _global_
+defaults:
+  - run@_here_
+  - _self_
 eval_model:
-  checkpoint: "anrilombard/sallm-mamba-news_xho"
-  adapter: "hf"
-  dtype: "bfloat16"
-  device: "cuda:0"
+  checkpoint: anrilombard/sallm-mamba-news_xho
   tie_word_embeddings: false
-
 evaluation:
   task_packs:
-    - "masakhanews_xho"
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/mamba_125m_news_xho"
-
+    - masakhanews_xho
 wandb:
-  project: "sallm-eval"
-  name: "eval-mamba-125m-masakhanews-xho"
-
-model: null
-data: null
-tokenizer: null
-training: null
-dataset: null
-peft: null
-template: null
+  name: eval-mamba-125m-masakhanews-xho

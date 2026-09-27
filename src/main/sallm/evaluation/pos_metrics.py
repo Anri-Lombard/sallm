@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import logging
-import os
 from collections import defaultdict
 from typing import Any, cast
 
@@ -110,17 +109,13 @@ class PosEvaluator:
         score_mode: str = "mean",
         pad_to_multiple_of: int | None = 64,
         strict_contract: bool = True,
-        row_batch_size: int | None = None,
+        row_batch_size: int = 1,
     ) -> None:
         self.tokenizer = tokenizer
         self.score_mode = score_mode
         self.pad_to_multiple_of = pad_to_multiple_of
         self.strict_contract = strict_contract
-        self.row_batch_size = (
-            int(os.getenv("SALLM_POS_ROW_BATCH_SIZE", "1"))
-            if row_batch_size is None
-            else row_batch_size
-        )
+        self.row_batch_size = row_batch_size
         if self.row_batch_size < 1:
             raise ValueError("POS row batch size must be at least one.")
         self.last_details: dict[str, Any] = {}

@@ -1,0 +1,18 @@
+model:
+  architecture: llama
+  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
+peft:
+  kwargs:
+    r: 16
+    lora_alpha: 32
+training:
+  run_name: llama-125m-news-lora-finetune-messages
+  learning_rate: 3.0e-05
+  gradient_accumulation_steps: 4
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 4
+  num_train_epochs: 20
+  bf16: true
+  save_strategy: 'no'
+  dataloader_num_workers: 8
+  ddp_find_unused_parameters: false

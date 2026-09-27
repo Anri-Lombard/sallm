@@ -1,42 +1,9 @@
+# @package _global_
 defaults:
-  - defaults/run@_here_
+  - generate_t2x_xho@_here_
   - _self_
-
 eval_model:
-  checkpoint: "${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all/final_merged_model"
+  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_general_all/final_merged_model
   merge_lora: false
-
-evaluation:
-  output_dir: "${oc.env:SCRATCH}/masters/sallm/results/eval/ft_llama_125m_t2x_xho"
-  generation_tasks:
-    - id: "t2x_xho"
-      split: "test"
-      max_new_tokens: 512
-      max_samples_per_lang: null
-      fewshot: 0
-      fewshot_split: "train"
-      fewshot_seed: 42
-      fewshot_lang_match: true
-      fewshot_template_mode: "SAME"
-      fewshot_token_budget: 1792
-      prompt_headroom_tokens: 256
-      system_prompt: "You are a helpful assistant that verbalises knowledge graph triples as fluent isiXhosa sentences."
-      decoding:
-        strategy: "beam"
-        num_beams: 5
-        length_penalty: 1.0
-        early_stopping: true
-      dataset:
-        hf_name: "github:francois-meyer/t2x"
-        subset: "xho"
-        splits: {train: "train", val: "validation", test: "test"}
-        task: INSTRUCTION
-        templates:
-          - {id: "t2x_verbalisation/v1", weight: 1}
-        template_choice: ALL
-        packing: false
-        assistant_only_loss: true
-        max_seq_length: 1024
-
 wandb:
-  name: "eval-llama-125m-t2x-xho"
+  name: eval-llama-125m-t2x-xho

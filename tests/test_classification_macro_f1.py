@@ -16,21 +16,6 @@ MULTILINGUAL_CLASSIFICATION_FAMILIES = (
 )
 
 
-@pytest.mark.parametrize("architecture", ("llama", "mamba", "xlstm"))
-@pytest.mark.parametrize("family", MULTILINGUAL_CLASSIFICATION_FAMILIES)
-def test_multilingual_classification_sweeps_select_macro_f1(
-    architecture, family
-) -> None:
-    path = f"src/conf/sweeps/{architecture}_{family}.yaml"
-    with open(path, encoding="utf-8") as handle:
-        sweep = yaml.safe_load(handle)
-
-    assert sweep["metric"] == {
-        "name": "classification/all_macro_f1",
-        "goal": "maximize",
-    }
-
-
 @pytest.mark.parametrize("family", MULTILINGUAL_CLASSIFICATION_FAMILIES)
 def test_multilingual_classification_checkpoints_select_macro_f1(family) -> None:
     path = f"src/conf/finetune/mamba_{family}.yaml"

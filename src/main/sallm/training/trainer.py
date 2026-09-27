@@ -2,7 +2,6 @@ import hashlib
 import json
 import logging
 import math
-import os
 import time
 from collections.abc import Iterable
 from pathlib import Path
@@ -257,6 +256,11 @@ class CustomTrainer(Trainer):
 class CustomSFTTrainer(SFTTrainer):
     """SFTTrainer with per-language evaluation metrics for foundation model training."""
 
+    def __init__(self, *args: Any, general_selection: bool = False, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        # Select checkpoints by equal-family assistant-token NLL on General data.
+        self.general_selection = general_selection
+
     def get_decay_parameter_names(self, model) -> list[str]:
         decay_parameter_names = super().get_decay_parameter_names(model)
         return _filter_decay_parameter_names(model, decay_parameter_names)
@@ -398,13 +402,7 @@ class CustomSFTTrainer(SFTTrainer):
         if resolved_eval_dataset is None:
             raise ValueError("Trainer: evaluation requires an eval_dataset.")
 
-        general_protocol = os.getenv("SALLM_GENERAL_SELECTION_PROTOCOL")
-        if general_protocol:
-            if general_protocol != GENERAL_SELECTION_PROTOCOL:
-                raise ValueError(
-                    "Unsupported SALLM_GENERAL_SELECTION_PROTOCOL="
-                    f"{general_protocol!r}."
-                )
+        if self.general_selection:
             if not isinstance(resolved_eval_dataset, datasets.Dataset):
                 raise TypeError("General selection requires a Hugging Face Dataset.")
             return self._evaluate_general_selection(

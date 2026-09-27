@@ -1,59 +1,34 @@
 defaults:
   - defaults/datasets/afrihg@_here_
+  - defaults/common@_here_
+  - defaults/arch/llama@_here_
   - _self_
-mode: FINETUNE
 wandb:
-  project: sallm-ft
   name: llama-125m-afrihg-all
-model:
-  architecture: llama
-  init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
 peft:
-  method: lora
   kwargs:
-    r: 16
-    lora_alpha: 32
     lora_dropout: 0.05
 dataset:
   subset: null
   max_seq_length: 2048
-tokenizer:
-  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
-generation_decoding:
-  strategy: beam
-  num_beams: 5
-  length_penalty: 0.7
-  early_stopping: true
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_afrihg_all
   logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_afrihg_all
   run_name: llama-125m-afrihg-all
   learning_rate: 4.338264569149352e-05
   weight_decay: 0.031028218096256
-  adam_beta2: 0.95
-  lr_scheduler_type: constant_with_warmup
-  warmup_ratio: 0.1
-  per_device_train_batch_size: 8
-  per_device_eval_batch_size: 4
   gradient_accumulation_steps: 16
+  lr_scheduler_type: constant_with_warmup
+  per_device_train_batch_size: 8
   num_train_epochs: 3
-  max_grad_norm: 1.0
-  bf16: true
   gradient_checkpointing: true
-  label_smoothing_factor: 0.05
-  logging_steps: 10
-  logging_first_step: true
-  eval_strategy: epoch
-  save_strategy: 'no'
+  dataloader_num_workers: 4
   metric_for_best_model: eval_all_chrf
   greater_is_better: true
-  dataloader_num_workers: 4
-  eval_accumulation_steps: 1
-  report_to: wandb
-  ddp_find_unused_parameters: false
-hub:
-  enabled: true
-  organization: anrilombard
-  private: true
-  push_adapter: true
-  push_merged: false
+  label_smoothing_factor: 0.05
+  logging_first_step: true
+generation_decoding:
+  early_stopping: true
+  length_penalty: 0.7
+  num_beams: 5
+  strategy: beam

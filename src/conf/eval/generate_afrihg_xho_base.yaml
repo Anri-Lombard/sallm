@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - run@_here_
+  - _self_
+evaluation:
+  generation_tasks:
+    - dataset:
+        assistant_only_loss: true
+        hf_name: github:dadelani/AfriHG
+        max_seq_length: 2048
+        packing: false
+        splits:
+          test: test
+          train: train
+          val: validation
+        subset: xho
+        task: INSTRUCTION
+        template_choice: ALL
+        templates:
+          - id: afrihg_headline/v1
+            weight: 1
+      decoding:
+        no_repeat_ngram_size: 3
+        num_beams: 5
+        repetition_penalty: 1.2
+        strategy: beam
+      id: afrihg_xho
+      max_new_tokens: 128
+      max_samples_per_lang: null
+      split: test

@@ -1,6 +1,5 @@
 import inspect
 import logging
-import os
 from typing import Any, cast
 
 from datasets import Dataset, IterableDataset
@@ -26,10 +25,6 @@ from sallm.training.callbacks import (
 from sallm.training.trainer import CustomSFTTrainer
 
 logger = logging.getLogger(__name__)
-
-
-def _task_metrics_enabled() -> bool:
-    return os.getenv("SALLM_DISABLE_TASK_METRICS", "0") != "1"
 
 
 class _DatasetEpochCallback(TrainerCallback):
@@ -75,6 +70,9 @@ def build_trainer(
 
     early_stopping_patience = training_args_dict.pop("early_stopping_patience", None)
     early_stopping_threshold = training_args_dict.pop("early_stopping_threshold", None)
+    # False keeps validation to the loss, e.g. for General model selection.
+    task_metrics = bool(training_args_dict.pop("task_metrics", True))
+    general_selection = bool(training_args_dict.pop("general_selection", False))
     use_early_stopping = bool(
         isinstance(early_stopping_patience, int)
         and not isinstance(early_stopping_patience, bool)
@@ -197,7 +195,7 @@ def build_trainer(
             )
             callbacks.append(completions_callback)
 
-        if _task_metrics_enabled() and task_type == FinetuneTaskType.CLASSIFICATION:
+        if task_metrics and task_type == FinetuneTaskType.CLASSIFICATION:
             callbacks.append(
                 ClassificationMetricsCallback(
                     eval_dataset=eval_hf_dataset,
@@ -207,7 +205,7 @@ def build_trainer(
                     decoding=config.generation_decoding,
                 )
             )
-        if _task_metrics_enabled() and task_type in (
+        if task_metrics and task_type in (
             FinetuneTaskType.INSTRUCTION,
             FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
         ):
@@ -221,7 +219,7 @@ def build_trainer(
                     task_type=task_type,
                 )
             )
-        if _task_metrics_enabled() and task_type == FinetuneTaskType.POS_TAGGING:
+        if task_metrics and task_type == FinetuneTaskType.POS_TAGGING:
             callbacks.append(
                 PosMetricsCallback(
                     eval_dataset=eval_hf_dataset,
@@ -255,6 +253,7 @@ def build_trainer(
         eval_dataset=cast(Any, eval_dataset),
         callbacks=callbacks,
         processing_class=tokenizer,
+        general_selection=general_selection,
     )
 
     trainer.processing_class = tokenizer
