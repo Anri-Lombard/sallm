@@ -54,6 +54,7 @@ class FinetuneDatasetConfig:
     mix_name: str | None = None
     mix_weights: dict[str, float] = field(default_factory=dict)
     mix_temperature: float = 0.0
+    mix_cap: int | None = None
     mix_epoch_size: int | str | None = None
     mix_min_prob: float | None = None
     mix_max_prob: float | None = None

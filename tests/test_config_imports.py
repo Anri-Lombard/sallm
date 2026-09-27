@@ -315,7 +315,7 @@ def test_representative_instruction_finetune_configs_share_dataset_defaults() ->
             "max_seq_length": 2048,
             "templates": ["t2x_verbalisation/v1"],
         },
-        "finetune/llama_sa_general_all_v2": {
+        "finetune/llama_sa_multitask": {
             "architecture": "llama",
             "hf_name": "mix:sa_general",
             "subset": None,
@@ -338,6 +338,8 @@ def test_representative_instruction_finetune_configs_share_dataset_defaults() ->
         ]
         assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
         assert merged.dataset.packing is False
+        if expected["hf_name"] == "mix:sa_general":
+            assert merged.dataset.mix_cap == 3000
         assert merged.dataset.assistant_only_loss is True
         assert merged.dataset.subset == expected["subset"]
         assert merged.dataset.max_seq_length == expected["max_seq_length"]

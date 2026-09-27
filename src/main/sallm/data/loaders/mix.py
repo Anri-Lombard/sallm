@@ -234,6 +234,7 @@ def load_mix_dataset(
         train_components,
         seed=seed_value,
         temperature=ds_cfg.mix_temperature,
+        cap=ds_cfg.mix_cap,
         epoch_size=epoch_size_value,
         min_prob=ds_cfg.mix_min_prob,
         max_prob=ds_cfg.mix_max_prob,
