@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import torch
@@ -136,7 +137,11 @@ def score_labels(
     scores: dict[str, float] = {}
     context_len = len(context_ids)
     model_type = str(getattr(getattr(model, "config", None), "model_type", "")).lower()
-    score_batch_size = 1 if "mamba" in model_type else len(labels)
+    score_batch_size = len(labels)
+    if "mamba" in model_type:  # 1 vs 17: same labels on 1,215 POS tokens (27 Sep)
+        score_batch_size = int(
+            os.environ.get("SALLM_MAMBA_VALIDATION_LABEL_MICROBATCH", len(labels))
+        )
     with torch.no_grad():
         for start in range(0, len(labels), score_batch_size):
             stop = start + score_batch_size

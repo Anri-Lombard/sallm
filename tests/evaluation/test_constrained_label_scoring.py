@@ -1,36 +1,51 @@
 from types import SimpleNamespace
 
+import pytest
 import torch
 from sallm.evaluation.constrained_label_scoring import score_labels
 
 
-def test_mamba_multitoken_label_scoring_forwards_one_label_at_a_time() -> None:
-    class MambaModel:
-        config = SimpleNamespace(model_type="mamba2")
+class MambaModel:
+    config = SimpleNamespace(model_type="mamba2")
 
-        def __init__(self) -> None:
-            self.batch_sizes: list[int] = []
+    def __init__(self) -> None:
+        self.batch_sizes: list[int] = []
+        weights = torch.Generator().manual_seed(0)
+        self.table = torch.randn((40, 40), generator=weights)
 
-        def __call__(self, *, input_ids, attention_mask, use_cache):
-            del attention_mask, use_cache
-            self.batch_sizes.append(input_ids.shape[0])
-            logits = torch.zeros((input_ids.shape[0], input_ids.shape[1], 7))
-            for row, targets in enumerate(input_ids[:, 2:].tolist()):
-                for offset, target in enumerate(targets):
-                    logits[row, 1 + offset, target] = float(target)
-            return SimpleNamespace(logits=logits)
+    def __call__(self, *, input_ids, attention_mask, use_cache):
+        del attention_mask, use_cache
+        self.batch_sizes.append(input_ids.shape[0])
+        return SimpleNamespace(logits=self.table[input_ids])  # row-independent
 
-    model = MambaModel()
-    label, _, _ = score_labels(
+
+def _score(model: MambaModel) -> tuple[str, dict[str, float]]:
+    labels = [f"L{i}" for i in range(17)]
+    label, _, scores = score_labels(
         model=model,
         context_ids=[1, 2],
-        label_ids={"a": [3, 4], "b": [5, 6]},
-        labels=["a", "b"],
+        label_ids={label: [3 + i, 20 + i % 5] for i, label in enumerate(labels)},
+        labels=labels,
         score_mode="mean",
         pad_token_id=0,
         pad_to_multiple_of=None,
         device=torch.device("cpu"),
     )
+    return label, scores
 
-    assert label == "b"
-    assert model.batch_sizes == [1, 1]
+
+@pytest.mark.parametrize(
+    ("microbatch", "expected"), [("1", [1] * 17), ("4", [4] * 4 + [1]), (None, [17])]
+)
+def test_mamba_label_microbatch_matches_one_label_at_a_time(
+    monkeypatch: pytest.MonkeyPatch, microbatch: str | None, expected: list[int]
+) -> None:
+    monkeypatch.setenv("SALLM_MAMBA_VALIDATION_LABEL_MICROBATCH", "1")
+    reference = _score(MambaModel())
+    if microbatch is None:
+        monkeypatch.delenv("SALLM_MAMBA_VALIDATION_LABEL_MICROBATCH")
+    else:
+        monkeypatch.setenv("SALLM_MAMBA_VALIDATION_LABEL_MICROBATCH", microbatch)
+    model = MambaModel()
+    assert _score(model) == reference
+    assert model.batch_sizes == expected
