@@ -90,12 +90,5 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 
-[tool.yamllint]
-extends = "default"
-
-[tool.yamllint.rules]
-line-length = { max = 120, level = "warning" }
-indentation = { spaces = 2 }
-
 [tool.uv]
 exclude-dependencies = ["sqlitedict"]
