@@ -1,0 +1,73 @@
+{
+  "arch": "xlstm",
+  "seq_len": 2048,
+  "global_batch_seqs": 192,
+  "micro_batch": 8,
+  "budget_epochs": 1,
+  "seed": 20260926,
+  "optim": {
+    "peak_lr": 0.0004,
+    "betas": [
+      0.9,
+      0.95
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.1,
+    "grad_clip": 1.0
+  },
+  "eval_every_tokens": 100000000,
+  "weights_at_tokens": [
+    100000000,
+    250000000,
+    500000000,
+    1000000000,
+    2000000000,
+    3000000000
+  ],
+  "resume_every_steps": 500,
+  "eval_parquet": "${MP_VAL_PARQUET}",
+  "tokenizer": "${MP_TOKENIZER}",
+  "wandb_project": "sallm-matched-pretrain",
+  "schedule": {
+    "type": "cosine",
+    "warmup_frac": 0.04,
+    "min_lr_ratio": 0.1
+  },
+  "expected_params": 126901952,
+  "peak_lr_source": "HEX ~/masters/sallm/slurm-880318.out launch command --learning-rate 4e-4",
+  "model_config": {
+    "vocab_size": 65536,
+    "hidden_size": 736,
+    "embedding_dim": 736,
+    "num_hidden_layers": 12,
+    "num_blocks": 12,
+    "num_heads": 4,
+    "qk_dim_factor": 0.5,
+    "v_dim_factor": 1.0,
+    "ffn_proj_factor": 2.667,
+    "ffn_round_up_to_multiple_of": 64,
+    "chunk_size": 64,
+    "gate_soft_cap": 15.0,
+    "output_logit_soft_cap": 30.0,
+    "use_bias": false,
+    "weight_mode": "single",
+    "add_out_norm": true,
+    "norm_eps": 1e-06,
+    "eps": 1e-06,
+    "norm_reduction_force_float32": true,
+    "mode": "train",
+    "chunkwise_kernel": "chunkwise--native_autograd",
+    "sequence_kernel": "native_sequence__native",
+    "step_kernel": "native",
+    "autocast_kernel_dtype": "bfloat16",
+    "inference_state_dtype": "float32",
+    "max_inference_chunksize": 16384,
+    "return_last_states": true,
+    "tie_word_embeddings": true,
+    "use_cache": false,
+    "bos_token_id": 0,
+    "eos_token_id": 1,
+    "pad_token_id": 2
+  },
+  "eval_every_tokens_after_1b": 250000000
+}

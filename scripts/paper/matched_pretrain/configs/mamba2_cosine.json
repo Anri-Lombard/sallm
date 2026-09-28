@@ -1,0 +1,65 @@
+{
+  "arch": "mamba2",
+  "seq_len": 2048,
+  "global_batch_seqs": 192,
+  "micro_batch": 8,
+  "budget_epochs": 1,
+  "seed": 20260926,
+  "optim": {
+    "peak_lr": 0.0004,
+    "betas": [
+      0.9,
+      0.95
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.1,
+    "grad_clip": 1.0
+  },
+  "eval_every_tokens": 100000000,
+  "weights_at_tokens": [
+    100000000,
+    250000000,
+    500000000,
+    1000000000,
+    2000000000,
+    3000000000
+  ],
+  "resume_every_steps": 500,
+  "eval_parquet": "${MP_VAL_PARQUET}",
+  "tokenizer": "${MP_TOKENIZER}",
+  "wandb_project": "sallm-matched-pretrain",
+  "schedule": {
+    "type": "cosine",
+    "warmup_frac": 0.04,
+    "min_lr_ratio": 0.1
+  },
+  "expected_params": 126427168,
+  "peak_lr_source": "W&B anri-lombard/sallm-mamba/7c3t63pc (Slurm 407979) config learning_rate (src/conf/base/mamba_125m.yaml)",
+  "model_config": {
+    "vocab_size": 65536,
+    "hidden_size": 512,
+    "state_size": 64,
+    "num_hidden_layers": 27,
+    "expand": 4,
+    "head_dim": 64,
+    "n_groups": 4,
+    "conv_kernel": 4,
+    "chunk_size": 256,
+    "use_bias": false,
+    "use_conv_bias": true,
+    "hidden_act": "silu",
+    "norm_eps": 1e-05,
+    "residual_in_fp32": true,
+    "rmsnorm": true,
+    "dt_min": 0.001,
+    "dt_max": 0.1,
+    "dt_init_floor": 0.0001,
+    "tie_word_embeddings": true,
+    "use_cache": false,
+    "fuse_cross_entropy": false,
+    "bos_token_id": 0,
+    "eos_token_id": 1,
+    "pad_token_id": 2
+  },
+  "eval_every_tokens_after_1b": 250000000
+}

@@ -1,0 +1,61 @@
+{
+  "arch": "mzansilm",
+  "seq_len": 2048,
+  "global_batch_seqs": 192,
+  "micro_batch": 8,
+  "budget_epochs": 1,
+  "seed": 20260926,
+  "optim": {
+    "peak_lr": 0.0004,
+    "betas": [
+      0.9,
+      0.95
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.1,
+    "grad_clip": 1.0
+  },
+  "eval_every_tokens": 100000000,
+  "weights_at_tokens": [
+    100000000,
+    250000000,
+    500000000,
+    1000000000,
+    2000000000,
+    3000000000
+  ],
+  "resume_every_steps": 500,
+  "eval_parquet": "${MP_VAL_PARQUET}",
+  "tokenizer": "${MP_TOKENIZER}",
+  "wandb_project": "sallm-matched-pretrain",
+  "schedule": {
+    "type": "cosine",
+    "warmup_frac": 0.04,
+    "min_lr_ratio": 0.1
+  },
+  "expected_params": 125008384,
+  "attn_implementation": "sdpa",
+  "peak_lr_source": "W&B anri-lombard/sallm-llama/2mkkmx3d config learning_rate (src/conf/base/llama_125m.yaml)",
+  "model_config": {
+    "vocab_size": 65536,
+    "hidden_size": 512,
+    "intermediate_size": 1536,
+    "num_hidden_layers": 30,
+    "num_attention_heads": 9,
+    "num_key_value_heads": 3,
+    "head_dim": 56,
+    "hidden_act": "silu",
+    "max_position_embeddings": 2048,
+    "rms_norm_eps": 1e-05,
+    "rope_theta": 10000.0,
+    "attention_bias": false,
+    "mlp_bias": false,
+    "initializer_range": 0.02,
+    "tie_word_embeddings": true,
+    "use_cache": false,
+    "bos_token_id": 0,
+    "eos_token_id": 1,
+    "pad_token_id": 2
+  },
+  "eval_every_tokens_after_1b": 250000000
+}
