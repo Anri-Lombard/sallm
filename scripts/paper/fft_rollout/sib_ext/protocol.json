@@ -1,0 +1,21 @@
+{
+ "revision": "38977a667f6fc264d5c26ec57a01e16db040b358",
+ "source": "Davlan/sib200",
+ "languages": {
+  "ssw": {
+   "subset": "ssw_Latn",
+   "arrow_sha256": "692d308a53eb60ecde9f0c10a36339781d8e54f067af9c325f126e59ce4dc886",
+   "validation_arrow_sha256": "126ddeba7fe046b5a38fb188479ffa5369f7ae73f2d18226b60320dca7e2cb48"
+  },
+  "tsn": {
+   "subset": "tsn_Latn",
+   "arrow_sha256": "0f1cc4c9e6a8cd182d18ae504fd2850c20e1ae93cbb939a46ddb378ad0f4c432",
+   "validation_arrow_sha256": "090fe37d62523521445590178b5e637f01effd86ee4046cb61e3511127e9ca4a"
+  },
+  "tso": {
+   "subset": "tso_Latn",
+   "arrow_sha256": "ee8d810d318e46b8be6fd477ad365243a8dd96e2d0405bf187e5b2c8f4c26586",
+   "validation_arrow_sha256": "e43adb51cd50483a850eb13ba99883c3e521d0d0e9c9a59e490d0741032cf25e"
+  }
+ }
+}
