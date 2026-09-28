@@ -201,7 +201,7 @@ def expected_epochs(arch: str, family: str, planned: int) -> int:
 
 
 def epochs_for(rows: int, family: str = "") -> int:
-    return 10 if rows < 5000 or family == "general" else 4  # Multitask: 10 with early stopping (amended 28 Sep)
+    return 10 if rows < 5000 or family in ("general", "intent") else 4  # Multitask, Intent: 10 (amended 28 Sep)
 
 
 # ------------------------------------------------------------------------------------------------------ the DAG

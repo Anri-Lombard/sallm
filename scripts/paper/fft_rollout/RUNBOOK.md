@@ -362,3 +362,10 @@ seen, so its near-zero score measured label-set exposure rather than transfer (B
 AfriMGSM remain the unseen-task tests). Validation selection uses the seven-family mean. `train_fft.py` maps the older
 config names to the new one, and per-epoch validation imports rollout.py fresh in the training subprocess, so running
 lanes need no restart. GDN's 10-epoch run (started 14:32 on the six-task mix) was cancelled and restarted.
+
+Intent epochs, AMENDED 28 Sep 2026 ~16:00 SAST (user decision). Intent Multi (7,046 rows) fell under the 4-epoch rule
+while its Mono runs (<= 2,000 rows) got 10, and every finished 4-epoch Intent Multi run (xLSTM, GDN, all LRs) peaked at
+epoch 4 with validation still rising. Intent now trains up to 10 epochs with early stopping in every regime
+(`FULL_EPOCH_FAMILIES` in train_fft.py). xLSTM's and GDN's Intent units were archived (`archive_intent_e4/`) and re-run
+in full (sweep, selection with the edge rule, test, Mono at the newly selected LR); Transformer and Mamba-2 had not
+started Intent. AfriHG keeps 4 epochs: its selected runs peak at epochs 2-3, before the cap.

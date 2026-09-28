@@ -191,8 +191,9 @@ def _build_trainer_and_record(*args, **kwargs):
     if os.environ.get("FFT_EPOCHS") == "auto":
         # Protocol: 10 epochs if the training set has fewer than 5000 examples, else 4. Multitask (amended 28 Sep): always 10
         # with early stopping, since each task in the capped mixture is small and 4 epochs left NER still improving.
-        general = bool(CTRL) and CTRL["unit"].get("family") == "general"
-        trainer.args.num_train_epochs = 10 if general or len(trainer.train_dataset) < 5000 else 4
+        # Intent (amended 28 Sep): every 4-epoch Intent Multi run peaked at its last epoch, so it gets 10 like its Mono runs.
+        full = bool(CTRL) and CTRL["unit"].get("family") in FULL_EPOCH_FAMILIES
+        trainer.args.num_train_epochs = 10 if full or len(trainer.train_dataset) < 5000 else 4
         info["num_train_epochs"] = trainer.args.num_train_epochs
     info_path.write_text(json.dumps(info, indent=1) + "\n")
     if os.environ.get("FFT_COUNT_ONLY") == "1":
@@ -208,6 +209,7 @@ def _build_trainer_and_record(*args, **kwargs):
 # once `patience` epochs pass without a strictly better score. Divergence: a non-finite logged loss, or a loss above
 # 3x the first-epoch mean for 200 consecutive steps, writes RUN/DIVERGED.json and aborts the unit (never retried).
 CTRL = json.loads(os.environ["FFT_CTRL"]) if os.environ.get("FFT_CTRL") else None
+FULL_EPOCH_FAMILIES = ("general", "intent")  # 10 epochs regardless of train-set size (amendments 28 Sep 2026)
 WEIGHT_FILES = ("config.json", "generation_config.json", "model.safetensors", "pytorch_model.bin",
                 "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json", "chat_template.jinja")
 
