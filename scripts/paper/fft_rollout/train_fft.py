@@ -186,8 +186,10 @@ def _build_trainer_and_record(*args, **kwargs):
     except Exception as exc:  # never let bookkeeping break a training run
         info["token_accounting_error"] = repr(exc)
     if os.environ.get("FFT_EPOCHS") == "auto":
-        # Protocol: 10 epochs if the training set has fewer than 5000 examples, else 4.
-        trainer.args.num_train_epochs = 10 if len(trainer.train_dataset) < 5000 else 4
+        # Protocol: 10 epochs if the training set has fewer than 5000 examples, else 4. Multitask (amended 28 Sep): always 10
+        # with early stopping, since each task in the capped mixture is small and 4 epochs left NER still improving.
+        general = bool(CTRL) and CTRL["unit"].get("family") == "general"
+        trainer.args.num_train_epochs = 10 if general or len(trainer.train_dataset) < 5000 else 4
         info["num_train_epochs"] = trainer.args.num_train_epochs
     info_path.write_text(json.dumps(info, indent=1) + "\n")
     if os.environ.get("FFT_COUNT_ONLY") == "1":

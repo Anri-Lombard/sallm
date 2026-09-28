@@ -345,3 +345,12 @@ samples (0.28 passes of its data per epoch) and repeated SIB/News ~2.8x per epoc
 `finetune/llama_sa_general_examplesprop_k3000` (weights = min(train examples, 3000): news/sib/ner/afrihg/t2x 3000,
 pos 2259 -> p = 0.174 each, pos 0.131). Epoch size unchanged (43,637 draws), LR transfer and six-family-mean selection
 unchanged. Lanes started before the change pass the old config name; train_fft.py maps it to the new one.
+
+Multitask epochs, AMENDED 28 Sep 2026 ~15:00 SAST (user decision). The General/Multitask model trained 4 epochs (its
+mixed train set is > 5000 rows) while every single-task model trains up to 10, and xLSTM's run was still improving on
+NER at epoch 4 (best epoch = last epoch). Each task in the capped mixture sees fewer examples than its Multi model
+(AfriHG ~31%, NER ~70%, POS ~100%), so the regime comparison confounded mixing with training budget. New rule: the
+Multitask model trains up to 10 epochs with the same early stopping (patience 3) as every other run; nothing else
+changes (mixture, LR transfer, seed, scoring). `train_fft.py` sets it per unit, so running lanes pick it up at their
+next unit. At the amendment xLSTM's 4-epoch model was finished (kept as `*-e4cap` for an appendix budget comparison)
+and GDN's was in its first epoch (cancelled and restarted); Transformer and Mamba-2 had not started theirs.

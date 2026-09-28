@@ -199,8 +199,8 @@ def expected_epochs(arch: str, family: str, planned: int) -> int:
     return min(planned, max(PATIENCE + 1, PILOT_BEST_EPOCH.get((arch, family), 4) + PATIENCE))
 
 
-def epochs_for(rows: int) -> int:
-    return 10 if rows < 5000 else 4
+def epochs_for(rows: int, family: str = "") -> int:
+    return 10 if rows < 5000 or family == "general" else 4  # Multitask: 10 with early stopping (amended 28 Sep)
 
 
 # ------------------------------------------------------------------------------------------------------ the DAG
@@ -326,7 +326,7 @@ def estimate(arch: str, u: dict, smoke: bool) -> float:
                 "pos": POS_TEST_MIN[arch] / 60}[u["group"]]
     if u["kind"] == "train":
         rows = rows_for(u)
-        ep = expected_epochs(arch, u["family"], epochs_for(rows))
+        ep = expected_epochs(arch, u["family"], epochs_for(rows, u["family"]))
         h = train_hours(arch, u["family"], rows, ep) + ep * family_minutes(arch, u, "val") / 60 + 0.1
         return h + (family_minutes(arch, u, "test") / 60 if u["test"] else 0)
     if u["kind"] == "select":  # expected cost: one extension about half the time, a second about a quarter
@@ -351,7 +351,7 @@ def cmd_matrix(args) -> None:
     for arch in archs:
         for u in plan(arch, args.smoke, cross_eval=True):
             lr = u.get("lr") or ("selected" if u["kind"] == "train" else "")
-            ep = epochs_for(rows_for(u)) if u["kind"] == "train" else ""
+            ep = epochs_for(rows_for(u), u["family"]) if u["kind"] == "train" else ""
             rows.append({"arch": arch, "unit": u["id"], "kind": u["kind"], "stage": stage_of(u), "family": u.get("family", u.get("group", "")),
                          "regime": u.get("regime", "Base" if u["kind"] == "base" else ""), "languages": "+".join(u.get("langs", [])) or "+".join(f"{f}:{l}" for f, ls in u.get("gen", {}).items() for l in ls),
                          "lr": lr, "seed": u.get("seed", ""), "epochs": ep, "train_rows_approx": rows_for(u) if u["kind"] == "train" else "",
@@ -957,7 +957,7 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
     shm = Path(f"/dev/shm/fft_{jid}_{rid}")
     shutil.rmtree(shm, ignore_errors=True)
     free_gb = shutil.disk_usage("/dev/shm").free / 2**30
-    need = 0.6 * (10 if u["family"] != "general" else 4) + 2
+    need = 0.6 * 10 + 2
     if free_gb < need:
         raise RuntimeError(f"/dev/shm has {free_gb:.0f} GB free, need {need:.0f}")
     shm.mkdir(parents=True)

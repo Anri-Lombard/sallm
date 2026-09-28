@@ -26,5 +26,6 @@ assert R.expected_epochs("gdn", "sib", 10) == 7 and R.expected_epochs("xlstm", "
 f = R.sanity_flags("sib", {"afr": 10.0}, {"afr": {"gold": ["a"] * 6 + ["b"] * 4, "pred": ["a"] * 9 + ["b"]}})["afr"]["flags"]
 assert len(f) == 2
 assert len(R.sanity_flags("t2x", {"xho": 30}, {"xho": {"pred": ["a b c d " * 4] * 4 + ["", "ok"]}})["xho"]["flags"]) == 1
-assert len(R.sanity_flags("ner", {"xho": 0.0}, {"xho": {"pred": ["", "", "x", "y"]}})["xho"]["flags"]) == 2
+assert len(R.sanity_flags("ner", {"xho": 0.0}, {"xho": {"pred": ["", "", "x", "y"], "gold": ["PER: a", "LOC: b", "x", ""]}})["xho"]["flags"]) == 2
 print("selfcheck ok")
+assert R.epochs_for(43637, "general") == 10 and R.epochs_for(43637) == 4 and R.epochs_for(4999) == 10  # Multitask amendment 28 Sep
