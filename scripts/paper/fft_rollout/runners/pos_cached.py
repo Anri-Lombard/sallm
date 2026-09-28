@@ -103,6 +103,6 @@ def enabled(model: Any, n_labels: int) -> bool:
     """Mamba-2 only gains with large tag sets (Kombuys: 0.5x on 17 UPOS tags, 3.9x on NCHLT's)."""
     import os
 
-    if os.environ.get("FFT_POS_CACHED", "1") == "0" or not hasattr(model, "config"):
+    if os.environ.get("FFT_POS_CACHED", "0") == "0" or not hasattr(model, "config"):
         return False
     return "mamba" not in type(model).__name__.lower() or n_labels > 20

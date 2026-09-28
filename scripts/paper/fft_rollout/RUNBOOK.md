@@ -384,3 +384,4 @@ Prefix-cached POS scoring (runners/pos_cached.py) is wired into seq_eval.decode_
 off until its integration test passes); when on, the first FFT_POS_CACHED_CHECK (200) words of every scorer process are
 also scored the reference way and must agree.
 Cached POS scoring ON from 28 Sep ~23:10 SAST (integration test on Kombuys CPU: 9/9 words agree with the reference, all checked). Mamba-2 keeps the reference scorer on the 17 UPOS tags.
+Cached POS scoring OFF again from 28 Sep ~23:25 SAST: the 200-word check stopped the Transformer Multitask validation (disagreement at word 4 on HEX, bf16). Every POS score uses the reference scorer; scores produced with the cached path between ~22:10 and ~23:25 are re-scored.
