@@ -1,0 +1,29 @@
+include: _nchlt_ner_val_common.yaml
+task: sallm_nchlt_ner_tso_prompt_2_val
+dataset_name: tso
+doc_to_text: 'You are working as a named entity recognition expert and your task is
+  to label
+
+  a given text with named entity labels. Your task is to identify and label any
+
+  named entities present in the text. The named entity labels that you will be
+
+  using are PER (person), LOC (location), ORG (organization) and MISC (miscellaneous).
+
+  Label multi-word entities as a single named entity. For words which are not
+
+  part of any named entity, do not return any value for it.
+
+
+  Ensure the output strictly follows the format: label: entity $$ label: entity,
+
+  with each unique entity on a separate label line, avoiding grouped entities
+
+  (e.g., avoid LOC: entity, entity) or irrelevant entries like none. Return only
+
+  the output.
+
+
+  Text: {{text}}
+
+  '
