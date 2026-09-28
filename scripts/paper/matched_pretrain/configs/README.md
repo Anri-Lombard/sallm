@@ -52,3 +52,15 @@
 4. **Edge of the grid.** If 3e-3 wins, run 6e-3 for that architecture and apply the same rule.
 
 This is a short-horizon probe. The best LR at 300M tokens can differ from the best at the full budget; that caveat is reported with the result.
+
+
+## Addendum: fifth architecture, GDN + attention hybrid (written 2026-09-28, before any hybrid result exists)
+
+- `hybrid_wsd.json`: the matched GDN (`gdn_wsd.json`) with softmax attention (FLA `Attention`, flash-attn 2.8.3, 8 heads x 64,
+  RoPE theta 1e4) at layers 3, 7, 11, 15 and 19, the Qwen3-Next 3:1 GDN:attention layout; 22 layers (17 GDN + 5 attention)
+  so the size matches GDN: 126,589,832 parameters vs 127,425,448 (-0.66%).
+- Everything else is identical to the other four (data, order, batch, schedule, precision, loss, seed; fast stack).
+- Runs in a separate venv (`MP_PY=/scratch/lmbanr001/venvs/sallm-hybrid/bin`): the matched venv's exact package versions plus
+  flash-attn 2.8.3 (official wheel), without mamba-ssm/causal-conv1d, which only Mamba-2 uses.
+- LR probe: the same pre-registered rule and grid ({4e-4, 1e-3, 3e-3}, plus 6e-3 if 3e-3 wins; lowest held-out bpb at 300M
+  tokens, ties within 1% to the lower LR).

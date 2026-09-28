@@ -40,7 +40,7 @@ def build_model(cfg: dict):
     elif arch == "mamba2":
         from fla.models import Mamba2Config, Mamba2ForCausalLM
         model = Mamba2ForCausalLM(Mamba2Config(**mc))
-    elif arch == "gdn":
+    elif arch in ("gdn", "hybrid"):  # hybrid: FLA GDN with softmax attention (flash-attn) at model_config.attn.layers
         from fla.models import GatedDeltaNetConfig, GatedDeltaNetForCausalLM
         model = GatedDeltaNetForCausalLM(GatedDeltaNetConfig(**mc))
     elif arch == "xlstm":
@@ -82,10 +82,13 @@ def flops_per_token(model, cfg) -> dict:
         Q, N, P = c["chunk_size"], c["state_size"], c["head_dim"]
         H, G = c["expand"] * c["hidden_size"] // P, c["n_groups"]
         mix = c["num_hidden_layers"] * (G * Q * N + H * Q * P + 4 * H * N * P)
-    elif arch == "gdn":  # chunked delta rule (Yang et al. 2024/25): 3*C*dk (KK^T,QK^T,W) + 2*C*dv (U, attn*v) + 6*dk*dv (WS, QS, K^T v)
+    elif arch in ("gdn", "hybrid"):  # chunked delta rule (Yang et al. 2024/25): 3*C*dk (KK^T,QK^T,W) + 2*C*dv (U, attn*v) + 6*dk*dv (WS, QS, K^T v)
         C, H, dk = 64, c["num_heads"], c["head_dim"]
         dv = dk * c["expand_v"]
-        mix = c["num_hidden_layers"] * H * (3 * C * dk + 2 * C * dv + 6 * dk * dv)
+        n_attn = len(c["attn"]["layers"]) if c.get("attn") else 0
+        mix = (c["num_hidden_layers"] - n_attn) * H * (3 * C * dk + 2 * C * dv + 6 * dk * dv)
+        if n_attn:  # hybrid softmax-attention layers: as the Transformer, 2*n_layer*n_ctx*d_attn (causal-halved)
+            mix += 2 * n_attn * T * c["hidden_size"]
     elif arch == "xlstm":  # mLSTM chunkwise: C*dqk (QK^T) + C*dv (mix) + 4*dqk*dv (state update + readout)
         C, H, d = c["chunk_size"], c["num_heads"], c["hidden_size"]
         dqk, dv = int(d * c["qk_dim_factor"]) // H, int(d * c["v_dim_factor"]) // H
@@ -502,8 +505,8 @@ def kernel_report(model, arch) -> dict:
         r["block_chunkwise_kernel"] = getattr(getattr(blk, "config", None), "chunkwise_kernel", None)
     if arch == "mzansilm":
         r["attn_implementation"] = model.config._attn_implementation
-    if arch == "gdn":
-        r.update({k: getattr(model.config, k) for k in ("fuse_norm", "fuse_swiglu", "fuse_cross_entropy", "attn_mode")})
+    if arch in ("gdn", "hybrid"):
+        r.update({k: getattr(model.config, k) for k in ("fuse_norm", "fuse_swiglu", "fuse_cross_entropy", "attn_mode", "attn")})
     return r
 
 
