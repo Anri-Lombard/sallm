@@ -913,10 +913,15 @@ def gpu_name() -> str:
 def score_parallel(r: Run, split: str, model: Path, out: Path, fams: dict[str, list[str]], workers: int = 3) -> dict:
     """Score several families on the same GPU at once (28 Sep 2026: scorers leave the L40S mostly idle; each family is its
     own subprocess, so results are identical to scoring them one after another). Longest families start first."""
-    order = sorted(fams, key=lambda f: -score_minutes(r.arch, f, split))
+    # Generation (T2X, AfriHG) sizes its batches from free GPU memory, so it runs alone after the others (29 Sep: a
+    # concurrent AfriHG scorer took 38.7 GB and a T2X scorer ran out of memory).
+    gen = [f for f in fams if f in ("t2x", "afrihg")]
+    order = sorted((f for f in fams if f not in gen), key=lambda f: -score_minutes(r.arch, f, split))
     with ThreadPoolExecutor(workers) as ex:
         futs = {f: ex.submit(score, r, f, split, model, fams[f], out / f) for f in order}
-        return {f: futs[f].result() for f in fams}
+        res = {f: futs[f].result() for f in order}
+    res.update({f: score(r, f, split, model, fams[f], out / f) for f in gen})
+    return {f: res[f] for f in fams}
 
 
 def val_score(r: Run, u: dict, model: Path, out: Path) -> dict:

@@ -64,6 +64,33 @@ import sallm.evaluation.run as eval_run  # noqa: E402
 _load_model_and_tokenizer = eval_run.load_model_and_tokenizer
 
 
+def _wait_until_alone() -> object:
+    """Generation sizes its batches from free GPU memory, so it must not share the lane's GPU with another scorer
+    (29 Sep 2026: a concurrent AfriHG scorer took 38.7 GB and T2X ran out of memory). Take a per-lane lock, then wait
+    until the only other process on this GPU is the paused training process."""
+    import fcntl
+    import subprocess
+    import time
+
+    lock = open(f"/dev/shm/fft_gen_lock_{os.environ.get('SLURM_JOB_ID', 'local')}", "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    for _ in range(720):  # at most 3 h
+        pids = subprocess.run(["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"],
+                              capture_output=True, text=True).stdout.split()
+        others = []
+        for pid in pids:
+            try:
+                cmd = Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace")
+            except OSError:
+                continue
+            if int(pid) != os.getpid() and "train_fft" not in cmd:
+                others.append(pid)
+        if not others:
+            break
+        time.sleep(15)
+    return lock
+
+
 def _load_maybe_without_cache(model_cfg):
     model, tokenizer = _load_model_and_tokenizer(model_cfg)
     if os.environ.get("FFT_GEN_NO_CACHE") == "1":
@@ -87,6 +114,7 @@ def main() -> None:
     parser.add_argument("--decoding", choices=("config", "greedy"), default="config")
     parser.add_argument("--no-cache", action="store_true", help="decode without the generation cache (beam search on models whose cache cannot be reordered)")
     args = parser.parse_args()
+    _gen_lock = _wait_until_alone()  # noqa: F841 - held until the process exits
     if args.output.exists():
         raise FileExistsError(args.output)
     unit = json.loads(args.spec.read_text())[args.index]
