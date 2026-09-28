@@ -23,6 +23,9 @@ KIT = Path("/scratch/lmbanr001/masters/sallm/results/monomulti_reselect_20260925
 PROTOCOL = KIT / "sib_protocol_hex.json"
 PROMPTS = {"afr": 4, "eng": 3, "nso": 4, "sot": 3, "xho": 5, "zul": 5}
 ROWS = {"test": 204, "validation": 99}
+# Languages outside the sealed protocol (ssw, tsn, tso): prompts copied from zul's with only dataset_name changed,
+# data hashes recorded by sib_ext.py fetch; the prompt is chosen per (arch, language) on validation by sib_ext.py.
+EXT = Path(__file__).resolve().parent.parent / "sib_ext"
 
 
 def load_module(path: Path, name: str):
@@ -51,6 +54,7 @@ def main() -> None:
     ap.add_argument("--split", required=True, choices=("validation", "test"))
     ap.add_argument("--langs", default=",".join(PROMPTS))
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--prompt", type=int, help="prompt for languages outside the sealed protocol")
     args = ap.parse_args()
     if args.out.exists():
         raise SystemExit(f"{args.out} exists")
@@ -71,11 +75,17 @@ def main() -> None:
     rows, per_lang, data_files = [], {}, {}
     with torch.inference_mode():
         for lang in args.langs.split(","):
-            entry = test["languages"][lang]
-            if entry["prompt"] != PROMPTS[lang]:
-                raise SystemExit(f"protocol prompt for {lang} differs")
-            prompt_yaml = KIT / "src/conf/eval/lm_eval_tasks/sib_validation" / f"sallm_sib_{lang}_val_prompt_{PROMPTS[lang]}.yaml"
-            assert sha(prompt_yaml) == entry["prompt_yaml_sha256"], prompt_yaml
+            if lang in PROMPTS:
+                entry, prompt = test["languages"][lang], PROMPTS[lang]
+                if entry["prompt"] != prompt:
+                    raise SystemExit(f"protocol prompt for {lang} differs")
+                prompt_yaml = KIT / "src/conf/eval/lm_eval_tasks/sib_validation" / f"sallm_sib_{lang}_val_prompt_{prompt}.yaml"
+                assert sha(prompt_yaml) == entry["prompt_yaml_sha256"], prompt_yaml
+            else:
+                entry, prompt = json.loads((EXT / "protocol.json").read_text())["languages"][lang], args.prompt
+                if prompt not in range(1, 6):
+                    raise SystemExit(f"{lang} is outside the sealed protocol: pass --prompt 1-5")
+                prompt_yaml = EXT / f"sallm_sib_{lang}_val_prompt_{prompt}.yaml"
             template = yaml.safe_load(prompt_yaml.read_text())["doc_to_text"]
             arrow = Path(os.environ["HF_DATASETS_CACHE"]) / "Davlan___sib200" / entry["subset"] / "0.0.0" / test["revision"] / f"sib200-{args.split}.arrow"
             if args.split == "test":
@@ -91,14 +101,14 @@ def main() -> None:
                 scores, first_ids, hand = scorer.score_prompt(model=model, tokenizer=tokenizer, prompt=template.replace("{{text}}", str(item["text"])),
                                                               pad_token_id=int(pad), pad_to_multiple_of=mult, device=model.device, core=core)
                 guess, margin, tie = scorer.prediction(scores)
-                row = {"language": lang, "prompt": PROMPTS[lang], "doc_id": int(item["index_id"]), "gold": str(item["category"]),
+                row = {"language": lang, "prompt": prompt, "doc_id": int(item["index_id"]), "gold": str(item["category"]),
                        "prediction": guess, "scores": scores, "tie": tie, "context_tokens": hand["training_label_prefix_tokens"]}
                 rows.append(row)
                 lang_rows.append(row)
             per_lang[lang] = scorer.summarize(lang_rows)["metrics"]
             per_lang[lang]["n_items"] = len(lang_rows)
     payload = {"schema": "reselect.sib_eval/v1", "split": args.split, "arch": args.arch, "base": str(args.base), "adapter": str(args.adapter),
-               "adapter_tree_sha256": tree_sha256(args.adapter) if args.adapter else None, "model_tree_sha256": tree_sha256(args.adapter or args.base), "limit": args.limit, "protocol": str(PROTOCOL), "prompts": {k: PROMPTS[k] for k in per_lang},
+               "adapter_tree_sha256": tree_sha256(args.adapter) if args.adapter else None, "model_tree_sha256": tree_sha256(args.adapter or args.base), "limit": args.limit, "protocol": str(PROTOCOL), "prompts": {k: PROMPTS.get(k, args.prompt) for k in per_lang},
                "data_files": data_files, "chat_template_sha256": hashlib.sha256(str(tokenizer.chat_template).encode()).hexdigest(),
                "languages": per_lang, "ties": sum(r["tie"] for r in rows), "runtime_seconds": time.monotonic() - started, "rows": rows}
     args.out.parent.mkdir(parents=True, exist_ok=True)
