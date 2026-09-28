@@ -383,3 +383,4 @@ sequential scoring. Measured before: Multitask validation 40-48 min per epoch wi
 Prefix-cached POS scoring (runners/pos_cached.py) is wired into seq_eval.decode_pos_row behind FFT_POS_CACHED (default
 off until its integration test passes); when on, the first FFT_POS_CACHED_CHECK (200) words of every scorer process are
 also scored the reference way and must agree.
+Cached POS scoring ON from 28 Sep ~23:10 SAST (integration test on Kombuys CPU: 9/9 words agree with the reference, all checked). Mamba-2 keeps the reference scorer on the 17 UPOS tags.
