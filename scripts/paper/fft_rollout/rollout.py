@@ -117,7 +117,7 @@ FAMILIES = {
     "afrihg": dict(sweep="multi", langs=("xho", "zul"), mono="llama_afrihg_{}", multi="llama_afrihg_all",
                    rows={"xho": 12300, "zul": 12349}),
     "t2x": dict(sweep="mono", langs=("xho",), mono="llama_t2x_{}", multi=None, rows={"xho": 3859}),
-    "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_general_examplesprop_k3000", rows={"all": 43637}),
+    "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_multitask7_k3000", rows={"all": 50683}),
     # NCHLT (added 28 Sep 2026) for the four languages no other task covers. Not part of the General mixture.
     # NER train is a seeded 2,000-sentence subset per language (anrilombard/nchlt-ner-sa4 `train`); POS is the full train.
     "nchlt_ner": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso"), mono="llama_nchlt_ner_{}", multi="llama_nchlt_ner_all",
@@ -129,7 +129,8 @@ FAMILIES = {
 # whose examples reach 2048 tokens (News, AfriHG, the General mix) or 1311 (POS) run out of L40S memory at 16 x 1
 # (smoke: General OOM on the 16 x 2048 x 65539 fp32 logits; POS 28 GB after 4 steps).
 MICRO = {"news": 4, "afrihg": 4, "general": 4, "pos": 8, "nchlt_pos": 8}
-GENERAL_TRAIN_FAMILIES = ("news", "sib", "ner", "pos", "t2x", "afrihg")  # the six-family General mixture
+# the Multitask mixture: six families, plus Intent from 28 Sep 2026 (sa_multitask7)
+GENERAL_TRAIN_FAMILIES = ("news", "sib", "ner", "pos", "t2x", "afrihg", "intent")
 LANG_FAMILY = {**dict.fromkeys(("zul", "xho", "ssw", "nbl"), "Nguni"), **dict.fromkeys(("sot", "tsn", "nso"), "Sotho-Tswana"),
                "afr": "afr", "eng": "eng", "ven": "ven", "tso": "tso"}
 PAPER_TASK = {"news": "News", "sib": "SIB-200", "intent": "Intent", "ner": "NER", "pos": "POS", "t2x": "T2X",
@@ -304,7 +305,7 @@ def general_val_minutes(arch: str) -> float:
 
 
 def general_test_minutes(arch: str) -> float:
-    return sum(score_minutes(arch, f, "test") for f in GENERAL_TRAIN_FAMILIES + ("intent", "belebele", "transfer"))
+    return sum(score_minutes(arch, f, "test") for f in GENERAL_TRAIN_FAMILIES + ("belebele", "transfer"))
 
 
 def family_minutes(arch: str, u: dict, split: str) -> float:
@@ -909,7 +910,7 @@ def gpu_name() -> str:
 
 
 def val_score(r: Run, u: dict, model: Path, out: Path) -> dict:
-    """Validation score used for selection: mean over the unit's languages; General = mean of the six family means."""
+    """Validation score used for selection: mean over the unit's languages; General = mean of the Multitask family means."""
     if u["family"] == "general":
         fams = {f: score(r, f, "val", model, list(FAMILIES[f]["langs"]), out / f) for f in GENERAL_TRAIN_FAMILIES}
         return {"score": sum(v["mean"] for v in fams.values()) / len(fams), "families": {f: v["per_lang"] for f, v in fams.items()}}
@@ -919,7 +920,7 @@ def val_score(r: Run, u: dict, model: Path, out: Path) -> dict:
 
 def test_scores(r: Run, u: dict, model: Path, out: Path) -> dict:
     if u["family"] == "general":
-        fams = {f: score(r, f, "test", model, list(FAMILIES[f]["langs"]), out / f) for f in GENERAL_TRAIN_FAMILIES + ("intent",)}
+        fams = {f: score(r, f, "test", model, list(FAMILIES[f]["langs"]), out / f) for f in GENERAL_TRAIN_FAMILIES}
         fams["belebele"] = score(r, "belebele", "test", model, ["afr", "eng", "sot", "ssw", "tsn", "tso", "xho", "zul"], out / "belebele")
         fams["transfer"] = score(r, "transfer", "test", model, [], out / "transfer")
         return {f: v["per_lang"] for f, v in fams.items()}

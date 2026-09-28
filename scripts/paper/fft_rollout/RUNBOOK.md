@@ -354,3 +354,11 @@ Multitask model trains up to 10 epochs with the same early stopping (patience 3)
 changes (mixture, LR transfer, seed, scoring). `train_fft.py` sets it per unit, so running lanes pick it up at their
 next unit. At the amendment xLSTM's 4-epoch model was finished (kept as `*-e4cap` for an appendix budget comparison)
 and GDN's was in its first epoch (cancelled and restarted); Transformer and Mamba-2 had not started theirs.
+
+Multitask mixture, AMENDED 28 Sep 2026 ~15:30 SAST (user decision). InjongoIntent joins the mixture (cap 3000, like the
+others): mix `sa_multitask7`, config `llama_sa_multitask7_k3000`, 50,683 rows per epoch. The six-task mix was inherited
+from the MzansiLM General regime, which predates Intent in this benchmark; left out, Intent's 40 labels were never
+seen, so its near-zero score measured label-set exposure rather than transfer (Belebele, AfriXNLI, AfriMMLU and
+AfriMGSM remain the unseen-task tests). Validation selection uses the seven-family mean. `train_fft.py` maps the older
+config names to the new one, and per-epoch validation imports rollout.py fresh in the training subprocess, so running
+lanes need no restart. GDN's 10-epoch run (started 14:32 on the six-task mix) was cancelled and restarted.
