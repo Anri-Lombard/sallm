@@ -118,22 +118,36 @@ FAMILIES = {
                    rows={"xho": 12300, "zul": 12349}),
     "t2x": dict(sweep="mono", langs=("xho",), mono="llama_t2x_{}", multi=None, rows={"xho": 3859}),
     "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_general_examplesprop_k3000", rows={"all": 43637}),
+    # NCHLT (added 28 Sep 2026) for the four languages no other task covers. Not part of the General mixture.
+    # NER train is a seeded 2,000-sentence subset per language (anrilombard/nchlt-ner-sa4 `train`); POS is the full train.
+    "nchlt_ner": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso"), mono="llama_nchlt_ner_{}", multi="llama_nchlt_ner_all",
+                      rows=dict.fromkeys(("nbl", "ssw", "ven", "tso"), 2000)),
+    "nchlt_pos": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso"), mono="llama_nchlt_pos_{}", multi="llama_nchlt_pos_all",
+                      rows={"nbl": 2329, "ssw": 2307, "ven": 2344, "tso": 2245}),
 }
 # Per-device micro-batch (x gradient accumulation = effective batch 16), same for all four architectures. Families
 # whose examples reach 2048 tokens (News, AfriHG, the General mix) or 1311 (POS) run out of L40S memory at 16 x 1
 # (smoke: General OOM on the 16 x 2048 x 65539 fp32 logits; POS 28 GB after 4 steps).
-MICRO = {"news": 4, "afrihg": 4, "general": 4, "pos": 8}
+MICRO = {"news": 4, "afrihg": 4, "general": 4, "pos": 8, "nchlt_pos": 8}
 GENERAL_TRAIN_FAMILIES = ("news", "sib", "ner", "pos", "t2x", "afrihg")  # the six-family General mixture
 LANG_FAMILY = {**dict.fromkeys(("zul", "xho", "ssw", "nbl"), "Nguni"), **dict.fromkeys(("sot", "tsn", "nso"), "Sotho-Tswana"),
                "afr": "afr", "eng": "eng", "ven": "ven", "tso": "tso"}
 PAPER_TASK = {"news": "News", "sib": "SIB-200", "intent": "Intent", "ner": "NER", "pos": "POS", "t2x": "T2X",
-              "afrihg": "AfriHG", "belebele": "Belebele", "afrixnli": "AfriXNLI", "afrimmlu": "AfriMMLU", "afrimgsm": "AfriMGSM"}
+              "afrihg": "AfriHG", "belebele": "Belebele", "afrixnli": "AfriXNLI", "afrimmlu": "AfriMMLU", "afrimgsm": "AfriMGSM",
+              "nchlt_ner": "NCHLT NER", "nchlt_pos": "NCHLT POS"}
 METRIC = {"news": "support_weighted_f1", "sib": "support_weighted_f1", "intent": "support_weighted_f1",
           "ner": "entity_span_f1", "pos": "token_accuracy", "t2x": "chrf", "afrihg": "chrf", "belebele": "acc_norm",
-          "afrixnli": "accuracy", "afrimmlu": "accuracy", "afrimgsm": "flexible_exact_match"}
+          "afrixnli": "accuracy", "afrimmlu": "accuracy", "afrimgsm": "flexible_exact_match",
+          "nchlt_ner": "entity_span_f1", "nchlt_pos": "token_accuracy"}
+
+
+def seq_kind(family: str) -> str:
+    """'ner' / 'pos' for the MasakhaNER-X / MasakhaPOS families and their NCHLT counterparts, else the family."""
+    return {"nchlt_ner": "ner", "nchlt_pos": "pos"}.get(family, family)
 
 # Smoke test: one tiny cell per task type on a stand-in base, <= 2 lanes, few steps, ~20 scored items.
-SMOKE = dict(families={"sib": ("afr",), "ner": ("tsn",), "pos": ("tsn",), "t2x": ("xho",), "general": ()},
+SMOKE = dict(families={"sib": ("afr",), "ner": ("tsn",), "pos": ("tsn",), "t2x": ("xho",), "general": (),
+                       "nchlt_ner": ("ven",), "nchlt_pos": ("tso",)},
              lrs={"t2x": LRS}, default_lrs=("1e-4",), seeds=(43,), max_steps=4, val_limit=20, test_limit=20)
 
 # ---------------------------------------------------------------------------------------------------- estimates
@@ -142,7 +156,8 @@ SMOKE = dict(families={"sib": ("afr",), "ner": ("tsn",), "pos": ("tsn",), "t2x":
 STEP_S = {"mzansilm": 0.645, "mamba2": 0.361, "xlstm": 0.755, "gdn": 0.975}
 STEP_GROWTH = {"mzansilm": 0.07, "mamba2": 0.34, "xlstm": 0.13, "gdn": 0.5}
 # tokens per training row: measured by the smoke count (news 739, sib 130, intent 237, pos 532, afrihg 554, t2x 102)
-TOK_PER_ROW = {"news": 739, "sib": 130, "intent": 237, "ner": 177, "pos": 532, "afrihg": 554, "t2x": 102, "general": 450}
+TOK_PER_ROW = {"news": 739, "sib": 130, "intent": 237, "ner": 177, "pos": 532, "afrihg": 554, "t2x": 102, "general": 450,
+               "nchlt_ner": 220, "nchlt_pos": 480}  # NCHLT: estimates, not measured
 GEN_S_PER_ROW = {"mzansilm": 0.076, "mamba2": 0.35, "xlstm": 0.28, "gdn": 0.26}  # pilot T2X val (460 rows)
 # Scoring minutes per split for all of a family's languages on one L40S (reselect/rescore logs, pilot; POS/NER from
 # the General runs: POS test 45/124/108/97 min, NER test 11/15/11/13 min for mzansilm/mamba2/xlstm/gdn).
@@ -160,7 +175,10 @@ def score_minutes(arch: str, family: str, split: str, n_langs_frac: float = 1.0)
     base = {"news": 4 if split == "val" else 5, "sib": 1.5 if split == "val" else 2.5, "intent": 3 if split == "val" else 8,
             "ner": NER_TEST_MIN[arch] * (1499 / 2152 if split == "val" else 1.0),  # val subsample 499+500+500 of 2152
             "pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0),
-            "belebele": 15, "transfer": 45 if arch != "xlstm" else 120}[family]
+            "belebele": 15, "transfer": 45 if arch != "xlstm" else 120,
+            # NCHLT estimates: NER 3,832 test / 2,000 val rows vs MasakhaNER's 2,152; POS ~23k test tokens x ~29 tags
+            "nchlt_ner": NER_TEST_MIN[arch] * ((2000 if split == "val" else 3832) / 2152),
+            "nchlt_pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0)}[family]
     slow = 1.6 if arch in ("mamba2", "xlstm") and family in ("news", "sib", "intent", "belebele") else 1.0
     return (base * slow + 1.0) * n_langs_frac
 
@@ -437,6 +455,7 @@ class Run:
         hf = HF_TRAIN if train else HF_EVAL
         env.update({
             "HF_HOME": hf, "HF_DATASETS_CACHE": f"{hf}/datasets", "HF_HUB_CACHE": f"{hf}/hub", "HF_METRICS_CACHE": f"{hf}/metrics",
+            "HF_TOKEN_PATH": "/home/lmbanr001/.huggingface/token",  # private datasets (NCHLT); read by huggingface_hub, never copied
             "HF_HUB_DISABLE_XET": "1", "HF_HUB_DISABLE_TELEMETRY": "1", "WANDB_MODE": "disabled", "WANDB_SILENT": "true",
             "TOKENIZERS_PARALLELISM": "false", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONHASHSEED": "42", "OMP_NUM_THREADS": "1",
             "FLA_DISABLE_BACKEND_DISPATCH": "1", "MAMBA_SCAN_IMPL": "cuda", "SALLM_SKIP_MAMBA_KERNEL_CHECK": "1",
@@ -665,12 +684,12 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
         for lang in langs:
             per[lang] = 100 * d["languages"][lang]["weighted_f1"]
             n[lang] = d["languages"][lang]["n_items"]
-    elif family in ("ner", "pos"):
+    elif seq_kind(family) in ("ner", "pos"):
         rebind_protocols(r)
         raw = out.with_suffix(".json")
         cmd = [py, f"{hs}/seq_eval.py", "--task", family, "--phase", kit_split, "--architecture", arch, "--checkpoint", model,
                "--protocol", r.out / "protocols" / "seq_fft.json", "--output", raw]
-        if split == "test":
+        if split == "test" and family in ("ner", "pos"):  # NCHLT test is gated by its own select unit only
             cmd += ["--selection", SEQ_SELECTION, "--release", SEQ_RELEASE.format(family.upper())]
         r.sh(cmd + (["--limit", lim] if lim else []), log, seq_env(r, langs, split))
         per, n = read_seq(json.loads(raw.read_text()), family)
@@ -768,11 +787,11 @@ def sanity_flags(family: str, per_lang: dict, items: dict) -> dict:
             stats["majority_baseline"] = round(base, 3)
             if score is not None and score <= base:
                 flags.append(f"score {score:.2f} <= majority baseline {base:.2f}")
-        elif family in ("ner", "pos"):
+        elif seq_kind(family) in ("ner", "pos"):
             is_empty = [not x or (isinstance(x, str) and not x.strip()) for x in pred]
             empty = sum(is_empty) / len(pred)
             stats["empty_share"] = round(empty, 4)
-            if family == "ner":
+            if seq_kind(family) == "ner":
                 # an empty output is correct when the sentence has no entities: flag only missed entities
                 has_ents = [bool(str(g).strip()) for g in it["gold"]]
                 missed = sum(e and h for e, h in zip(is_empty, has_ents)) / max(1, sum(has_ents))
@@ -781,7 +800,7 @@ def sanity_flags(family: str, per_lang: dict, items: dict) -> dict:
                     flags.append(f"{100 * missed:.0f}% empty outputs on sentences that have entities")
             elif empty > 0.2:
                 flags.append(f"{100 * empty:.0f}% empty or unparseable outputs")
-            if family == "ner":
+            if seq_kind(family) == "ner":
                 base = 0.0  # all-O: no entity spans
             else:
                 tags = [t for g in it["gold"] for t in g]
@@ -829,14 +848,14 @@ def sanity_items(family: str, out: Path) -> dict:
                     lls = [float(v[0]) for v in smp["filtered_resps"]]
                     d["pred"].append(max(range(len(lls)), key=lls.__getitem__))
                     d["gold"].append(smp["target"])
-    elif family == "ner":
+    elif seq_kind(family) == "ner":
         d = json.loads(out.with_suffix(".json").read_text())
         lang_of = {name: ev["language"] for name, ev in d["task_evidence"].items()}
         for row in d["rows"]:
             it = items.setdefault(lang_of[row["task"]], {"gold": [], "pred": []})
             it["gold"].append(row["target"])
             it["pred"].append(row["prediction"])
-    elif family == "pos":
+    elif seq_kind(family) == "pos":
         for row in json.loads(out.with_suffix(".json").read_text())["rows"]:
             d = items.setdefault(row["language"], {"gold": [], "pred": []})
             d["gold"].append(row["gold"])
@@ -869,7 +888,7 @@ def run_sanity(r: "Run", rec: dict, out: Path) -> dict:
 
 def read_seq(d: dict, family: str) -> tuple[dict, dict]:
     per, n = {}, {}
-    if family == "ner":
+    if seq_kind(family) == "ner":
         for name, ev in d["task_evidence"].items():
             per[ev["language"]] = 100 * float(d["reported_metrics"][name])
             n[ev["language"]] = sum(1 for row in d["rows"] if row["task"] == name)
@@ -1485,7 +1504,7 @@ def items_for(rec: dict, lang: str) -> tuple[list, object] | None:
             width = max(len(r) for _, r in its)
             return CHRF().corpus_score([h for h, _ in its], [[r[i] if i < len(r) else r[0] for _, r in its] for i in range(width)]).score
         return items, chrf
-    if fam == "pos":
+    if seq_kind(fam) == "pos":
         d = json.loads(raw.with_suffix(".json").read_text())
         rows = [x for x in d["rows"] if x.get("language") == lang or str(x.get("task", "")).startswith(lang)]
         if rows and "correct" in rows[0]:
@@ -1511,7 +1530,7 @@ def collect(r: Run) -> dict:
                 task_fam, lg = (lang.split(":") if ":" in lang else (fam, lang))
                 ci = ("", "")
                 try:
-                    got = items_for(rec, lg) if fam not in ("transfer", "belebele", "intent", "ner") else None
+                    got = items_for(rec, lg) if fam not in ("transfer", "belebele", "intent", "ner", "nchlt_ner") else None
                     if got and got[0]:
                         ci = tuple(round(x, 4) for x in bootstrap(got[0], got[1]))
                 except Exception as exc:  # noqa: BLE001

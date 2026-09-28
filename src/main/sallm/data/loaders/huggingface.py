@@ -32,6 +32,9 @@ DATASET_REVISIONS = {
     "masakhane/masakhanews": "fa3b5fff8a91d187bf0c5900a39c4271d08cf7fe",
     "anrilombard/masakhaner-x-parquet": "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1",
     "Davlan/sib200": "38977a667f6fc264d5c26ec57a01e16db040b358",
+    # NCHLT NER/POS for nbl/ssw/ven/tso (private; paper repo scripts/nchlt)
+    "anrilombard/nchlt-ner-sa4": "db2569f7478726434264b3dac48d2352b22ff540",
+    "anrilombard/nchlt-pos-sa4": "cd3b8fab81b1eec4ca512e4e6f9896cd6b7ddc8b",
 }
 MASAKHAPOS_DATASET = "masakhane/masakhapos"
 MASAKHAPOS_REVISION = "376f4161f0425584d4bd7664122b56fa026926d3"

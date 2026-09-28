@@ -7,6 +7,10 @@ Rollout copy (fft_rollout) of run_general_sequence_eval_20260917_v2.py (sha 9cad
 - env SEQ_LANGUAGES restricts the languages (validation and test); SEQ_VALIDATION_PROMPTS=protocol scores only the
   General protocol prompts on validation (NER tsn P2, xho P5, zul P5; POS P3); SEQ_BATCH1=1 forces lm-eval batch 1
   (xLSTM ignores the attention mask). These are the knobs of monomulti/reselect/kit/run_seq_wrapped.py.
+- --task nchlt_ner / nchlt_pos (28 Sep 2026): NCHLT NER (PER/ORG/LOC/MISC) and POS (coarse NCHLT tags, candidates =
+  that language's own tags) for nbl/ssw/ven/tso from the private anrilombard/nchlt-{ner,pos}-sa4 datasets. Prompt 1 on
+  validation and test (fixed in advance, no prompt selection); test is gated by the rollout's own select unit, so it
+  needs no General-protocol selection/release files.
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ from lm_eval.tasks import TaskManager
 from lm_eval.utils import load_yaml_config
 from sallm.config import ModelEvalConfig
 from sallm.data.formatters.base import safe_format_prompt
+from sallm.data.formatters.ner import reconstruct_entities_from_iob
 from sallm.data.loaders.huggingface import _load_masakhapos_split
 from sallm.evaluation.constrained_label_scoring import (
     append_text,
@@ -48,6 +53,7 @@ from sallm.evaluation.lm_eval_runner import (
     _resolve_ephemeral_eval_root,
     _to_serializable,
 )
+from sallm.evaluation import pos_metrics
 from sallm.evaluation.pos_metrics import UPOS_LABELS
 from sallm.templates import registry as templates
 from transformers import AutoTokenizer
@@ -66,12 +72,29 @@ NER_REVISION = "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1"
 NER_DATASET = "anrilombard/masakhaner-x-parquet"
 POS_TEMPLATES = tuple(f"masakhane_pos_tagging/lm_eval_p{i}" for i in range(1, 5))
 MAXIMUM_INPUT_TOKENS = 1024
+NCHLT_DATASETS = {"nchlt_ner": ("anrilombard/nchlt-ner-sa4", "db2569f7478726434264b3dac48d2352b22ff540"),
+                  "nchlt_pos": ("anrilombard/nchlt-pos-sa4", "cd3b8fab81b1eec4ca512e4e6f9896cd6b7ddc8b")}
+NCHLT_NER_TAGS = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "B-MISC", "I-MISC"]
+NCHLT_POS_LABELS = json.loads(Path(pos_metrics.__file__).with_name("nchlt_pos_labels.json").read_text())["by_language"]
+NCHLT_PROMPT = 1
+
+
+def is_nchlt(task: str | None) -> bool:
+    return bool(task) and task.startswith("nchlt_")
+
+
+def pos_labels(task: str, language: str) -> list[str]:
+    return list(NCHLT_POS_LABELS[language]) if is_nchlt(task) else list(UPOS_LABELS)
+
+
+def pos_template(task: str, prompt: int) -> str:
+    return f"nchlt_pos_tagging/lm_eval_p{prompt}" if is_nchlt(task) else POS_TEMPLATES[prompt - 1]
 LOGGER = logging.getLogger("general_sequence_eval")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", choices=("ner", "pos"))
+    parser.add_argument("--task", choices=("ner", "pos", "nchlt_ner", "nchlt_pos"))
     parser.add_argument("--phase", choices=("validation", "test"))
     parser.add_argument("--architecture", choices=ARCHITECTURES)
     parser.add_argument("--checkpoint", type=Path)
@@ -172,6 +195,8 @@ def verify_phase_gate(
         if args.selection is not None or args.release is not None:
             raise ValueError("Validation must not read a selection or test release")
         return None, None
+    if is_nchlt(args.task):  # test access is gated by the rollout's select unit
+        return None, None
     if args.selection is None or args.release is None or args.task is None:
         raise ValueError("Test requires selection and task-specific release")
     selection = json.loads(args.selection.read_text())
@@ -194,6 +219,8 @@ def chosen_prompts(
     phase: str,
     selection: dict[str, Any] | None,
 ) -> dict[str, list[int]]:
+    if is_nchlt(task):
+        return {language: [NCHLT_PROMPT] for language in LANGUAGES}
     if phase == "validation":
         if os.environ.get("SEQ_VALIDATION_PROMPTS") == "protocol":
             return {language: [PROTOCOL_PROMPTS[task][language]] for language in LANGUAGES}
@@ -210,9 +237,30 @@ def chosen_prompts(
     return output
 
 
-def ner_task_name(language: str, prompt: int, phase: str) -> str:
+def ner_task_name(language: str, prompt: int, phase: str, task: str = "ner") -> str:
     suffix = "val" if phase == "validation" else "test"
+    if is_nchlt(task):
+        return f"sallm_nchlt_ner_{language}_prompt_{prompt}_{suffix}"
     return f"sallm_masakhaner_{NER_CODES[language]}_prompt_{prompt}_{suffix}"
+
+
+def load_nchlt_split(task: str, language: str, split: str) -> Dataset:
+    name, revision = NCHLT_DATASETS[task]
+    dataset = load_dataset(name, name=language, split=split, revision=revision)
+    if split == "validation":  # fixed selection subsample (rollout: FFT_VAL_SUBSAMPLE=1)
+        keep = val_subsample_indices(task, language, len(dataset))
+        if keep is not None:
+            print(f"VAL_SUBSAMPLE {task}/{language} {len(dataset)} -> {len(keep)}", flush=True)
+            dataset = dataset.select(keep)
+    return dataset
+
+
+def load_nchlt_ner_split(*, language: str, split: str, **_: Any) -> DatasetDict:
+    """text / target exactly as the training formatter builds them (format_ner, ' $$ '-joined 'LABEL: span')."""
+    dataset = load_nchlt_split("nchlt_ner", language, split).map(lambda row: {
+        "text": " ".join(row["tokens"]),
+        "target": " $$ ".join(reconstruct_entities_from_iob(row["tokens"], row["ner_tags"], NCHLT_NER_TAGS))})
+    return DatasetDict({split: dataset})
 
 
 def load_ner_split(
@@ -245,9 +293,11 @@ def build_ner_tasks(
     source_root: Path,
     phase: str,
     prompts: dict[str, list[int]],
+    task_name: str = "ner",
 ) -> tuple[TaskManager, list[ConfigurableTask], dict[str, Any]]:
+    stem = "nchlt_ner" if is_nchlt(task_name) else "masakhaner"
     directory = source_root / "src/conf/eval/lm_eval_tasks" / (
-        "masakhaner_validation" if phase == "validation" else "masakhaner_test"
+        f"{stem}_validation" if phase == "validation" else f"{stem}_test"
     )
     manager = TaskManager(
         include_path=_prepare_include_paths([str(directory)]),
@@ -258,7 +308,7 @@ def build_ner_tasks(
     split = "validation" if phase == "validation" else "test"
     for language in LANGUAGES:
         for prompt in prompts[language]:
-            name = ner_task_name(language, prompt, phase)
+            name = ner_task_name(language, prompt, phase, task_name)
             yaml_path = Path(manager.task_index[name]["yaml_path"])
             config = load_yaml_config(yaml_path=yaml_path)
             config["task"] = name
@@ -270,7 +320,7 @@ def build_ner_tasks(
                 serialize_ner_prompt, template=prompt_template
             )
             config["custom_dataset"] = partial(
-                load_ner_split,
+                load_nchlt_ner_split if is_nchlt(task_name) else load_ner_split,
                 language=language,
                 split=split,
             )
@@ -290,7 +340,7 @@ def build_ner_tasks(
                 "split": split,
                 "rows": rows,
                 "fingerprint": task.dataset[split]._fingerprint,
-                "dataset_revision": NER_REVISION,
+                "dataset_revision": NCHLT_DATASETS["nchlt_ner"][1] if is_nchlt(task_name) else NER_REVISION,
                 "yaml_sha256": sha256(yaml_path),
             }
     return manager, tasks, evidence
@@ -347,9 +397,9 @@ def run_ner(
     selection_hash: str | None,
 ) -> dict[str, Any]:
     assert args.architecture and args.checkpoint and args.phase
-    prompts = chosen_prompts("ner", args.phase, selection)
+    prompts = chosen_prompts(args.task, args.phase, selection)
     source_root = Path(protocol["source_snapshot"]["path"])
-    manager, tasks, evidence = build_ner_tasks(source_root, args.phase, prompts)
+    manager, tasks, evidence = build_ner_tasks(source_root, args.phase, prompts, args.task)
     settings = protocol["models"][args.architecture]
     tie_word_embeddings = settings["tie_word_embeddings"]
     if args.architecture == "mamba2":
@@ -417,7 +467,7 @@ def run_ner(
     shutil.rmtree(work_root, ignore_errors=True)
     return {
         "schema": "sallm.general_sequence_eval/v1",
-        "task": "ner",
+        "task": args.task,
         "phase": args.phase,
         "architecture": args.architecture,
         "test_accessed": args.phase == "test",
@@ -450,6 +500,7 @@ def decode_pos_row(
     tokens: list[str],
     prompt: str,
     device: torch.device,
+    labels: list[str] = UPOS_LABELS,  # noqa: B006 - read-only; NCHLT passes the language's own tags
 ) -> tuple[list[str], list[float], int, int, int, int, int | None, int | None]:
     context_text, context_ids = chat_messages_prefix(
         tokenizer, [{"role": "user", "content": prompt}]
@@ -473,7 +524,7 @@ def decode_pos_row(
         )
         label_ids = {
             label: continuation_ids(tokenizer, context_text, context_ids, label)
-            for label in UPOS_LABELS
+            for label in labels
         }
         untruncated_forward_tokens = max(
             len(context_ids) + len(ids) for ids in label_ids.values()
@@ -505,7 +556,7 @@ def decode_pos_row(
             model=model,
             context_ids=scoring_context_ids,
             label_ids=label_ids,
-            labels=list(UPOS_LABELS),
+            labels=list(labels),
             score_mode="mean",
             pad_token_id=int(pad_token_id),
             pad_to_multiple_of=64,
@@ -551,10 +602,10 @@ def run_pos(
     selection_hash: str | None,
 ) -> dict[str, Any]:
     assert args.architecture and args.checkpoint and args.phase
-    prompts = chosen_prompts("pos", args.phase, selection)
+    prompts = chosen_prompts(args.task, args.phase, selection)
     split = "validation" if args.phase == "validation" else "test"
     datasets = {
-        language: _load_masakhapos_split(language, split)
+        language: load_nchlt_split(args.task, language, split) if is_nchlt(args.task) else _load_masakhapos_split(language, split)
         for language in LANGUAGES
     }
     evidence = {
@@ -562,7 +613,7 @@ def run_pos(
             "split": split,
             "rows": len(dataset),
             "tokens": sum(len(tokens) for tokens in dataset["tokens"]),
-            "dataset_revision": protocol["tasks"]["pos"]["revision"],
+            "dataset_revision": NCHLT_DATASETS[args.task][1] if is_nchlt(args.task) else protocol["tasks"]["pos"]["revision"],
             "rows_sha256": dataset_digest(dataset),
         }
         for language, dataset in datasets.items()
@@ -586,8 +637,9 @@ def run_pos(
         dataset = datasets[language]
         if args.limit is not None:
             dataset = dataset.select(range(min(args.limit, len(dataset))))
+        labels = pos_labels(args.task, language)
         for prompt_number in prompts[language]:
-            template_id = POS_TEMPLATES[prompt_number - 1]
+            template_id = pos_template(args.task, prompt_number)
             correct = 0
             total = 0
             for index, source in enumerate(dataset):
@@ -605,9 +657,9 @@ def run_pos(
                     max_prefix_tokens_removed,
                     first_prefix_truncation_token,
                     first_prefix_truncation_forward_tokens,
-                ) = decode_pos_row(model, tokenizer, tokens, prompt, device)
+                ) = decode_pos_row(model, tokenizer, tokens, prompt, device, labels)
                 if len(prediction) != len(gold) or any(
-                    label not in UPOS_LABELS for label in prediction
+                    label not in labels for label in prediction
                 ):
                     raise ValueError(f"Invalid POS prediction {language}/{index}")
                 mask = [
@@ -665,7 +717,7 @@ def run_pos(
             }
     return {
         "schema": "sallm.general_sequence_eval/v1",
-        "task": "pos",
+        "task": args.task,
         "phase": args.phase,
         "architecture": args.architecture,
         "test_accessed": args.phase == "test",
@@ -678,7 +730,8 @@ def run_pos(
         "binding": binding,
         "task_evidence": evidence,
         "interface": "closed_label_tuple_mean_logprob_v1",
-        "label_set": list(UPOS_LABELS),
+        "label_set": ({language: pos_labels(args.task, language) for language in LANGUAGES}
+                      if is_nchlt(args.task) else list(UPOS_LABELS)),
         "score_mode": "mean",
         "pad_to_multiple_of": 64,
         "reported_metrics": cell_counts,
@@ -801,7 +854,7 @@ def main() -> None:
     binding = verify_binding(
         protocol, args.architecture, args.checkpoint, args.adapter
     )
-    if args.task == "ner":
+    if args.task in ("ner", "nchlt_ner"):
         payload = run_ner(args, protocol, binding, selection, selection_hash)
     else:
         payload = run_pos(args, protocol, binding, selection, selection_hash)
