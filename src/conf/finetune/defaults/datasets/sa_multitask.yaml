@@ -1,5 +1,5 @@
 dataset:
-  hf_name: mix:sa_general
+  hf_name: mix:sa_multitask
   subset: null
   languages: null
   task: INSTRUCTION
@@ -13,4 +13,4 @@ dataset:
   # Multitask mixture: examples-proportional with a 3,000-example cap per task (FLAN, Wei et al., 2022)
   mix_cap: 3000
   mix_epoch_size: sum
-  mix_weights: {afrihg: 1.0, ner: 1.0, news: 1.0, pos: 1.0, sib: 1.0, t2x: 1.0}
+  mix_weights: {afrihg: 1.0, intent: 1.0, ner: 1.0, news: 1.0, pos: 1.0, sib: 1.0, t2x: 1.0}

@@ -240,6 +240,6 @@ def load_mix_dataset(
         max_prob=ds_cfg.mix_max_prob,
     )
 
-    logger.info("SA General mix distribution | %s", train_mix.describe())
+    logger.info("Multitask mix distribution | %s", train_mix.describe())
 
     return (train_mix, concatenate_datasets(val_parts), None)

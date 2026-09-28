@@ -48,10 +48,10 @@ def test_pos_general_selection_uses_only_four_frozen_prompts(monkeypatch) -> Non
     }
 
 
-def test_general_mix_preserves_six_training_families_and_four_pos_prompts() -> None:
+def test_multitask_mix_has_seven_families_and_four_pos_prompts() -> None:
     path = (
         Path(__file__).resolve().parents[3]
-        / "src/main/sallm/data/mixes/sa_general.yaml"
+        / "src/main/sallm/data/mixes/sa_multitask.yaml"
     )
     components = yaml.safe_load(path.read_text(encoding="utf-8"))["components"]
 
@@ -62,6 +62,7 @@ def test_general_mix_preserves_six_training_families_and_four_pos_prompts() -> N
         "sib",
         "t2x",
         "afrihg",
+        "intent",
     }
     pos = next(component for component in components if component["name"] == "pos")
     assert [template["id"] for template in pos["templates"]] == [
