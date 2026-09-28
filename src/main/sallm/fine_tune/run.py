@@ -435,7 +435,10 @@ def run(config: ExperimentConfig) -> None:
     resume_ckpt = (config.training or {}).get("resume_from_checkpoint")
 
     logger.info("Fine-tuning start …")
-    torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
+    # Anomaly mode records a Python stack per op (much slower steps) and never
+    # changes results; SALLM_DETECT_ANOMALY=0 skips it.
+    if os.environ.get("SALLM_DETECT_ANOMALY", "1") != "0":
+        torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
 

@@ -369,3 +369,10 @@ epoch 4 with validation still rising. Intent now trains up to 10 epochs with ear
 (`FULL_EPOCH_FAMILIES` in train_fft.py). xLSTM's and GDN's Intent units were archived (`archive_intent_e4/`) and re-run
 in full (sweep, selection with the edge rule, test, Mono at the newly selected LR); Transformer and Mamba-2 had not
 started Intent. AfriHG keeps 4 epochs: its selected runs peak at epochs 2-3, before the cap.
+
+Autograd anomaly mode OFF, 28 Sep 2026 ~21:45 SAST. Profiling a live GDN Multitask run (py-spy, 2.3 s/step, GPU ~5%,
+main thread 100% CPU) showed the step time going to torch.fx stack capture from `torch.autograd.set_detect_anomaly(True)`
+in sallm/fine_tune/run.py (on since June 2025). Anomaly mode only checks; it does not change any computation, so results
+are unaffected. `train_fft.py` now sets SALLM_DETECT_ANOMALY=0 for every unit that starts after the sync; divergence is
+still caught by the non-finite / exploding-loss checks in the training callback. Wall-clock times of units before and
+after differ (report GPU-hours with this caveat).

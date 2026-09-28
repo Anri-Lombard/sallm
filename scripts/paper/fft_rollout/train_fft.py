@@ -209,6 +209,9 @@ def _build_trainer_and_record(*args, **kwargs):
 # once `patience` epochs pass without a strictly better score. Divergence: a non-finite logged loss, or a loss above
 # 3x the first-epoch mean for 200 consecutive steps, writes RUN/DIVERGED.json and aborts the unit (never retried).
 CTRL = json.loads(os.environ["FFT_CTRL"]) if os.environ.get("FFT_CTRL") else None
+# 28 Sep 2026: autograd anomaly mode off (profiled: the main thread spent its time in torch.fx stack capture, GPU ~5%).
+# Results are unchanged; divergence is still caught by the non-finite / exploding loss checks below.
+os.environ.setdefault("SALLM_DETECT_ANOMALY", "0")
 FULL_EPOCH_FAMILIES = ("general", "intent")  # 10 epochs regardless of train-set size (amendments 28 Sep 2026)
 WEIGHT_FILES = ("config.json", "generation_config.json", "model.safetensors", "pytorch_model.bin",
                 "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json", "chat_template.jinja")
