@@ -45,6 +45,8 @@ from sallm.evaluation.constrained_label_scoring import (
     score_labels,
 )
 from sallm.evaluation.harness import load_model_and_tokenizer
+
+import pos_cached  # noqa: E402 - runners/ is on sys.path when seq_eval runs
 from sallm.evaluation.lm_eval_runner import (
     _format_model_args,
     _materialize_model_for_lm_eval,
@@ -494,6 +496,10 @@ def pos_prompt(template_id: str, tokens: list[str]) -> str:
     return safe_format_prompt(spec.prompt, {"tokens": tokens_repr(tokens)})
 
 
+POS_CACHED_CHECK_WORDS = int(os.environ.get("FFT_POS_CACHED_CHECK", "200"))
+_POS_CACHED_CHECKED = 0
+
+
 def decode_pos_row(
     model: Any,
     tokenizer: Any,
@@ -516,6 +522,9 @@ def decode_pos_row(
     pad_token_id = tokenizer.pad_token_id or tokenizer.eos_token_id
     if pad_token_id is None:
         raise ValueError("POS scoring requires a pad or EOS token")
+    # Prefix-cached scoring (28 Sep 2026, runners/pos_cached.py): same tags, far fewer forward tokens. The first
+    # POS_CACHED_CHECK_WORDS words of each process are also scored the reference way and must agree.
+    scorer = pos_cached.CachedScorer(model, device) if pos_cached.enabled(model, len(labels)) else None
 
     for index, token in enumerate(tokens):
         prefix = ("[" if index == 0 else ", ") + f"({token!r}, '"
@@ -552,7 +561,8 @@ def decode_pos_row(
             first_prefix_truncation_forward_tokens = untruncated_forward_tokens
         if forward_tokens > MAXIMUM_INPUT_TOKENS:
             raise AssertionError("bounded POS context exceeds the 1024-token cap")
-        label, score, _ = score_labels(
+        reference = partial(
+            score_labels,
             model=model,
             context_ids=scoring_context_ids,
             label_ids=label_ids,
@@ -562,6 +572,16 @@ def decode_pos_row(
             pad_to_multiple_of=64,
             device=device,
         )
+        if scorer is not None and prefix_tokens_removed == 0:
+            scorer.feed(context_ids)
+            label, score = scorer.score(label_ids, list(labels))
+            global _POS_CACHED_CHECKED
+            if _POS_CACHED_CHECKED < POS_CACHED_CHECK_WORDS:
+                _POS_CACHED_CHECKED += 1
+                if reference()[0] != label:
+                    raise AssertionError(f"cached POS scoring disagrees with the reference at word {index}")
+        else:
+            label, score, _ = reference()
         predictions.append(label)
         selected_scores.append(score)
         suffix = label + "')"

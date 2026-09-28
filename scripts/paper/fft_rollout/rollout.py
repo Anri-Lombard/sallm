@@ -26,6 +26,7 @@ import csv
 import fcntl
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 import math
 import os
 import random
@@ -909,10 +910,19 @@ def gpu_name() -> str:
         return "unknown"
 
 
+def score_parallel(r: Run, split: str, model: Path, out: Path, fams: dict[str, list[str]], workers: int = 3) -> dict:
+    """Score several families on the same GPU at once (28 Sep 2026: scorers leave the L40S mostly idle; each family is its
+    own subprocess, so results are identical to scoring them one after another). Longest families start first."""
+    order = sorted(fams, key=lambda f: -score_minutes(r.arch, f, split))
+    with ThreadPoolExecutor(workers) as ex:
+        futs = {f: ex.submit(score, r, f, split, model, fams[f], out / f) for f in order}
+        return {f: futs[f].result() for f in fams}
+
+
 def val_score(r: Run, u: dict, model: Path, out: Path) -> dict:
     """Validation score used for selection: mean over the unit's languages; General = mean of the Multitask family means."""
     if u["family"] == "general":
-        fams = {f: score(r, f, "val", model, list(FAMILIES[f]["langs"]), out / f) for f in GENERAL_TRAIN_FAMILIES}
+        fams = score_parallel(r, "val", model, out, {f: list(FAMILIES[f]["langs"]) for f in GENERAL_TRAIN_FAMILIES})
         return {"score": sum(v["mean"] for v in fams.values()) / len(fams), "families": {f: v["per_lang"] for f, v in fams.items()}}
     rec = score(r, u["family"], "val", model, u["langs"], out / u["family"])
     return {"score": rec["mean"], "per_lang": rec["per_lang"]}
@@ -920,9 +930,8 @@ def val_score(r: Run, u: dict, model: Path, out: Path) -> dict:
 
 def test_scores(r: Run, u: dict, model: Path, out: Path) -> dict:
     if u["family"] == "general":
-        fams = {f: score(r, f, "test", model, list(FAMILIES[f]["langs"]), out / f) for f in GENERAL_TRAIN_FAMILIES}
-        fams["belebele"] = score(r, "belebele", "test", model, ["afr", "eng", "sot", "ssw", "tsn", "tso", "xho", "zul"], out / "belebele")
-        fams["transfer"] = score(r, "transfer", "test", model, [], out / "transfer")
+        fams = score_parallel(r, "test", model, out, {**{f: list(FAMILIES[f]["langs"]) for f in GENERAL_TRAIN_FAMILIES},
+                                                      "belebele": ["afr", "eng", "sot", "ssw", "tsn", "tso", "xho", "zul"], "transfer": []})
         return {f: v["per_lang"] for f, v in fams.items()}
     return {u["family"]: score(r, u["family"], "test", model, u["langs"], out / u["family"])["per_lang"]}
 

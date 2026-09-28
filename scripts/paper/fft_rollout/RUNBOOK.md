@@ -376,3 +376,10 @@ in sallm/fine_tune/run.py (on since June 2025). Anomaly mode only checks; it doe
 are unaffected. `train_fft.py` now sets SALLM_DETECT_ANOMALY=0 for every unit that starts after the sync; divergence is
 still caught by the non-finite / exploding-loss checks in the training callback. Wall-clock times of units before and
 after differ (report GPU-hours with this caveat).
+
+Parallel family scoring, 28 Sep 2026 ~22:45 SAST. Multitask validation (every epoch) and test score their families three
+at a time on the lane's GPU (`score_parallel`); each family is its own scorer subprocess, so scores are identical to
+sequential scoring. Measured before: Multitask validation 40-48 min per epoch with the GPU mostly idle.
+Prefix-cached POS scoring (runners/pos_cached.py) is wired into seq_eval.decode_pos_row behind FFT_POS_CACHED (default
+off until its integration test passes); when on, the first FFT_POS_CACHED_CHECK (200) words of every scorer process are
+also scored the reference way and must agree.
