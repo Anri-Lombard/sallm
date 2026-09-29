@@ -26,12 +26,7 @@ def run(config: ExperimentConfig) -> None:
     eval_cfg = config.evaluation
     model_cfg = _resolve_model_config(config.eval_model)
 
-    logger.info(
-        "Using checkpoint: %s (peft_adapter=%s, merge_lora=%s)",
-        model_cfg.checkpoint,
-        model_cfg.peft_adapter,
-        model_cfg.merge_lora,
-    )
+    logger.info("Using checkpoint: %s", model_cfg.checkpoint)
 
     has_generation = bool(eval_cfg.generation_tasks)
     has_task_packs = bool(eval_cfg.task_packs)

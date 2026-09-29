@@ -5,15 +5,11 @@ defaults:
   - _self_
 wandb:
   name: llama-125m-news-xho
-peft:
-  kwargs:
-    lora_dropout: 0.2
 dataset:
   subset: xho
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_xho
-  weight_decay: 0.1
-  warmup_ratio: 0.05
-  dataloader_num_workers: 4
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  per_device_eval_batch_size: 4

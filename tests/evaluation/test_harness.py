@@ -67,9 +67,7 @@ def test_model_loading_registers_fla_before_auto_model(monkeypatch) -> None:
     )
     config = SimpleNamespace(
         checkpoint="owner/model",
-        peft_adapter=None,
         dtype="float32",
-        merge_lora=False,
         device="cpu",
     )
 

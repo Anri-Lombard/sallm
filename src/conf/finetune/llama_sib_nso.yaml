@@ -10,6 +10,4 @@ dataset:
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sib_nso
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_sib_nso
-  run_name: llama-125m-sib-lora-nso
-  num_train_epochs: 15
+  run_name: llama-125m-sib-nso

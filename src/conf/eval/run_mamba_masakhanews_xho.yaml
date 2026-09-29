@@ -3,8 +3,8 @@ defaults:
   - run@_here_
   - _self_
 eval_model:
-  checkpoint: anrilombard/sallm-mamba-news_xho
-  tie_word_embeddings: false
+  # the output of this recipe's fine-tuning run
+  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_news_xho/final_model
 evaluation:
   task_packs:
     - masakhanews_xho

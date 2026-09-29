@@ -3,7 +3,8 @@ defaults:
   - run@_here_
   - _self_
 eval_model:
-  checkpoint: anrilombard/sallm-xlstm-125m
+  # the output of this recipe's fine-tuning run
+  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sib_xho/final_model
 evaluation:
   task_packs:
     - sib_xho

@@ -5,20 +5,12 @@ defaults:
   - _self_
 wandb:
   name: xlstm-125m-pos-xho
-peft:
-  kwargs:
-    r: 128
-    lora_alpha: 256
 dataset:
   subset: xho
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_pos_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_pos_xho
-  run_name: xlstm-125m-pos-lora-xho
-  learning_rate: 0.0004976173317931061
-  weight_decay: 0.00376554046186397
-  lr_scheduler_type: constant_with_warmup
-  warmup_ratio: 0.05
+  run_name: xlstm-125m-pos-xho
   per_device_train_batch_size: 8
-  gradient_checkpointing: false
+  gradient_accumulation_steps: 2
+  per_device_eval_batch_size: 8

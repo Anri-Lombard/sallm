@@ -9,7 +9,7 @@ from sallm.configs.evaluation import (
     EvaluationConfig,
     ModelEvalConfig,
 )
-from sallm.configs.finetune import FinetuneDatasetConfig, PeftConfig, TemplateConfig
+from sallm.configs.finetune import FinetuneDatasetConfig, TemplateConfig
 from sallm.configs.hub import HubConfig, WandbConfig
 from sallm.configs.model import ModelConfig, TokenizerConfig
 from sallm.utils import RunMode
@@ -26,7 +26,6 @@ class ExperimentConfig:
     evaluation: EvaluationConfig | None = None
     eval_model: ModelEvalConfig | None = None
     dataset: FinetuneDatasetConfig | None = None
-    peft: PeftConfig | None = None
     template: TemplateConfig | None = None
     generation_decoding: DecodingConfig | None = None
     hub: HubConfig | None = None

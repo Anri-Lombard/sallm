@@ -102,8 +102,10 @@ def build_model(
             model_conf.init_checkpoint,
         )
         attn_impl = getattr(config.model, "attn_implementation", None)
-        torch_dtype = _get_torch_dtype(config)
-        logger.info(f"Loading model with torch_dtype={torch_dtype}")
+        # Weights stay float32 when training from a checkpoint: bf16/fp16 in the
+        # training config means autocast. Pure-bf16 weights and AdamW state lose
+        # fine-tuning updates (an lr of 1e-5 underflows bf16 precision).
+        torch_dtype = torch.float32
         model = cast(
             PreTrainedModel,
             model_class.from_pretrained(

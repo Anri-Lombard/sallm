@@ -10,10 +10,7 @@ dataset:
   max_seq_length: 1024
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_injongointent_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_injongointent_xho
   run_name: mamba-125m-injongo-intent-xho
-  gradient_accumulation_steps: 2
-  num_train_epochs: 20
-  gradient_checkpointing: false
   metric_for_best_model: eval_classification/all_f1
   greater_is_better: true
+  num_train_epochs: 10

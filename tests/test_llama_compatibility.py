@@ -7,7 +7,6 @@ import pytest
 import torch
 import yaml
 from huggingface_hub.errors import StrictDataclassClassValidationError
-from peft import LoraConfig, get_peft_model
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.harness import load_model_and_tokenizer
 from sallm.evaluation.lm_eval_runner import _materialize_model_for_lm_eval
@@ -125,33 +124,11 @@ def test_legacy_llama_checkpoint_loads_in_harness_and_lm_eval_materialization(
     loaded, _ = load_model_and_tokenizer(model_config)
     assert loaded.model.layers[0].self_attn.q_proj.weight.shape == (504, 512)
 
-    adapter = get_peft_model(
-        model,
-        LoraConfig(
-            task_type="CAUSAL_LM",
-            target_modules=["q_proj", "v_proj"],
-            r=2,
-            lora_alpha=4,
-        ),
-    )
-    adapter_path = tmp_path / "adapter"
-    adapter.save_pretrained(adapter_path)
-    merged_path, remaining_adapter = _materialize_model_for_lm_eval(
-        ModelEvalConfig(
-            checkpoint=str(checkpoint),
-            peft_adapter=str(adapter_path),
-            dtype="float32",
-            device="cpu",
-        ),
-        tmp_path / "lm_eval",
-    )
+    pretrained = _materialize_model_for_lm_eval(model_config, tmp_path / "lm_eval")
 
-    assert remaining_adapter is None
-    merged = AutoModelForCausalLM.from_pretrained(
-        merged_path,
-        local_files_only=True,
-    )
-    assert merged.model.layers[0].self_attn.q_proj.weight.shape == (504, 512)
+    assert pretrained == str(checkpoint.resolve())
+    reloaded = AutoModelForCausalLM.from_pretrained(pretrained, local_files_only=True)
+    assert reloaded.model.layers[0].self_attn.q_proj.weight.shape == (504, 512)
 
 
 def test_other_non_divisible_llama_configs_still_fail_validation() -> None:

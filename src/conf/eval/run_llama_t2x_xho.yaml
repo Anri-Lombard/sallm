@@ -3,7 +3,7 @@ defaults:
   - generate_t2x_xho@_here_
   - _self_
 eval_model:
-  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_sa_multitask/final_merged_model
-  merge_lora: false
+  # the output of this recipe's fine-tuning run
+  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_t2x_xho/final_model
 wandb:
   name: eval-llama-125m-t2x-xho

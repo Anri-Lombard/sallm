@@ -238,7 +238,6 @@ def test_run_pack_passes_repo_task_paths_to_task_manager(
         tmp_path / "work",
         None,
         "org/model",
-        None,
         "rerank",
     )
 
@@ -279,7 +278,6 @@ def test_run_pack_rejects_lm_eval_response_cache(
             tmp_path / "work",
             {"use_cache": str(tmp_path / "cache")},
             str(tmp_path),
-            None,
             "rerank",
         )
 
@@ -321,7 +319,6 @@ def test_run_pack_resolves_raw_override_before_tokenizer_and_model_args(
         tmp_path / "work",
         {"apply_chat_template": False},
         "org/model",
-        None,
         "rerank",
     )
 

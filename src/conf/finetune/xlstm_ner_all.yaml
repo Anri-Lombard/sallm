@@ -5,11 +5,6 @@ defaults:
   - _self_
 wandb:
   name: xlstm-125m-ner-all
-peft:
-  kwargs:
-    r: 128
-    lora_alpha: 256
-    lora_dropout: 0.05
 dataset:
   subset: null
   max_seq_length: 2048
@@ -19,6 +14,4 @@ dataset:
     - zul
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_ner_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_ner_all
-  run_name: xlstm-125m-ner-lora-finetune-all
-  num_train_epochs: 40
+  run_name: xlstm-125m-ner-all

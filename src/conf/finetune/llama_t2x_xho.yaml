@@ -5,28 +5,14 @@ defaults:
   - _self_
 wandb:
   name: llama-125m-t2x-xho
-peft:
-  kwargs:
-    lora_dropout: 0.05
 dataset:
   subset: xho
   max_seq_length: 1024
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_t2x_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_t2x_xho
   run_name: llama-125m-t2x-xho
-  learning_rate: 0.00015373792550986017
-  weight_decay: 0.1529293154724379
-  gradient_accumulation_steps: 16
-  lr_scheduler_type: linear
-  warmup_ratio: 0
-  num_train_epochs: 4
-  gradient_checkpointing: false
-  dataloader_num_workers: 4
   metric_for_best_model: eval_all_chrf
   greater_is_better: true
-  label_smoothing_factor: 0.05
-  logging_first_step: true
 generation_decoding:
   early_stopping: true
   length_penalty: 1.0

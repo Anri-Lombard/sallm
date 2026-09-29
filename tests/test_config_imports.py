@@ -371,7 +371,6 @@ def test_experiment_schema_merges_representative_eval_config() -> None:
     merged = OmegaConf.merge(schema, raw_cfg)
 
     assert merged.mode == domain_config.RunMode.EVALUATE
-    assert merged.eval_model.adapter == "hf"
     assert merged.evaluation.generation_tasks[0].id == "t2x_xho"
     assert merged.evaluation.generation_tasks[0].decoding.strategy == "beam"
 
@@ -390,7 +389,6 @@ def test_generic_eval_config_takes_checkpoint_and_task_packs() -> None:
     merged = OmegaConf.merge(OmegaConf.structured(domain_config.ExperimentConfig), cfg)
 
     assert merged.mode == domain_config.RunMode.EVALUATE
-    assert merged.eval_model.adapter == "hf"
     assert list(merged.evaluation.task_packs) == ["sib_xho"]
     assert merged.wandb.project == "sallm-eval"
     assert merged.training is None

@@ -1,27 +1,5 @@
 model:
   architecture: xlstm
   init_checkpoint: anrilombard/sallm-xlstm-125m
-peft:
-  kwargs:
-    r: 256
-    lora_alpha: 512
-    target_modules:
-      - q
-      - k
-      - v
-      - out_proj
-      - embeddings
 training:
-  learning_rate: 0.0001
-  weight_decay: 0.1
-  gradient_accumulation_steps: 4
-  warmup_ratio: 0.1
-  per_device_train_batch_size: 16
-  num_train_epochs: 20
-  bf16: false
-  gradient_checkpointing: true
-  save_strategy: 'no'
-  dataloader_num_workers: 4
   ddp_find_unused_parameters: true
-hub:
-  base_model_id: anrilombard/sallm-xlstm-125m

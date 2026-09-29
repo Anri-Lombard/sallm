@@ -15,6 +15,5 @@ dataset:
     - zul
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_injongointent_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_injongointent_all
   run_name: llama-125m-injongo-intent-all
-  dataloader_num_workers: 4
+  num_train_epochs: 10

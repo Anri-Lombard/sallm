@@ -38,7 +38,6 @@ tokenizer:
 
 training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-pure-gdn-125m"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-pure-gdn-125m"
   learning_rate: 4.0e-4
   max_seq_length: 2048
   lr_scheduler_type: "cosine"

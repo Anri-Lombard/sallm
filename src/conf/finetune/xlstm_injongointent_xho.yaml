@@ -10,5 +10,5 @@ dataset:
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_injongointent_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_injongointent_xho
   run_name: xlstm-125m-injongo-intent-xho
+  num_train_epochs: 10

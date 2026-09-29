@@ -73,6 +73,10 @@ def build_trainer(
     # False keeps validation to the loss, e.g. for General model selection.
     task_metrics = bool(training_args_dict.pop("task_metrics", True))
     general_selection = bool(training_args_dict.pop("general_selection", False))
+    if training_args_dict.get("num_train_epochs") == "auto":
+        # Paper protocol: 10 epochs below 5,000 training examples, otherwise 4.
+        small = len(cast(Any, train_dataset)) < 5000
+        training_args_dict["num_train_epochs"] = 10 if small else 4
     use_early_stopping = bool(
         isinstance(early_stopping_patience, int)
         and not isinstance(early_stopping_patience, bool)

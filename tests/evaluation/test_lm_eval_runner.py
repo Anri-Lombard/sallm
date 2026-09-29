@@ -19,7 +19,6 @@ def test_format_model_args_appends_extra_values() -> None:
     model_args = _format_model_args(
         pretrained_path="owner/model",
         dtype="bfloat16",
-        peft_adapter=None,
         extra_model_args={
             "logits_cache": False,
             "revision": "main",
@@ -38,7 +37,6 @@ def test_format_model_args_allows_add_bos_override() -> None:
     model_args = _format_model_args(
         pretrained_path="owner/model",
         dtype=None,
-        peft_adapter=None,
         extra_model_args={"add_bos_token": True},
     )
 
@@ -50,7 +48,6 @@ def test_format_model_args_enables_bos_for_raw_base_prompt() -> None:
     model_args = _format_model_args(
         pretrained_path="owner/model",
         dtype=None,
-        peft_adapter=None,
         default_add_bos_token=True,
     )
 
@@ -89,7 +86,6 @@ def test_run_pack_summary_records_effective_fewshot(tmp_path, monkeypatch) -> No
     model_cfg = SimpleNamespace(
         dtype="bfloat16",
         device="cuda:0",
-        peft_adapter=None,
         tie_word_embeddings=None,
         lm_eval_model_args={},
     )
@@ -101,7 +97,6 @@ def test_run_pack_summary_records_effective_fewshot(tmp_path, monkeypatch) -> No
         tmp_path / "work",
         {"num_fewshot": 3, "apply_chat_template": False},
         "owner/model",
-        None,
         "eval",
     )
 
@@ -130,7 +125,6 @@ def test_run_pack_uses_batch_size_one_for_xlstm(tmp_path, monkeypatch) -> None:
     model_cfg = SimpleNamespace(
         dtype="bfloat16",
         device="cuda:0",
-        peft_adapter=None,
         tie_word_embeddings=None,
         lm_eval_model_args={},
     )
@@ -142,7 +136,6 @@ def test_run_pack_uses_batch_size_one_for_xlstm(tmp_path, monkeypatch) -> None:
         tmp_path / "work",
         None,
         "owner/xlstm",
-        None,
         "eval",
         is_xlstm=True,
     )
@@ -231,15 +224,13 @@ def test_adapter_free_xlstm_materializes_eval_safe_checkpoint(
     )
     model_cfg = SimpleNamespace(
         checkpoint="owner/xlstm",
-        peft_adapter=None,
         dtype="bfloat16",
     )
 
-    pretrained, adapter = _materialize_model_for_lm_eval(model_cfg, tmp_path)
+    pretrained = _materialize_model_for_lm_eval(model_cfg, tmp_path)
 
     expected = tmp_path / "eval_safe_base_model"
     assert pretrained == str(expected)
-    assert adapter is None
     assert config.mode == "inference"
     assert config.return_last_states is True
     assert config.inference_state_dtype == "bfloat16"
@@ -262,57 +253,12 @@ def test_lm_eval_materialization_registers_fla_before_auto_config(
         lambda *_args, **_kwargs: events.append("config")
         or SimpleNamespace(model_type="llama"),
     )
-    model_cfg = SimpleNamespace(checkpoint="owner/model", peft_adapter=None)
+    model_cfg = SimpleNamespace(checkpoint="owner/model")
 
-    pretrained, adapter = _materialize_model_for_lm_eval(model_cfg, tmp_path)
+    pretrained = _materialize_model_for_lm_eval(model_cfg, tmp_path)
 
-    assert (pretrained, adapter) == ("owner/model", None)
+    assert pretrained == "owner/model"
     assert events == ["register", "config"]
-
-
-def test_lm_eval_preserves_unmerged_peft_adapter(tmp_path, monkeypatch) -> None:
-    class Tokenizer:
-        def __len__(self) -> int:
-            return 19
-
-        def save_pretrained(self, path) -> None:
-            pass
-
-    tokenizer = Tokenizer()
-    resized_to = []
-    saved_to = []
-
-    def save_pretrained(path, safe_serialization=True) -> None:
-        saved_to.append((path, safe_serialization))
-        if safe_serialization:
-            raise RuntimeError("weights contained shared tensors")
-
-    loaded_model = SimpleNamespace(
-        resize_token_embeddings=resized_to.append,
-        save_pretrained=save_pretrained,
-    )
-    monkeypatch.setattr(
-        "sallm.evaluation.lm_eval_runner.AutoTokenizer.from_pretrained",
-        lambda *args, **kwargs: tokenizer,
-    )
-    monkeypatch.setattr(
-        "sallm.evaluation.lm_eval_runner.AutoModelForCausalLM.from_pretrained",
-        lambda *args, **kwargs: loaded_model,
-    )
-    model = SimpleNamespace(
-        checkpoint="owner/model",
-        peft_adapter="/checkpoints/adapter",
-        merge_lora=False,
-        dtype="bfloat16",
-    )
-
-    pretrained, adapter = _materialize_model_for_lm_eval(model, tmp_path)
-
-    assert pretrained == str(tmp_path / "resized_base_model")
-    assert adapter == "/checkpoints/adapter"
-    assert resized_to == [19]
-    expected = tmp_path / "resized_base_model"
-    assert saved_to == [(expected, True), (expected, False)]
 
 
 def test_masakhaner_test_tasks_index_and_resolve_inheritance() -> None:

@@ -5,9 +5,6 @@ defaults:
   - _self_
 wandb:
   name: mamba-125m-ner-tsn
-peft:
-  kwargs:
-    lora_dropout: 0.05
 dataset:
   subset: null
   max_seq_length: 2048
@@ -15,9 +12,6 @@ dataset:
     - tsn
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_ner_tsn
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_ner_tsn
-  run_name: mamba-125m-ner-lora-finetune-tsn
-  per_device_train_batch_size: 32
-  gradient_checkpointing: true
+  run_name: mamba-125m-ner-tsn
   metric_for_best_model: eval_all_f1
   greater_is_better: true

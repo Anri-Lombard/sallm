@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import tempfile
-from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -20,7 +19,6 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TASK_MANAGER_KWARG_KEYS, TaskPack
 from sallm.evaluation.harness import (
-    load_model_and_tokenizer,
     prepare_model_for_evaluation,
     use_exact_xlstm_head_dims,
 )
@@ -96,7 +94,6 @@ def _format_model_args(
     *,
     pretrained_path: str,
     dtype: str | None,
-    peft_adapter: str | None,
     tokenizer_override: str | None = None,
     tie_word_embeddings: bool | None = None,
     extra_model_args: dict[str, Any] | None = None,
@@ -110,8 +107,6 @@ def _format_model_args(
         args.append(f"add_bos_token={str(default_add_bos_token).lower()}")
     if dtype:
         args.append(f"dtype={dtype}")
-    if peft_adapter:
-        args.append(f"peft={peft_adapter}")
     if tokenizer_override:
         args.append(f"tokenizer={tokenizer_override}")
     if tie_word_embeddings is not None:
@@ -147,133 +142,55 @@ def _to_serializable(value: Any) -> Any:
     return value
 
 
-def _materialize_model_for_lm_eval(
-    model_cfg: ModelEvalConfig, cache_root: Path
-) -> tuple[str, str | None]:
+def _materialize_model_for_lm_eval(model_cfg: ModelEvalConfig, cache_root: Path) -> str:
     # This precedes the AutoConfig and every AutoModel retry/materialization below.
     register_fla_gated_deltanet()
-    if not model_cfg.peft_adapter:
-        config = AutoConfig.from_pretrained(
-            model_cfg.checkpoint,
-            trust_remote_code=True,
-        )
-        _use_exact_xlstm_head_dims(config)
-        if (
-            getattr(config, "model_type", None) != "xlstm"
-            or getattr(config, "mode", None) != "train"
-        ):
-            return model_cfg.checkpoint, None
-
-        base_dir = cache_root / "eval_safe_base_model"
-        if not base_dir.exists():
-            logger.info(
-                "Materializing eval-safe xLSTM base checkpoint at %s",
-                base_dir,
-            )
-            dtype = getattr(torch, str(model_cfg.dtype), None)
-            model = AutoModelForCausalLM.from_pretrained(
-                model_cfg.checkpoint,
-                torch_dtype=dtype,
-                trust_remote_code=True,
-                low_cpu_mem_usage=True,
-            )
-            tokenizer = cast(
-                Any,
-                AutoTokenizer.from_pretrained(
-                    model_cfg.checkpoint,
-                    trust_remote_code=True,
-                ),
-            )
-            _set_eval_safe_model_config(model)
-            _sync_weight_tying_flag(model)
-            base_dir.mkdir(parents=True, exist_ok=True)
-            tokenizer.save_pretrained(base_dir)
-            try:
-                model.save_pretrained(base_dir)
-            except RuntimeError as exc:
-                if "shared tensors" not in str(exc):
-                    raise
-                logger.warning(
-                    "Retrying save_pretrained with safe_serialization=False due to "
-                    "shared tensors."
-                )
-                model.save_pretrained(base_dir, safe_serialization=False)
-        return str(base_dir), None
-    if not model_cfg.merge_lora:
-        base_dir = cache_root / "resized_base_model"
-        if not base_dir.exists():
-            tokenizer = cast(
-                Any,
-                AutoTokenizer.from_pretrained(
-                    model_cfg.peft_adapter,
-                    trust_remote_code=True,
-                ),
-            )
-            dtype = getattr(torch, str(model_cfg.dtype), None)
-            model = AutoModelForCausalLM.from_pretrained(
-                model_cfg.checkpoint,
-                torch_dtype=dtype,
-                trust_remote_code=True,
-                low_cpu_mem_usage=True,
-            )
-            model.resize_token_embeddings(len(tokenizer))
-            base_dir.mkdir(parents=True, exist_ok=True)
-            tokenizer.save_pretrained(base_dir)
-            try:
-                model.save_pretrained(base_dir)
-            except RuntimeError as exc:
-                if "shared tensors" not in str(exc):
-                    raise
-                logger.warning(
-                    "Retrying save_pretrained with safe_serialization=False due to "
-                    "shared tensors."
-                )
-                model.save_pretrained(base_dir, safe_serialization=False)
-        return str(base_dir), model_cfg.peft_adapter
-
-    cache_root.mkdir(parents=True, exist_ok=True)
-    merged_dir = cache_root / "merged_model"
-    if merged_dir.exists():
-        return str(merged_dir), None
-
-    logger.info(
-        "Merging PEFT adapter into temporary checkpoint for lm-eval at %s",
-        merged_dir,
+    config = AutoConfig.from_pretrained(
+        model_cfg.checkpoint,
+        trust_remote_code=True,
     )
+    _use_exact_xlstm_head_dims(config)
+    if (
+        getattr(config, "model_type", None) != "xlstm"
+        or getattr(config, "mode", None) != "train"
+    ):
+        return model_cfg.checkpoint
 
-    cfg_copy = deepcopy(model_cfg)
-    cfg_copy.merge_lora = True
-
-    model, tokenizer = load_model_and_tokenizer(cfg_copy)
-
-    try:
-        model = cast(Any, model).to("cpu")
-    except Exception:
-        pass
-
-    merged_dir.mkdir(parents=True, exist_ok=True)
-    tokenizer.save_pretrained(merged_dir)
-    _sync_weight_tying_flag(model)
-    _set_eval_safe_model_config(model)
-    try:
-        model.save_pretrained(merged_dir)
-    except RuntimeError as exc:
-        if "shared tensors" not in str(exc):
-            raise
-        logger.warning(
-            "Retrying save_pretrained with safe_serialization=False due to "
-            "shared tensors."
+    base_dir = cache_root / "eval_safe_base_model"
+    if not base_dir.exists():
+        logger.info(
+            "Materializing eval-safe xLSTM base checkpoint at %s",
+            base_dir,
         )
-        model.save_pretrained(merged_dir, safe_serialization=False)
-
-    del model
-    try:
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
-        pass
-
-    return str(merged_dir), None
+        dtype = getattr(torch, str(model_cfg.dtype), None)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_cfg.checkpoint,
+            torch_dtype=dtype,
+            trust_remote_code=True,
+            low_cpu_mem_usage=True,
+        )
+        tokenizer = cast(
+            Any,
+            AutoTokenizer.from_pretrained(
+                model_cfg.checkpoint,
+                trust_remote_code=True,
+            ),
+        )
+        _set_eval_safe_model_config(model)
+        _sync_weight_tying_flag(model)
+        base_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(base_dir)
+        try:
+            model.save_pretrained(base_dir)
+        except RuntimeError as exc:
+            if "shared tensors" not in str(exc):
+                raise
+            logger.warning(
+                "Retrying save_pretrained with safe_serialization=False due to "
+                "shared tensors."
+            )
+            model.save_pretrained(base_dir, safe_serialization=False)
+    return str(base_dir)
 
 
 def _set_eval_safe_model_config(model) -> None:
@@ -436,7 +353,6 @@ def _run_pack(
     work_root: Path,
     pack_overrides: dict[str, Any] | None,
     pretrained_path: str,
-    peft_adapter: str | None,
     task_pack_scope: str,
     is_xlstm: bool = False,
 ) -> dict[str, Any]:
@@ -468,15 +384,11 @@ def _run_pack(
     model_args = _format_model_args(
         pretrained_path=pretrained_path,
         dtype=model_cfg.dtype,
-        peft_adapter=peft_adapter,
         tokenizer_override=tokenizer_override,
         tie_word_embeddings=model_cfg.tie_word_embeddings,
         extra_model_args=model_cfg.lm_eval_model_args,
         default_add_bos_token=add_bos_token,
     )
-
-    if model_cfg.peft_adapter and peft_adapter is None:
-        logger.info("Using merged checkpoint for lm-eval: %s", pretrained_path)
 
     eval_kwargs: dict[str, Any] = {
         "model": "hf",
@@ -585,7 +497,7 @@ def run_task_pack_evaluations(
         prefix="sallm_lm_eval_", dir=temp_root_parent
     ) as temp_root:
         work_root = Path(temp_root)
-        pretrained_path, peft_adapter = _materialize_model_for_lm_eval(
+        pretrained_path = _materialize_model_for_lm_eval(
             model_cfg, work_root / "_lm_eval"
         )
         is_xlstm = _is_xlstm_checkpoint(model_cfg.checkpoint)
@@ -611,7 +523,6 @@ def run_task_pack_evaluations(
                     work_root,
                     pack_overrides,
                     pretrained_path,
-                    peft_adapter,
                     task_pack_scope,
                     is_xlstm=is_xlstm,
                 )

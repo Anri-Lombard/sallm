@@ -29,7 +29,6 @@ tokenizer:
 
 training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-xlstm-125m"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-xlstm-125m"
 
   learning_rate: 4.0e-4
   max_seq_length: 512
