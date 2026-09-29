@@ -317,7 +317,7 @@ def test_representative_instruction_finetune_configs_share_dataset_defaults() ->
         },
         "finetune/llama_sa_multitask": {
             "architecture": "llama",
-            "hf_name": "mix:sa_general",
+            "hf_name": "mix:sa_multitask",
             "subset": None,
             "max_seq_length": 2048,
             "templates": [],
@@ -338,7 +338,7 @@ def test_representative_instruction_finetune_configs_share_dataset_defaults() ->
         ]
         assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
         assert merged.dataset.packing is False
-        if expected["hf_name"] == "mix:sa_general":
+        if expected["hf_name"] == "mix:sa_multitask":
             assert merged.dataset.mix_cap == 3000
         assert merged.dataset.assistant_only_loss is True
         assert merged.dataset.subset == expected["subset"]

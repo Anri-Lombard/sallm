@@ -22,7 +22,7 @@ def _experiment(*, repo_id: str) -> ExperimentConfig:
         wandb=None,
         model=ModelConfig(architecture="llama", config={}),
         dataset=FinetuneDatasetConfig(
-            hf_name="mix:sa_general",
+            hf_name="mix:sa_multitask",
             max_seq_length=1024,
             packing=False,
             assistant_only_loss=True,

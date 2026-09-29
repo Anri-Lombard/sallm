@@ -1,9 +1,5 @@
-name: sa_general
-aliases:
-  - sa-general
-  - sa_all
-  - sa-all
-
+# Seven-task multitask mixture: every task the single-task models train on.
+name: sa_multitask
 components:
   - name: sib
     hf_name: Davlan/sib200
@@ -141,3 +137,29 @@ components:
         weight: 1.0
     template_choice: cycle
     max_seq_length_override: 1024
+
+  - name: intent
+    hf_name: masakhane/InjongoIntent
+    subset: null
+    languages:
+      - eng
+      - sot
+      - xho
+      - zul
+    task: classification
+    splits:
+      train: train
+      val: validation
+    templates:
+      - id: injongointent_intent_classification/lm_eval_p1
+        weight: 1.0
+      - id: injongointent_intent_classification/lm_eval_p2
+        weight: 1.0
+      - id: injongointent_intent_classification/lm_eval_p3
+        weight: 1.0
+      - id: injongointent_intent_classification/lm_eval_p4
+        weight: 1.0
+      - id: injongointent_intent_classification/lm_eval_p5
+        weight: 1.0
+    template_choice: cycle
+    label_column: intent

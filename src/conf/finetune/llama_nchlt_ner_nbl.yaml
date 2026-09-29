@@ -1,0 +1,18 @@
+defaults:
+  - defaults/datasets/nchlt_ner@_here_
+  - defaults/common@_here_
+  - defaults/arch/llama@_here_
+  - _self_
+wandb:
+  name: llama-125m-nchlt-ner-nbl-all
+dataset:
+  subset: null
+  languages:
+    - nbl
+  max_seq_length: 2048
+training:
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_nchlt_ner_nbl
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_nchlt_ner_nbl
+  run_name: llama-125m-nchlt-ner-lora-finetune-all
+  num_train_epochs: 10
+  dataloader_num_workers: 4
