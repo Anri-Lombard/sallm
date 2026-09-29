@@ -923,8 +923,14 @@ def score_parallel(r: Run, split: str, model: Path, out: Path, fams: dict[str, l
     order = sorted((f for f in fams if f not in gen), key=lambda f: -score_minutes(r.arch, f, split))
     with ThreadPoolExecutor(workers) as ex:
         futs = {f: ex.submit(score, r, f, split, model, fams[f], out / f) for f in order}
-        res = {f: futs[f].result() for f in order}
-    res.update({f: score(r, f, split, model, fams[f], out / f) for f in gen})
+        res, again = {}, []
+        for f in order:
+            try:
+                res[f] = futs[f].result()
+            except Exception as exc:  # 29 Sep: an xLSTM POS scorer ran out of memory beside its peers; rerun it alone
+                print(f"SCORE_PARALLEL_RETRY {f}: {str(exc)[-200:]}", flush=True)
+                again.append(f)
+    res.update({f: score(r, f, split, model, fams[f], out / f) for f in again + gen})
     return {f: res[f] for f in fams}
 
 
