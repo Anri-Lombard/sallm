@@ -107,8 +107,9 @@ PAPER_MODEL = {"mzansilm": "MzansiLM", "mamba2": "Mamba", "xlstm": "xLSTM", "gdn
 FAMILIES = {
     "news": dict(sweep="multi", langs=("eng", "xho"), mono="llama_news_{}", multi="llama_news_all",
                  rows={"eng": 3309, "xho": 1032}),
-    "sib": dict(sweep="multi", langs=("afr", "eng", "nso", "sot", "xho", "zul"), mono="llama_sib_{}", multi="llama_sib_all",
-                rows=dict.fromkeys(("afr", "eng", "nso", "sot", "xho", "zul"), 701)),
+    # ssw, tsn, tso added to SIB-200 training in every regime on 29 Sep 2026 (were evaluation-only)
+    "sib": dict(sweep="multi", langs=("afr", "eng", "nso", "sot", "xho", "zul", "ssw", "tsn", "tso"), mono="llama_sib_{}",
+                multi="llama_sib_all", rows=dict.fromkeys(("afr", "eng", "nso", "sot", "xho", "zul", "ssw", "tsn", "tso"), 701)),
     "intent": dict(sweep="multi", langs=("eng", "sot", "xho", "zul"), mono="llama_injongointent_{}", multi="llama_injongointent_all",
                    rows={"eng": 1046, "sot": 2000, "xho": 2000, "zul": 2000}),
     "ner": dict(sweep="multi", langs=("tsn", "xho", "zul"), mono="llama_ner_{}", multi="llama_ner_all",
@@ -118,7 +119,7 @@ FAMILIES = {
     "afrihg": dict(sweep="multi", langs=("xho", "zul"), mono="llama_afrihg_{}", multi="llama_afrihg_all",
                    rows={"xho": 12300, "zul": 12349}),
     "t2x": dict(sweep="mono", langs=("xho",), mono="llama_t2x_{}", multi=None, rows={"xho": 3859}),
-    "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_multitask7_k3000", rows={"all": 50683}),
+    "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_multitask7_k3000", rows={"all": 52786}),
     # NCHLT (added 28 Sep 2026) for the four languages no other task covers. Not part of the General mixture.
     # NER train is a seeded 2,000-sentence subset per language (anrilombard/nchlt-ner-sa4 `train`); POS is the full train.
     "nchlt_ner": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso"), mono="llama_nchlt_ner_{}", multi="llama_nchlt_ner_all",

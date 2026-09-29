@@ -22,6 +22,9 @@ from datasets import Dataset
 KIT = Path("/scratch/lmbanr001/masters/sallm/results/monomulti_reselect_20260925/jobs/kit/sib")
 PROTOCOL = KIT / "sib_protocol_hex.json"
 PROMPTS = {"afr": 4, "eng": 3, "nso": 4, "sot": 3, "xho": 5, "zul": 5}
+# ssw/tsn/tso joined training on 29 Sep 2026; their prompt is fixed before any score to isiZulu's selected prompt, since
+# their prompt files were derived from isiZulu's (one model-independent rule, the same for all four architectures).
+EXT_PROMPTS = {"ssw": 5, "tsn": 5, "tso": 5}
 ROWS = {"test": 204, "validation": 99}
 # Languages outside the sealed protocol (ssw, tsn, tso): prompts copied from zul's with only dataset_name changed,
 # data hashes recorded by sib_ext.py fetch; the prompt is chosen per (arch, language) on validation by sib_ext.py.
@@ -52,7 +55,7 @@ def main() -> None:
     ap.add_argument("--adapter", type=Path)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--split", required=True, choices=("validation", "test"))
-    ap.add_argument("--langs", default=",".join(PROMPTS))
+    ap.add_argument("--langs", default=",".join([*PROMPTS, *EXT_PROMPTS]))
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--prompt", type=int, help="prompt for languages outside the sealed protocol")
     args = ap.parse_args()
@@ -82,7 +85,7 @@ def main() -> None:
                 prompt_yaml = KIT / "src/conf/eval/lm_eval_tasks/sib_validation" / f"sallm_sib_{lang}_val_prompt_{prompt}.yaml"
                 assert sha(prompt_yaml) == entry["prompt_yaml_sha256"], prompt_yaml
             else:
-                entry, prompt = json.loads((EXT / "protocol.json").read_text())["languages"][lang], args.prompt
+                entry, prompt = json.loads((EXT / "protocol.json").read_text())["languages"][lang], args.prompt or EXT_PROMPTS.get(lang)
                 if prompt not in range(1, 6):
                     raise SystemExit(f"{lang} is outside the sealed protocol: pass --prompt 1-5")
                 prompt_yaml = EXT / f"sallm_sib_{lang}_val_prompt_{prompt}.yaml"
@@ -108,7 +111,7 @@ def main() -> None:
             per_lang[lang] = scorer.summarize(lang_rows)["metrics"]
             per_lang[lang]["n_items"] = len(lang_rows)
     payload = {"schema": "reselect.sib_eval/v1", "split": args.split, "arch": args.arch, "base": str(args.base), "adapter": str(args.adapter),
-               "adapter_tree_sha256": tree_sha256(args.adapter) if args.adapter else None, "model_tree_sha256": tree_sha256(args.adapter or args.base), "limit": args.limit, "protocol": str(PROTOCOL), "prompts": {k: PROMPTS.get(k, args.prompt) for k in per_lang},
+               "adapter_tree_sha256": tree_sha256(args.adapter) if args.adapter else None, "model_tree_sha256": tree_sha256(args.adapter or args.base), "limit": args.limit, "protocol": str(PROTOCOL), "prompts": {k: PROMPTS.get(k, args.prompt or EXT_PROMPTS.get(k)) for k in per_lang},
                "data_files": data_files, "chat_template_sha256": hashlib.sha256(str(tokenizer.chat_template).encode()).hexdigest(),
                "languages": per_lang, "ties": sum(r["tie"] for r in rows), "runtime_seconds": time.monotonic() - started, "rows": rows}
     args.out.parent.mkdir(parents=True, exist_ok=True)

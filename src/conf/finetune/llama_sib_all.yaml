@@ -21,6 +21,9 @@ dataset:
     - sot_Latn
     - xho_Latn
     - zul_Latn
+    - ssw_Latn
+    - tsn_Latn
+    - tso_Latn
   task: CLASSIFICATION
   splits:
     train: train

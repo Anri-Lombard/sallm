@@ -387,3 +387,11 @@ Cached POS scoring ON from 28 Sep ~23:10 SAST (integration test on Kombuys CPU: 
 Cached POS scoring OFF again from 28 Sep ~23:25 SAST: the 200-word check stopped the Transformer Multitask validation (disagreement at word 4 on HEX, bf16). Every POS score uses the reference scorer; scores produced with the cached path between ~22:10 and ~23:25 are re-scored.
 
 Generation scoring runs alone, 29 Sep 2026 ~02:05 SAST. A parallel Transformer Multitask validation ran out of GPU memory: the AfriHG scorer sizes its batches from free memory and took 38.7 GB, and T2X failed beside it (the run retried from its epoch-2 checkpoint and reused the finished families, so its scores are valid). score_parallel now runs T2X/AfriHG alone after the parallel families, and gen_direct.py waits (per-lane lock, then until no other scorer is on the GPU) before loading, which also covers processes that loaded the earlier score_parallel.
+
+SIB-200 languages, AMENDED 29 Sep 2026 ~07:40 SAST (user decision). siSwati, Setswana and Xitsonga (previously
+evaluation-only, "cross-lingual") join SIB-200 training in every regime: Multi (llama_sib_all, 9 languages), Mono
+(llama_sib_{ssw,tsn,tso}) and the Multitask mixture (sa_multitask7 SIB component; still capped at 3,000 examples). Their
+scoring prompt is fixed before any score to isiZulu's selected prompt (5), since their prompt files were derived from
+isiZulu's; one model-independent rule for all four architectures (runners/sib_score.py EXT_PROMPTS). All four
+architectures' SIB-200 units (sweep, selection, test, Mono) and Multitask units (train, beam, collect) are archived to
+runs/<arch>/archive_sib6/ and re-run; the Multitask LR transfer is recomputed from the new SIB-200 selection.
