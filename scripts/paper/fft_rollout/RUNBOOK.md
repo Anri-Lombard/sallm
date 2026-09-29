@@ -411,3 +411,23 @@ byte-identical; README configs extended). Validation subsample adds NER afr 896 
 258 -> 100 (earlier entries unchanged). Sepedi POS has 38 coarse tags, 8 of them new to NCHLT (ADJINDEF, NGA, NN,
 POSSCGA, POSSCINDEF, PROPOSSN, SCINDEF, SCNEUT), so the tag list in the four NCHLT POS prompts (the union over the
 family's languages) grows from 44 to 52 tags for every language; scoring candidates stay each language's own tags.
+
+## 6. Efficiency benchmark (paper table: training and inference speed/memory)
+
+`runners/efficiency_bench.py` measures one architecture's base checkpoint on one GPU with random token ids: training step
+(forward + backward + fused AdamW; batch 4/8 x seq 512/2048; 5 warmup + 20 timed), prefill (no grad; batch 1/8 x seq 512/2048;
+5 + 20) and greedy decode (512-token prompt, exactly 256 new tokens via min_new_tokens = max_new_tokens, batch 1/8; 1 warmup + 5
+timed generate calls, so the time includes the prompt prefill). Median and IQR, tokens/s, peak `max_memory_allocated` (includes
+the resident weights; OOM recorded per config). Training is fp32 master weights + bf16 autocast for `--dtype bfloat16` (the
+fine-tuning setup; xLSTM with the padded TFLA kernel) and plain fp32 for `float32`; prefill/decode load the weights in `--dtype`.
+The JSON also records parameter count, GPU, versions, host, time and any compute process on the GPU at start and end.
+
+```bash
+bash scripts/paper/fft_rollout/sync_to_hex.sh          # from the Mac, so the job sees the script
+sbatch /scratch/lmbanr001/masters/sallm/results/fft_rollout_20260926/code/fft_rollout/efficiency_bench.sbatch
+# subset (existing JSONs are skipped): sbatch --export=ALL,DTYPES=bfloat16,ARCHS=gdn <path>/efficiency_bench.sbatch
+```
+One L40S job runs all four architectures in turn (bf16 then fp32), output `$R/efficiency_bench/<arch>_<dtype>.json`.
+Submit it only when the rollout lanes are done (or none shares that GPU): the numbers are only comparable when measured
+alone, and `gpu_users_at_start` in each JSON shows whether they were. Dry run: `python runners/efficiency_bench.py --arch gdn
+--checkpoint x --output y --dry-run`.
