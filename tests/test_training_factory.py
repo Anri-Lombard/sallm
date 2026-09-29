@@ -172,7 +172,12 @@ def test_iterable_dataset_preserves_explicit_dispatch_and_accelerator_options(
 def test_auto_epochs_follow_training_set_size(monkeypatch, rows, epochs) -> None:
     trainer = _build(
         monkeypatch,
-        {"output_dir": "unused", "max_length": 2048, "num_train_epochs": "auto"},
+        {
+            "output_dir": "unused",
+            "max_length": 2048,
+            "num_train_epochs": "auto",
+            "bf16": False,
+        },
         train_dataset=[{"text": "x"}] * rows,
         sft_config=SFTConfig,
     )
