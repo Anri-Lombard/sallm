@@ -8,14 +8,12 @@ from sallm.configs.evaluation import (
     GenerationEvalTaskConfig,
     LanguageEvalResult,
     ModelEvalConfig,
-    PeftLoadConfig,
 )
 from sallm.configs.experiment import ExperimentConfig
 from sallm.configs.finetune import (
     FewshotTemplateMode,
     FinetuneDatasetConfig,
     FinetuneTaskType,
-    PeftConfig,
     TaskType,
     TemplateChoice,
     TemplateConfig,
@@ -41,8 +39,6 @@ __all__ = [
     "ModelConfig",
     "ModelEvalConfig",
     "ParamRangeConfig",
-    "PeftConfig",
-    "PeftLoadConfig",
     "RunMode",
     "TaskType",
     "TemplateChoice",

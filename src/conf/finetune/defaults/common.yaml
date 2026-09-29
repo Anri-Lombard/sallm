@@ -1,24 +1,39 @@
+# Full fine-tuning protocol of the architecture-comparison paper. The paper
+# selected the learning rate per task from {3e-5, 1e-4, 3e-4} (see
+# sweeps/llama_t2x_xho.yaml); 1e-4 is the middle of that grid.
 mode: FINETUNE
 wandb:
   project: sallm-ft
-peft:
-  method: lora
-  kwargs:
-    lora_dropout: 0.1
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
+  learning_rate: 1.0e-4
+  optim: adamw_torch
+  adam_beta1: 0.9
   adam_beta2: 0.95
-  max_grad_norm: 1.0
+  adam_epsilon: 1.0e-8
+  weight_decay: 0.01
   lr_scheduler_type: cosine
-  per_device_eval_batch_size: 4
+  warmup_steps: 0.1
+  max_grad_norm: 1.0
+  # effective batch 16; long-input tasks trade micro-batch for accumulation
+  per_device_train_batch_size: 16
+  gradient_accumulation_steps: 1
+  per_device_eval_batch_size: 16
+  num_train_epochs: auto
+  bf16: true
+  gradient_checkpointing: false
+  eval_strategy: epoch
+  save_strategy: epoch
+  save_total_limit: 1
+  load_best_model_at_end: true
+  early_stopping_patience: 3
   eval_accumulation_steps: 1
   logging_steps: 10
-  eval_strategy: epoch
+  dataloader_num_workers: 4
+  ddp_find_unused_parameters: false
   report_to: wandb
 hub:
   enabled: true
   organization: anrilombard
   private: true
-  push_adapter: true
-  push_merged: false

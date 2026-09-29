@@ -13,7 +13,7 @@ dataset:
     - xho
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_news_messages_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_news_messages_all
-  run_name: llama-125m-news-lora-finetune-messages-all
-  num_train_epochs: 15
-  dataloader_num_workers: 4
+  run_name: llama-125m-news-messages-all
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  per_device_eval_batch_size: 4

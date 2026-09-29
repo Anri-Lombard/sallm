@@ -5,9 +5,6 @@ defaults:
   - _self_
 wandb:
   name: xlstm-125m-sib-all
-peft:
-  kwargs:
-    lora_dropout: 0.05
 dataset:
   subset: null
   max_seq_length: 1024
@@ -20,7 +17,5 @@ dataset:
     - zul_Latn
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_sib_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_sib_all
-  run_name: xlstm-125m-sib-lora-all
-  num_train_epochs: 15
+  run_name: xlstm-125m-sib-all
   pad_to_multiple_of: 64

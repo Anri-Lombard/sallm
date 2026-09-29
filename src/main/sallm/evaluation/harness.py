@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import random
-import re
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +10,6 @@ from typing import Any, cast
 
 import torch
 from datasets import Dataset, DatasetDict, get_dataset_config_names, load_dataset
-from peft import PeftModel
 from tokenizers.decoders import ByteLevel
 from transformers import (
     AutoModelForCausalLM,
@@ -82,53 +80,6 @@ def _prepare_tokenizer(
     return tokenizer
 
 
-def _infer_vocab_size_from_peft_error(exc: RuntimeError) -> int | None:
-    message = str(exc)
-    if "size mismatch" not in message:
-        return None
-
-    checkpoint_max = 0
-    current_max = 0
-    for line in message.splitlines():
-        if "size mismatch for" not in line:
-            continue
-        if not any(
-            key in line for key in ("embeddings", "lm_head", "lora_embedding_A")
-        ):
-            continue
-
-        checkpoint_match = re.search(
-            r"copying a param with shape torch\.Size\(\[([0-9,\s]+)\]\)",
-            line,
-        )
-        current_match = re.search(
-            r"the shape in current model is torch\.Size\(\[([0-9,\s]+)\]\)",
-            line,
-        )
-
-        if checkpoint_match:
-            dims = [
-                int(part.strip())
-                for part in checkpoint_match.group(1).split(",")
-                if part.strip().isdigit()
-            ]
-            if dims:
-                checkpoint_max = max(checkpoint_max, max(dims))
-
-        if current_match:
-            dims = [
-                int(part.strip())
-                for part in current_match.group(1).split(",")
-                if part.strip().isdigit()
-            ]
-            if dims:
-                current_max = max(current_max, max(dims))
-
-    if checkpoint_max > current_max and checkpoint_max >= 50000:
-        return checkpoint_max
-    return None
-
-
 def _resolve_dtype(dtype_str: str) -> torch.dtype:
     try:
         return getattr(torch, dtype_str)
@@ -137,86 +88,22 @@ def _resolve_dtype(dtype_str: str) -> torch.dtype:
 
 
 def _load_tokenizer_and_pretrained(
-    checkpoint: str, trust_remote_code: bool = True, adapter_path: str | None = None
+    checkpoint: str, trust_remote_code: bool = True
 ) -> tuple[PreTrainedTokenizerBase, str]:
     checkpoint_path = Path(checkpoint)
-    pretrained_id = checkpoint
     if checkpoint_path.exists():
-        try:
-            pretrained_id = str(checkpoint_path.resolve())
-        except Exception:
-            pretrained_id = str(checkpoint_path)
-
-    def _is_hf_hub_path(path_str: str) -> bool:
-        if path_str.startswith(("/", ".", "~")):
-            return False
-        parts = path_str.split("/")
-        return len(parts) == 2 and all(p and not p.startswith(".") for p in parts)
-
-    adapter_tokenizer = None
-    if adapter_path:
-        candidate = Path(adapter_path)
-        if candidate.exists() and candidate.is_dir():
-            tokenizer_files = (
-                "tokenizer.json",
-                "tokenizer_config.json",
-                "vocab.json",
-                "tokenizer.model",
-            )
-            if any((candidate / name).exists() for name in tokenizer_files):
-                adapter_tokenizer = candidate
-        elif _is_hf_hub_path(adapter_path):
-            # Try loading tokenizer from HF hub adapter
-            try:
-                logger.info("Loading tokenizer from HF hub adapter: %s", adapter_path)
-                tok = cast(
-                    PreTrainedTokenizerBase,
-                    AutoTokenizer.from_pretrained(
-                        adapter_path, trust_remote_code=trust_remote_code
-                    ),
-                )
-                return tok, pretrained_id
-            except Exception as exc:
-                logger.warning(
-                    (
-                        "Adapter tokenizer load failed for '%s' (%s). "
-                        "Falling back to base checkpoint."
-                    ),
-                    adapter_path,
-                    exc,
-                )
-
-    tokenizer_root = adapter_tokenizer
-    if tokenizer_root is None and checkpoint_path.exists():
-        tokenizer_root = checkpoint_path
-
-    if tokenizer_root is not None and tokenizer_root.exists():
-        try:
-            tokenizer_resolved = str(tokenizer_root.resolve())
-        except Exception:
-            tokenizer_resolved = str(tokenizer_root)
-        source_label = (
-            "adapter checkpoint"
-            if adapter_tokenizer is not None and tokenizer_root == adapter_tokenizer
-            else "local checkpoint"
+        pretrained_id = str(checkpoint_path.resolve())
+        logger.info("Loading tokenizer from local checkpoint: %s", pretrained_id)
+        tok = AutoTokenizer.from_pretrained(
+            pretrained_id, trust_remote_code=trust_remote_code, local_files_only=True
         )
-        logger.info("Loading tokenizer from %s: %s", source_label, tokenizer_resolved)
-        tok = cast(
-            PreTrainedTokenizerBase,
-            AutoTokenizer.from_pretrained(
-                tokenizer_resolved,
-                trust_remote_code=trust_remote_code,
-                local_files_only=True,
-            ),
+    else:
+        pretrained_id = checkpoint
+        logger.info("Loading tokenizer from HF hub or identifier: %s", checkpoint)
+        tok = AutoTokenizer.from_pretrained(
+            checkpoint, trust_remote_code=trust_remote_code
         )
-        return tok, pretrained_id
-
-    logger.info("Loading tokenizer from HF hub or identifier: %s", checkpoint)
-    tok = cast(
-        PreTrainedTokenizerBase,
-        AutoTokenizer.from_pretrained(checkpoint, trust_remote_code=trust_remote_code),
-    )
-    return tok, pretrained_id
+    return cast(PreTrainedTokenizerBase, tok), pretrained_id
 
 
 def load_model_and_tokenizer(
@@ -230,7 +117,6 @@ def load_model_and_tokenizer(
     tokenizer, pretrained_id = _load_tokenizer_and_pretrained(
         model_cfg.checkpoint,
         trust_remote_code=True,
-        adapter_path=model_cfg.peft_adapter,
     )
     tokenizer = _prepare_tokenizer(tokenizer)
 
@@ -255,71 +141,6 @@ def load_model_and_tokenizer(
             vocab_size,
         )
         model.resize_token_embeddings(vocab_size)
-
-    if model_cfg.peft_adapter:
-        logger.info("Loading PEFT adapter from %s", model_cfg.peft_adapter)
-        try:
-            model = cast(
-                PreTrainedModel,
-                PeftModel.from_pretrained(model, model_cfg.peft_adapter),
-            )
-        except RuntimeError as exc:
-            target_vocab = _infer_vocab_size_from_peft_error(exc)
-            adapter_tokenizer = None
-            try:
-                adapter_tokenizer = cast(
-                    PreTrainedTokenizerBase,
-                    AutoTokenizer.from_pretrained(
-                        model_cfg.peft_adapter, trust_remote_code=True
-                    ),
-                )
-                target_vocab = max(target_vocab or 0, len(adapter_tokenizer))
-            except Exception as tok_exc:
-                logger.warning(
-                    (
-                        "Unable to reload adapter tokenizer from '%s' during "
-                        "PEFT retry: %s"
-                    ),
-                    model_cfg.peft_adapter,
-                    tok_exc,
-                )
-
-            if target_vocab is None:
-                raise
-
-            current_vocab = int(cast(Any, model.get_input_embeddings()).weight.shape[0])
-            if target_vocab != current_vocab:
-                logger.warning(
-                    (
-                        "Retrying PEFT adapter load after resizing embeddings "
-                        "from %d to %d."
-                    ),
-                    current_vocab,
-                    target_vocab,
-                )
-                # A failed initial PEFT load can partially wrap embeddings with LoRA
-                # modules, which breaks resize_token_embeddings. Reload a clean base.
-                model = cast(
-                    PreTrainedModel,
-                    AutoModelForCausalLM.from_pretrained(
-                        pretrained_id,
-                        torch_dtype=torch_dtype,
-                        trust_remote_code=True,
-                        low_cpu_mem_usage=True,
-                    ),
-                )
-                model.resize_token_embeddings(target_vocab)
-
-            if adapter_tokenizer is not None:
-                tokenizer = _prepare_tokenizer(adapter_tokenizer)
-
-            model = cast(
-                PreTrainedModel,
-                PeftModel.from_pretrained(model, model_cfg.peft_adapter),
-            )
-        if model_cfg.merge_lora:
-            logger.info("Merging LoRA weights into the base model for evaluation.")
-            model = cast(PreTrainedModel, cast(Any, model).merge_and_unload())
 
     prepare_model_for_evaluation(model)
     device = torch.device(model_cfg.device)

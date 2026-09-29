@@ -10,6 +10,5 @@ dataset:
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_injongointent_sot
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_injongointent_sot
   run_name: llama-125m-injongo-intent-sot
-  dataloader_num_workers: 4
+  num_train_epochs: 10

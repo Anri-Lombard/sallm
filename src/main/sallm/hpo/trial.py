@@ -141,20 +141,11 @@ def _apply_training_paths(cfg: DictConfig, run_id: str | None) -> None:
     if training is None:
         return
     base_out = training.get("output_dir")
-    base_log = training.get("logging_dir")
     if run_id and base_out:
         training["output_dir"] = os.path.join(base_out, run_id)
-    if run_id and base_log:
-        training["logging_dir"] = os.path.join(base_log, run_id)
 
 
 def _apply_derived_updates(cfg: DictConfig, updates: dict[str, Any]) -> None:
-    rank = updates.pop("hpo.lora_rank", None)
-    if rank is not None:
-        rank = int(rank)
-        _set_by_dotted_key(cfg, "peft.kwargs.r", rank)
-        _set_by_dotted_key(cfg, "peft.kwargs.lora_alpha", 2 * rank)
-
     effective_batch = updates.pop("hpo.effective_batch_size", None)
     if effective_batch is not None:
         microbatch = int(cfg.training.per_device_train_batch_size)
@@ -178,7 +169,7 @@ def _apply_updates(
             cfg["wandb"]["id"] = f"sweep-{run_id}"
         derived_updates = {
             key: updates.pop(key)
-            for key in ("hpo.lora_rank", "hpo.effective_batch_size")
+            for key in ("hpo.effective_batch_size",)
             if key in updates
         }
         for dotted_key, value in updates.items():
@@ -187,8 +178,6 @@ def _apply_updates(
         _apply_training_paths(cfg, run_id)
         if cfg.get("hub") is not None:
             cfg["hub"]["enabled"] = False
-            cfg["hub"]["push_adapter"] = False
-            cfg["hub"]["push_merged"] = False
         token_path = OmegaConf.select(cfg, "tokenizer.path")
         if isinstance(token_path, str):
             resolved = resolve_tokenizer_path(token_path)

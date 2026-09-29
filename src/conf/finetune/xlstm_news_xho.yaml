@@ -5,28 +5,13 @@ defaults:
   - _self_
 wandb:
   name: xlstm-125m-news-xho
-peft:
-  kwargs:
-    r: 16
-    lora_alpha: 32
-    lora_dropout: 0.05
-    target_modules:
-      - q
-      - k
-      - v
-      - out_proj
 dataset:
   subset: xho
   max_seq_length: 1024
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_news_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_news_xho
-  run_name: xlstm-125m-news-lora-finetune-xho
-  learning_rate: 0.00038639058877167623
-  weight_decay: 0.012759111604081186
-  gradient_accumulation_steps: 16
-  lr_scheduler_type: linear
-  warmup_ratio: 0.05
-  per_device_train_batch_size: 4
-  num_train_epochs: 10
+  run_name: xlstm-125m-news-xho
   pad_to_multiple_of: 64
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  per_device_eval_batch_size: 4

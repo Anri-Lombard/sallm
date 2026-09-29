@@ -5,22 +5,17 @@ defaults:
   - _self_
 wandb:
   name: mamba-125m-afrihg-zul
-peft:
-  kwargs:
-    lora_dropout: 0.05
 dataset:
   subset: zul
   max_seq_length: 1024
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_afrihg_zul
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_afrihg_zul
   run_name: mamba-125m-afrihg-zul
-  num_train_epochs: 2
-  gradient_checkpointing: true
   metric_for_best_model: eval_all_chrf
   greater_is_better: true
-  label_smoothing_factor: 0.05
-  logging_first_step: true
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  per_device_eval_batch_size: 4
 generation_decoding:
   early_stopping: true
   length_penalty: 0.7

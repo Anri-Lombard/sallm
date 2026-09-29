@@ -10,6 +10,4 @@ dataset:
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_ner_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_ner_xho
-  run_name: llama-125m-ner-lora-finetune-xho
-  num_train_epochs: 50
+  run_name: llama-125m-ner-xho

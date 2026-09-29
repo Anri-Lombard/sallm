@@ -21,10 +21,6 @@ dataset:
       weight: 0.0
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_afrisenti_tso
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_afrisenti_tso
-  run_name: mamba-125m-afrisenti-lora-finetune-tso
-  gradient_accumulation_steps: 4
-  per_device_train_batch_size: 4
-  num_train_epochs: 20
+  run_name: mamba-125m-afrisenti-tso
   metric_for_best_model: eval_classification/all_f1
   greater_is_better: true

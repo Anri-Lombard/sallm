@@ -15,5 +15,5 @@ dataset:
     - zul
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_xlstm_125m_injongointent_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_xlstm_125m_injongointent_all
   run_name: xlstm-125m-injongo-intent-all
+  num_train_epochs: 10

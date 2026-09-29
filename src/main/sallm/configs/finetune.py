@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 from omegaconf import MISSING
 
@@ -111,9 +110,3 @@ class FinetuneDatasetConfig:
 class TemplateConfig:
     prompt: str = MISSING
     label_mapping: dict[int | str, str] = field(default_factory=dict)
-
-
-@dataclass
-class PeftConfig:
-    method: str = "qlora"
-    kwargs: dict[str, Any] = field(default_factory=dict)

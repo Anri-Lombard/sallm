@@ -5,18 +5,14 @@ defaults:
   - _self_
 wandb:
   name: mamba-125m-news-xho
-peft:
-  kwargs:
-    lora_dropout: 0.05
 dataset:
   subset: xho
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_news_xho
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_news_xho
-  run_name: mamba-125m-news-lora-finetune-xho
-  gradient_accumulation_steps: 4
-  per_device_train_batch_size: 4
-  gradient_checkpointing: true
+  run_name: mamba-125m-news-xho
   metric_for_best_model: eval_classification/all_f1
   greater_is_better: true
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  per_device_eval_batch_size: 4

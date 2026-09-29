@@ -130,7 +130,8 @@ class ShowCompletionsCallback(TrainerCallback):
                     prompt_messages,
                     add_generation_prompt=True,
                     return_tensors="pt",
-                )
+                    return_dict=True,
+                )["input_ids"]
                 .to(device)
             )
 

@@ -32,7 +32,6 @@ tokenizer:
 
 training:
   output_dir: "${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-400m"
-  logging_dir: "${oc.env:SCRATCH}/masters/sallm/logs/sallm-llama-400m"
   max_seq_length: 2048
   learning_rate: 3.0e-4
   weight_decay: 0.1

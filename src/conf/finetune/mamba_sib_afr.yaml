@@ -5,16 +5,11 @@ defaults:
   - _self_
 wandb:
   name: mamba-125m-sib-afr
-peft:
-  kwargs:
-    lora_dropout: 0.05
 dataset:
   subset: afr_Latn
   max_seq_length: 2048
 training:
   output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_mamba_125m_sib_afr
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_mamba_125m_sib_afr
-  run_name: mamba-125m-sib-lora-afr
-  gradient_checkpointing: true
+  run_name: mamba-125m-sib-afr
   metric_for_best_model: eval_classification/all_f1
   greater_is_better: true

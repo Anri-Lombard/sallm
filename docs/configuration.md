@@ -9,16 +9,22 @@ Runs are Hydra configs under `src/conf`. A target is a path there without
 Each `finetune/<arch>_<task>_<lang>.yaml` composes, in order:
 
 1. `finetune/defaults/datasets/<task>`: dataset, templates and splits.
-2. `finetune/defaults/common`: settings shared by every fine-tuning run.
-3. `finetune/defaults/arch/<arch>`: model, LoRA and training defaults for one
-   architecture.
-4. The file itself: run names and paths, plus any value that differs from the
-   defaults (usually the tuned hyperparameters).
+2. `finetune/defaults/common`: the full fine-tuning protocol shared by every
+   run (AdamW, cosine schedule, 10% warmup, effective batch 16, bf16 autocast).
+3. `finetune/defaults/arch/<arch>`: the base model to start from.
+4. The file itself: run names and paths, the selection metric, and any value
+   that differs from the defaults.
 
 Later entries win. To change a default for every run of an architecture, edit
 its `arch/` file; to change one run, set the value in that run's file.
 
-Two `training` options are handled by SALLM rather than passed to the
+Fine-tuning updates every weight; the checkpoint loads in float32 and `bf16`
+means autocast. `num_train_epochs: auto` trains 10 epochs when the training set
+has fewer than 5,000 examples and 4 otherwise, with early stopping on the
+validation metric. The learning rate defaults to 1e-4; the paper picked it per
+task from {3e-5, 1e-4, 3e-4} with the sweep in `sweeps/llama_t2x_xho.yaml`.
+
+Two more `training` options are handled by SALLM rather than passed to the
 Transformers trainer: `task_metrics` (default `true`) runs the task scorer on
 the validation set each evaluation, and `general_selection` (default `false`)
 selects checkpoints by equal-family assistant-token loss on General data.
@@ -34,8 +40,9 @@ uv run python -m sallm.main --config-name eval/run \
   'evaluation.task_packs=[sib_xho]' wandb.name=eval-mamba-sib-xho
 ```
 
-Results go to `$SCRATCH/masters/sallm/results/eval/<wandb.name>`. Add
-`eval_model.merge_lora=true` or `eval_model.peft_adapter=<path>` for adapters.
+Results go to `$SCRATCH/masters/sallm/results/eval/<wandb.name>`. The
+checkpoint is a full model: a Hub id, a model directory, or a fine-tuning
+output directory (its `final_model` is used).
 
 `eval/generate_<task>` runs the generation tasks (AfriHG, T2X) the same way;
 the `_base` variants use the decoding settings for base models. The
