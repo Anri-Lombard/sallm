@@ -401,3 +401,13 @@ and zero-shot Belebele covered 8 of the 9 South African Belebele languages. Adde
 (the AfroBench isiZulu prompt files with the dataset switched to nso_Latn; the prompts do not name the language) and the
 pack belebele_nso. Lanes started before this sync keep the 8-language list in memory: their Multitask tests get Sepedi
 (and SIB-200 ssw/tsn/tso) scored afterwards with the same scorers.
+
+NCHLT languages, 29 Sep 2026. NCHLT now covers Afrikaans (NER only: the SADiLaR-IV release has no Afrikaans POS) and
+Sepedi (NER and POS) besides isiNdebele, siSwati, Tshivenda and Xitsonga: `nchlt_ner` trains and scores
+nbl/ssw/ven/tso/afr/nso, `nchlt_pos` nbl/ssw/ven/tso/nso (Multi `llama_nchlt_{ner,pos}_all`, Mono
+`llama_nchlt_ner_{afr,nso}`, `llama_nchlt_pos_nso`). Dataset pins move to anrilombard/nchlt-ner-sa4 833a02ee and
+anrilombard/nchlt-pos-sa4 0a760eb7, which only add the afr/nso files (the earlier languages' parquet files are
+byte-identical; README configs extended). Validation subsample adds NER afr 896 -> 500, nso 712 -> 500 and POS nso
+258 -> 100 (earlier entries unchanged). Sepedi POS has 38 coarse tags, 8 of them new to NCHLT (ADJINDEF, NGA, NN,
+POSSCGA, POSSCINDEF, PROPOSSN, SCINDEF, SCNEUT), so the tag list in the four NCHLT POS prompts (the union over the
+family's languages) grows from 44 to 52 tags for every language; scoring candidates stay each language's own tags.

@@ -42,6 +42,8 @@ def test_hf_training_sources_are_commit_pinned() -> None:
         "masakhane/masakhanews": "fa3b5fff8a91d187bf0c5900a39c4271d08cf7fe",
         "anrilombard/masakhaner-x-parquet": "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1",
         "Davlan/sib200": "38977a667f6fc264d5c26ec57a01e16db040b358",
+        "anrilombard/nchlt-ner-sa4": "833a02ee599b37cd393fa25f35a6766421e19c5a",
+        "anrilombard/nchlt-pos-sa4": "0a760eb7900ce533f60d710dc1d71d39121ddc03",
     }
     assert "/resolve/main" not in huggingface.INJONGOINTENT_BASE_URL
 

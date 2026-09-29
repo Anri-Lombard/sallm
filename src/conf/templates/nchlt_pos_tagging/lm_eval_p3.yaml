@@ -2,7 +2,7 @@
 prompt: |
   Acting as a linguist and without making any corrections or changes to the text,
   perform a part of speech (POS) analysis of the sentence using the following POS
-  tag label annotation ['ABBR', 'ADJ', 'ADJLOC', 'ADV', 'ADVLOC', 'CDEM', 'CDEMLOC', 'CONJ', 'COP', 'DEM', 'DEMCOP', 'FOR', 'IDEO', 'INT', 'INTER', 'MNEG', 'N', 'NLOC', 'NPP', 'NPRE', 'NUM', 'OC', 'OCPERS', 'PART', 'POSS', 'POSSC', 'POSSKA', 'PROEMP', 'PROEMPLOC', 'PROEMPPERS', 'PROPOSS', 'PROPOSSPERS', 'PROQUANT', 'PROQUANTPERS', 'PROREL', 'PUNC', 'REL', 'RELC', 'SC', 'SCPERS', 'TENSE', 'V', 'VAUX', 'VCOP'].
+  tag label annotation ['ABBR', 'ADJ', 'ADJINDEF', 'ADJLOC', 'ADV', 'ADVLOC', 'CDEM', 'CDEMLOC', 'CONJ', 'COP', 'DEM', 'DEMCOP', 'FOR', 'IDEO', 'INT', 'INTER', 'MNEG', 'N', 'NGA', 'NLOC', 'NN', 'NPP', 'NPRE', 'NUM', 'OC', 'OCPERS', 'PART', 'POSS', 'POSSC', 'POSSCGA', 'POSSCINDEF', 'POSSKA', 'PROEMP', 'PROEMPLOC', 'PROEMPPERS', 'PROPOSS', 'PROPOSSN', 'PROPOSSPERS', 'PROQUANT', 'PROQUANTPERS', 'PROREL', 'PUNC', 'REL', 'RELC', 'SC', 'SCINDEF', 'SCNEUT', 'SCPERS', 'TENSE', 'V', 'VAUX', 'VCOP'].
   The input will be a list of words in the sentence. The output format should be a
   list of tuples, where each tuple consists of a word from the input text and its
   corresponding POS tag label from the POS tag label set provided. Your response

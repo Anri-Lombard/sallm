@@ -3,7 +3,7 @@ prompt: |
   You are an expert in tagging words and sentences with the right POS tag.
 
   Please provide the POS tags for each word in the sentence. The input is a list
-  of words in the sentence. POS tag label set: ['ABBR', 'ADJ', 'ADJLOC', 'ADV', 'ADVLOC', 'CDEM', 'CDEMLOC', 'CONJ', 'COP', 'DEM', 'DEMCOP', 'FOR', 'IDEO', 'INT', 'INTER', 'MNEG', 'N', 'NLOC', 'NPP', 'NPRE', 'NUM', 'OC', 'OCPERS', 'PART', 'POSS', 'POSSC', 'POSSKA', 'PROEMP', 'PROEMPLOC', 'PROEMPPERS', 'PROPOSS', 'PROPOSSPERS', 'PROQUANT', 'PROQUANTPERS', 'PROREL', 'PUNC', 'REL', 'RELC', 'SC', 'SCPERS', 'TENSE', 'V', 'VAUX', 'VCOP']. The output format should be a list of tuples, where each tuple consists of a word
+  of words in the sentence. POS tag label set: ['ABBR', 'ADJ', 'ADJINDEF', 'ADJLOC', 'ADV', 'ADVLOC', 'CDEM', 'CDEMLOC', 'CONJ', 'COP', 'DEM', 'DEMCOP', 'FOR', 'IDEO', 'INT', 'INTER', 'MNEG', 'N', 'NGA', 'NLOC', 'NN', 'NPP', 'NPRE', 'NUM', 'OC', 'OCPERS', 'PART', 'POSS', 'POSSC', 'POSSCGA', 'POSSCINDEF', 'POSSKA', 'PROEMP', 'PROEMPLOC', 'PROEMPPERS', 'PROPOSS', 'PROPOSSN', 'PROPOSSPERS', 'PROQUANT', 'PROQUANTPERS', 'PROREL', 'PUNC', 'REL', 'RELC', 'SC', 'SCINDEF', 'SCNEUT', 'SCPERS', 'TENSE', 'V', 'VAUX', 'VCOP']. The output format should be a list of tuples, where each tuple consists of a word
   from the input text and its corresponding POS tag label from the POS tag label set provided.
   Your response should include only a list of tuples, in the order that the words appear in the input
   sentence, including punctuations, with each tuple containing the corresponding POS tag label for a word.

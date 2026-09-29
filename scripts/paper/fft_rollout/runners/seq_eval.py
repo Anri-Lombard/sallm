@@ -10,7 +10,8 @@ Rollout copy (fft_rollout) of run_general_sequence_eval_20260917_v2.py (sha 9cad
 - --task nchlt_ner / nchlt_pos (28 Sep 2026): NCHLT NER (PER/ORG/LOC/MISC) and POS (coarse NCHLT tags, candidates =
   that language's own tags) for nbl/ssw/ven/tso from the private anrilombard/nchlt-{ner,pos}-sa4 datasets. Prompt 1 on
   validation and test (fixed in advance, no prompt selection); test is gated by the rollout's own select unit, so it
-  needs no General-protocol selection/release files.
+  needs no General-protocol selection/release files. 29 Sep 2026: NER also afr and nso, POS also nso (no Afrikaans
+  POS in SADiLaR-IV); dataset revisions moved to the ones that add them (earlier languages' files unchanged).
 """
 
 from __future__ import annotations
@@ -74,8 +75,8 @@ NER_REVISION = "6aa65cdbfa22d66e5b4ed176ac525c364cda08d1"
 NER_DATASET = "anrilombard/masakhaner-x-parquet"
 POS_TEMPLATES = tuple(f"masakhane_pos_tagging/lm_eval_p{i}" for i in range(1, 5))
 MAXIMUM_INPUT_TOKENS = 1024
-NCHLT_DATASETS = {"nchlt_ner": ("anrilombard/nchlt-ner-sa4", "db2569f7478726434264b3dac48d2352b22ff540"),
-                  "nchlt_pos": ("anrilombard/nchlt-pos-sa4", "cd3b8fab81b1eec4ca512e4e6f9896cd6b7ddc8b")}
+NCHLT_DATASETS = {"nchlt_ner": ("anrilombard/nchlt-ner-sa4", "833a02ee599b37cd393fa25f35a6766421e19c5a"),
+                  "nchlt_pos": ("anrilombard/nchlt-pos-sa4", "0a760eb7900ce533f60d710dc1d71d39121ddc03")}
 NCHLT_NER_TAGS = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "B-MISC", "I-MISC"]
 NCHLT_POS_LABELS = json.loads(Path(pos_metrics.__file__).with_name("nchlt_pos_labels.json").read_text())["by_language"]
 NCHLT_PROMPT = 1

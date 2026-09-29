@@ -30,3 +30,5 @@ assert len(R.sanity_flags("ner", {"xho": 0.0}, {"xho": {"pred": ["", "", "x", "y
 print("selfcheck ok")
 assert R.epochs_for(43637, "general") == 10 and R.epochs_for(43637) == 4 and R.epochs_for(4999) == 10  # Multitask amendment 28 Sep
 assert R.epochs_for(7046, "intent") == 10 and R.epochs_for(24649, "afrihg") == 4
+import val_subsample  # noqa: E402 - NCHLT languages agree between the rollout and the validation subsample (29 Sep)
+assert all(set(R.FAMILIES[t]["langs"]) == set(val_subsample.SIZES[t]) for t in ("nchlt_ner", "nchlt_pos"))

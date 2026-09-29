@@ -1,0 +1,4 @@
+include: ../nchlt_ner_validation/sallm_nchlt_ner_nso_prompt_1_val.yaml
+task: sallm_nchlt_ner_nso_prompt_1_test
+test_split: test
+validation_split: null

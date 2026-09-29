@@ -1,7 +1,7 @@
 mode: FINETUNE
 wandb:
   project: sallm-ft
-  name: llama-125m-nchlt-pos-all
+  name: llama-125m-nchlt-pos-nso-all
 model:
   architecture: llama
   init_checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/sallm-llama-125m/final_model
@@ -15,10 +15,6 @@ dataset:
   hf_name: anrilombard/nchlt-pos-sa4
   subset: null
   languages:
-    - nbl
-    - ssw
-    - ven
-    - tso
     - nso
   task: POS_TAGGING
   splits:
@@ -40,8 +36,8 @@ dataset:
 tokenizer:
   path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
 training:
-  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_nchlt_pos_all
-  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_nchlt_pos_all
+  output_dir: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_nchlt_pos_nso
+  logging_dir: ${oc.env:SCRATCH}/masters/sallm/logs/ft_llama_125m_nchlt_pos_nso
   run_name: llama-125m-nchlt-pos-lora-all
   learning_rate: 3.0e-05
   adam_beta2: 0.95

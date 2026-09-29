@@ -1,0 +1,21 @@
+include: _nchlt_ner_val_common.yaml
+task: sallm_nchlt_ner_nso_prompt_5_val
+dataset_name: nso
+doc_to_text: 'Provide a concise list of named entities in the text below. Use the
+  following
+
+  labels: PERSON, LOCATION, ORGANIZATION, and MISCELLANEOUS.
+
+
+  Ensure the output strictly follows the format: label: entity $$ label: entity,
+
+  with each unique entity on a separate label line, avoiding grouped entities
+
+  (e.g., avoid LOC: entity, entity) or irrelevant entries like none. Return only
+
+  the output.
+
+
+  Text: {{text}}
+
+  '

@@ -19,6 +19,8 @@ dataset:
     - ssw
     - ven
     - tso
+    - afr
+    - nso
   task: NAMED_ENTITY_RECOGNITION
   splits:
     train: train

@@ -122,10 +122,11 @@ FAMILIES = {
     "general": dict(sweep="general", langs=(), mono=None, multi="llama_sa_multitask7_k3000", rows={"all": 52786}),
     # NCHLT (added 28 Sep 2026) for the four languages no other task covers. Not part of the General mixture.
     # NER train is a seeded 2,000-sentence subset per language (anrilombard/nchlt-ner-sa4 `train`); POS is the full train.
-    "nchlt_ner": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso"), mono="llama_nchlt_ner_{}", multi="llama_nchlt_ner_all",
-                      rows=dict.fromkeys(("nbl", "ssw", "ven", "tso"), 2000)),
-    "nchlt_pos": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso"), mono="llama_nchlt_pos_{}", multi="llama_nchlt_pos_all",
-                      rows={"nbl": 2329, "ssw": 2307, "ven": 2344, "tso": 2245}),
+    # afr (NER only: SADiLaR-IV has no Afrikaans POS) and nso (NER and POS) added 29 Sep 2026.
+    "nchlt_ner": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso", "afr", "nso"), mono="llama_nchlt_ner_{}",
+                      multi="llama_nchlt_ner_all", rows=dict.fromkeys(("nbl", "ssw", "ven", "tso", "afr", "nso"), 2000)),
+    "nchlt_pos": dict(sweep="multi", langs=("nbl", "ssw", "ven", "tso", "nso"), mono="llama_nchlt_pos_{}", multi="llama_nchlt_pos_all",
+                      rows={"nbl": 2329, "ssw": 2307, "ven": 2344, "tso": 2245, "nso": 2324}),
 }
 # Per-device micro-batch (x gradient accumulation = effective batch 16), same for all four architectures. Families
 # whose examples reach 2048 tokens (News, AfriHG, the General mix) or 1311 (POS) run out of L40S memory at 16 x 1
@@ -179,9 +180,10 @@ def score_minutes(arch: str, family: str, split: str, n_langs_frac: float = 1.0)
             "ner": NER_TEST_MIN[arch] * (1499 / 2152 if split == "val" else 1.0),  # val subsample 499+500+500 of 2152
             "pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0),
             "belebele": 15, "transfer": 45 if arch != "xlstm" else 120,
-            # NCHLT estimates: NER 3,832 test / 2,000 val rows vs MasakhaNER's 2,152; POS ~23k test tokens x ~29 tags
-            "nchlt_ner": NER_TEST_MIN[arch] * ((2000 if split == "val" else 3832) / 2152),
-            "nchlt_pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0)}[family]
+            # NCHLT estimates: NER 5,439 test / 3,000 val rows vs MasakhaNER's 2,152; POS ~21k test tokens x ~29 tags,
+            # plus nso's 7.2k x 38 (29 Sep)
+            "nchlt_ner": NER_TEST_MIN[arch] * ((3000 if split == "val" else 5439) / 2152),
+            "nchlt_pos": POS_TEST_MIN[arch] * (0.4 if split == "val" else 1.0) * 1.4}[family]
     slow = 1.6 if arch in ("mamba2", "xlstm") and family in ("news", "sib", "intent", "belebele") else 1.0
     return (base * slow + 1.0) * n_langs_frac
 

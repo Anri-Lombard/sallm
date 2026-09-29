@@ -11,6 +11,8 @@ MasakhaNER dev (parquet, pinned revision) tsn 499 / xho 817 / zul 836, MasakhaPO
 T2X validation 460, AfriHG dev xho 1305 / zul 1777. Only NER xho/zul and AfriHG xho/zul are subsampled.
 NCHLT (added 28 Sep 2026, entries above unchanged): NER dev nbl 933 / ssw 1080 / ven 848 / tso 972 (cap 500), POS dev
 nbl 259 / ssw 256 / ven 260 / tso 249 sentences (cap 100: POS validation scores every token against all 26-32 tags).
+NCHLT additions (29 Sep 2026, entries above unchanged): NER dev afr 896 / nso 712 (cap 500), POS dev nso 258 (cap 100;
+38 tags). No Afrikaans POS.
 
   python val_subsample.py          rewrite val_subsample.json and print its sha256 (deterministic)
 Runners: indices(task, lang, n) returns the positions to keep, or None when FFT_VAL_SUBSAMPLE != 1 or the split is whole.
@@ -35,8 +37,8 @@ SIZES = {
     "pos": dict.fromkeys(("tsn", "xho", "zul"), 150),
     "t2x": {"xho": 460},
     "afrihg": {"xho": 1305, "zul": 1777},
-    "nchlt_ner": {"nbl": 933, "ssw": 1080, "ven": 848, "tso": 972},
-    "nchlt_pos": {"nbl": 259, "ssw": 256, "ven": 260, "tso": 249},
+    "nchlt_ner": {"nbl": 933, "ssw": 1080, "ven": 848, "tso": 972, "afr": 896, "nso": 712},
+    "nchlt_pos": {"nbl": 259, "ssw": 256, "ven": 260, "tso": 249, "nso": 258},
 }
 
 
