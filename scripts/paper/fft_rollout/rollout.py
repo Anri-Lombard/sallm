@@ -717,7 +717,9 @@ def score(r: Run, family: str, split: str, model: Path, langs: list[str], out: P
     elif family == "belebele":
         packs = [f"belebele_{lang}" for lang in langs]
         cmd = [py, f"{hs}/prefix_eval.py", "--arch", arch, "--base", model, "--mode", "train", "--packs", *packs, "--output", out]
-        r.sh(cmd + (["--limit", lim] if lim else []), log, r.env())
+        # cwd = the source snapshot: the belebele_nso pack's include_path is relative to it (29 Sep: from $HOME the task
+        # could not be found and the General test failed with KeyError 'belebele_nso_prompt_1')
+        r.sh(cmd + (["--limit", lim] if lim else []), log, r.env(), cwd=str(SALLM))
         for pack in packs:
             res = json.loads((out / pack / "results.json").read_text())
             for task, vals in res["results"].items():
