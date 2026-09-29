@@ -32,3 +32,5 @@ assert R.epochs_for(43637, "general") == 10 and R.epochs_for(43637) == 4 and R.e
 assert R.epochs_for(7046, "intent") == 10 and R.epochs_for(24649, "afrihg") == 4
 import val_subsample  # noqa: E402 - NCHLT languages agree between the rollout and the validation subsample (29 Sep)
 assert all(set(R.FAMILIES[t]["langs"]) == set(val_subsample.SIZES[t]) for t in ("nchlt_ner", "nchlt_pos"))
+_g = next(u for u in R.plan("mzansilm", False) if u["id"] == "train-general-general-s42")
+assert _g["lr_from"] == ["news", "sib", "intent", "ner", "pos", "afrihg"], _g["lr_from"]  # NCHLT never gates/votes

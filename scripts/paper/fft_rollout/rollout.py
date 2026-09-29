@@ -251,7 +251,8 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
         # General, trimmed (user decision, 26 Sep): no LR sweep and one seed. ONE model (seed 42) at the LR chosen most
         # often across this architecture's Multi selections (ties -> lower LR); per-epoch validation and epoch selection
         # on the six-family mean; test in-unit; beam below.
-        multis = [f for f in families if FAMILIES[f]["sweep"] == "multi"]
+        # NCHLT is not in the Multitask mix, so it neither gates nor votes on the Multitask LR (29 Sep)
+        multis = [f for f in families if FAMILIES[f]["sweep"] == "multi" and not f.startswith("nchlt_")]
         units.append(unit("train-general-general-s42", "train", ["prep"] + [f"select-{f}" for f in multis], family="general",
                           regime="general", langs=[], lr=None, seed=42, keep=False, test=True, lr_from=multis))
     units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count"], light=True))
