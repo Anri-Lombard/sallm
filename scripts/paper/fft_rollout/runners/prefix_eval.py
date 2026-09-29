@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import cast
@@ -53,6 +54,10 @@ def main() -> None:
     parser.add_argument("--packs", nargs="+", default=PACKS)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    # pack include_paths (e.g. belebele_nso) are relative to the source snapshot, whatever the caller's cwd (29 Sep)
+    snapshot = Path(__file__).resolve().parents[2] / "sallm"
+    if (snapshot / "src").is_dir():
+        os.chdir(snapshot)
     if args.output.exists():
         raise FileExistsError(args.output)
     unit = {"unit_id": Path(args.base).name, "architecture": args.arch, "base": args.base, "adapter": None,
