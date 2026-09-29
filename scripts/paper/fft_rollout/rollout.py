@@ -1327,7 +1327,9 @@ def claim(r: Run, units: list[dict], hours_left: float, lane: str) -> tuple[dict
         pending = [u for u in units if states.get(u["id"], {}).get("state") not in TERMINAL]
         if not pending:
             return None, "finished"
-        fits = [u for u in ready if u["est_hours"] * 1.5 + 0.1 < hours_left]
+        # padded estimate, capped so a fresh 48 h lane can always start any unit (training resumes from its last epoch
+        # checkpoint if the lane runs out of time); uncapped, a long estimate made every lane resubmit forever (29 Sep)
+        fits = [u for u in ready if min(u["est_hours"] * 1.5 + 0.1, 40.0) < hours_left]
         if not fits:
             return None, ("resubmit" if ready else "wait")
         pick = max(fits, key=lambda u: (u["est_hours"], -units.index(u)))  # longest first
