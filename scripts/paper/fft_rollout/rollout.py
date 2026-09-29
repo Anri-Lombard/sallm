@@ -937,7 +937,7 @@ def val_score(r: Run, u: dict, model: Path, out: Path) -> dict:
 def test_scores(r: Run, u: dict, model: Path, out: Path) -> dict:
     if u["family"] == "general":
         fams = score_parallel(r, "test", model, out, {**{f: list(FAMILIES[f]["langs"]) for f in GENERAL_TRAIN_FAMILIES},
-                                                      "belebele": ["afr", "eng", "sot", "ssw", "tsn", "tso", "xho", "zul"], "transfer": []})
+                                                      "belebele": ["afr", "eng", "nso", "sot", "ssw", "tsn", "tso", "xho", "zul"], "transfer": []})
         return {f: v["per_lang"] for f, v in fams.items()}
     return {u["family"]: score(r, u["family"], "test", model, u["langs"], out / u["family"])["per_lang"]}
 

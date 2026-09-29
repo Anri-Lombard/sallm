@@ -395,3 +395,9 @@ scoring prompt is fixed before any score to isiZulu's selected prompt (5), since
 isiZulu's; one model-independent rule for all four architectures (runners/sib_score.py EXT_PROMPTS). All four
 architectures' SIB-200 units (sweep, selection, test, Mono) and Multitask units (train, beam, collect) are archived to
 runs/<arch>/archive_sib6/ and re-run; the Multitask LR transfer is recomputed from the new SIB-200 selection.
+
+Belebele Sepedi, 29 Sep 2026 ~08:30 SAST. Belebele has nso_Latn but the lm-eval AfroBench prompts omit it, so Multitask
+and zero-shot Belebele covered 8 of the 9 South African Belebele languages. Added src/conf/eval/lm_eval_tasks/belebele_nso
+(the AfroBench isiZulu prompt files with the dataset switched to nso_Latn; the prompts do not name the language) and the
+pack belebele_nso. Lanes started before this sync keep the 8-language list in memory: their Multitask tests get Sepedi
+(and SIB-200 ssw/tsn/tso) scored afterwards with the same scorers.

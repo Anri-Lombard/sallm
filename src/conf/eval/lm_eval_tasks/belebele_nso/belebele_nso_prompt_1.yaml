@@ -1,0 +1,17 @@
+# Copied from lm-eval afrobench belebele prompt_1/belebele_zul.yaml with the dataset switched to nso_Latn (29 Sep 2026)
+dataset_name: nso_Latn
+doc_to_text: 'P: {{flores_passage}}
+
+  Q: {{question.strip()}}
+
+  A: {{mc_answer1}}
+
+  B: {{mc_answer2}}
+
+  C: {{mc_answer3}}
+
+  D: {{mc_answer4}}
+
+  Please choose the correct answer from the options above:'
+include: belebele
+task: belebele_nso_prompt_1

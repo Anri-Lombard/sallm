@@ -25,7 +25,7 @@ HERE = Path(__file__).resolve().parent
 TRAIN_PREFIX = "\n        "
 # lm-eval drops target_delimiter under apply_chat_template, so the current protocol scores the label directly after <|assistant|>.
 CONTEXT_SUFFIX = {"current": "", "train": TRAIN_PREFIX}
-PACKS = ["injongointent_all"] + [f"belebele_{lang}" for lang in ("afr", "eng", "sot", "ssw", "tsn", "tso", "xho", "zul")]
+PACKS = ["injongointent_all"] + [f"belebele_{lang}" for lang in ("afr", "eng", "nso", "sot", "ssw", "tsn", "tso", "xho", "zul")]
 INTERFACE = {
     "mzansilm": {"dtype": "bfloat16", "merge_lora": False, "tie_word_embeddings": None},
     "mamba2": {"dtype": "float32", "merge_lora": False, "tie_word_embeddings": False},

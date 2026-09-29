@@ -1,0 +1,19 @@
+# Copied from lm-eval afrobench belebele prompt_5/belebele_zul.yaml with the dataset switched to nso_Latn (29 Sep 2026)
+dataset_name: nso_Latn
+doc_to_text: 'Read the passage: {{flores_passage}}
+
+  Then answer the question: {{question.strip()}}
+
+  Options:
+
+  A. {{mc_answer1}}
+
+  B. {{mc_answer2}}
+
+  C. {{mc_answer3}}
+
+  D. {{mc_answer4}}
+
+  Please choose the correct option from the above list:'
+include: belebele
+task: belebele_nso_prompt_5
