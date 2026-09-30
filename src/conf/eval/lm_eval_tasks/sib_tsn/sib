@@ -1,7 +1,4 @@
-tag:
-    - sib_tasks
-    - sib_prompt_5
-    - afrobench_TC_tasks
+# AfroBench's SIB base without its group tags, which would override AfroBench's groups.
 dataset_path: Davlan/sib200
 dataset_name: null
 output_type: multiple_choice
