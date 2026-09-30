@@ -213,7 +213,7 @@ def unit(uid, kind, deps=(), **kw):
     return {"id": uid, "kind": kind, "deps": list(deps), **kw}
 
 
-EXTRAS = ("posthoc", "seeds", "lrcheck", "seeds_mt", "seeds_mono")  # optional unit groups appended after the main plan (30 Sep 2026), see extra_units()
+EXTRAS = ("posthoc", "seeds", "lrcheck", "seeds_mt", "seeds_mono", "beam_seeds")  # optional unit groups appended after the main plan (30 Sep 2026), see extra_units()
 LRCHECK_ARCHS = ("mamba2", "gdn")
 LRCHECK_LR = "1e-4"
 POSTHOC_SIB_EXT = ("ssw", "tsn", "tso")  # zero-shot SIB-200 languages the original Base rows lack (prompt 5, as EXT_PROMPTS)
@@ -322,6 +322,21 @@ def extra_units(arch: str, families: dict, smoke: bool, extras: tuple[str, ...])
             out.append(unit("posthoc-zs-nchlt-ner", "posthoc", ["prep"], what="zs-nchlt-ner", extra="posthoc"))
         if "general" in families and "nchlt_ner" in families:
             out.append(unit("posthoc-mt-nchlt-ner", "posthoc", ["train-general-general-s42"], what="mt-nchlt-ner", extra="posthoc"))
+    if "beam_seeds" in extras:  # beam is the primary generation score (30 Sep 2026): beam-decode every generation seed run too
+        seeds = SMOKE["seeds"] if smoke else SEEDS_HEADLINE
+        srcs = []
+        if "afrihg" in families:
+            srcs += [(f"beam-afrihg-multi-s{sd}", f"train-afrihg-multi-s{sd}", "afrihg", {"afrihg": list(FAMILIES["afrihg"]["langs"])}, sd)
+                     for sd in seeds]
+            srcs += [(f"beam-afrihg-mono-{lg}-s{sd}", f"train-afrihg-mono-{lg}-s{sd}", "afrihg", {"afrihg": [lg]}, sd)
+                     for lg in families["afrihg"] for sd in seeds]
+        if "general" in families:
+            gen = {"t2x": ["xho"], "afrihg": list(FAMILIES["afrihg"]["langs"])}
+            srcs += [(f"beam-general-s{sd}", f"train-general-general-s{sd}", "general", gen, sd) for sd in seeds]
+            if arch in LRCHECK_ARCHS:
+                srcs.append(("beam-general-lrcheck", f"train-general-general-lr{LRCHECK_LR}-s42-lrcheck", "general", gen, 42))
+        for uid, src, fam, gen, sd in srcs:
+            out.append(unit(uid, "beam", [src], src=src, family=fam, gen=gen, seed=sd, extra="beam_seeds"))
     if "lrcheck" in extras and arch in LRCHECK_ARCHS and "general" in families:
         # the Multitask run with a fixed LR instead of the transferred one; own run id (suffix), so it never touches the
         # main Multitask run, LR_TRANSFER.json or SELECTED markers
@@ -1128,8 +1143,8 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
             done["test_secs"] = round(time.time() - t0, 1)
         # best epoch kept (weights only). Sweep runs: until LR selection; every other run's best epoch is selected.
         # Extra seed runs (43/44, added 30 Sep) keep no weights: nothing reads them, scratch quota (~0.5 GB each);
-        # best_tree_sha256 above records what was scored. AfriHG seeds keep theirs (12 runs) for beam decoding.
-        if u.get("extra") and u["seed"] != 42 and u["family"] != "afrihg":
+        # best_tree_sha256 above records what was scored. AfriHG and Multitask seeds keep theirs for beam decoding.
+        if u.get("extra") and u["seed"] != 42 and u["family"] not in ("afrihg", "general"):
             done["kept"] = None
         else:
             dest = r.out / "keep" / u["family"] / f"{rid}_e{best['epoch']}"

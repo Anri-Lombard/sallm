@@ -60,7 +60,7 @@ assert _lc["lr"] == "1e-4" and "lr_from" not in _lc  # fixed LR: transferred_lr(
 assert next(u for u in R.plan("gdn", False, extras=("seeds",)) if u["id"] == "train-sib-multi-s43")["lr"] is None  # selected_lr
 for _a in R.ARCHS:  # seeds_mt / seeds_mono (30 Sep): Multitask s43/s44 + every Mono cell (nchlt_pos excluded) x s43/s44
     _base = [u["id"] for u in R.plan(_a, False, extras=("posthoc", "seeds", "lrcheck"))]
-    _full = R.plan(_a, False, extras=R.EXTRAS)
+    _full = R.plan(_a, False, extras=("posthoc", "seeds", "lrcheck", "seeds_mt", "seeds_mono"))
     assert set(_base) <= {u["id"] for u in _full} and len({u["id"] for u in _full}) == len(_full)  # ids unique
     _add = [u for u in _full if u["id"] not in set(_base)]
     _mt = [u for u in _add if u["family"] == "general"]
@@ -68,4 +68,11 @@ for _a in R.ARCHS:  # seeds_mt / seeds_mono (30 Sep): Multitask s43/s44 + every 
     _mono = [u for u in _add if u["family"] != "general"]
     assert all(u["regime"] == "mono" and u["seed"] in (43, 44) and u["family"] != "nchlt_pos" for u in _mono)
     assert len(_mono) == 2 * 29, (_a, len(_mono))  # 29 Mono cells outside nchlt_pos (t2x has its own seeds)
+for _a in R.ARCHS:  # beam_seeds (30 Sep): beam units for every AfriHG and Multitask seed run (+ the LR-check Multitask run)
+    _all = R.plan(_a, False, extras=R.EXTRAS)
+    _ids = {u["id"] for u in _all}
+    _b = [u for u in _all if u.get("extra") == "beam_seeds"]
+    assert all(u["src"] in _ids and u["deps"] == [u["src"]] for u in _b), _a
+    assert len(_b) == 6 + 2 + (_a in R.LRCHECK_ARCHS), (_a, len(_b))
+    assert len(_ids) == len(_all)
 print("selfcheck extras ok")
