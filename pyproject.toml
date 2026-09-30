@@ -81,7 +81,7 @@ exclude = ["scripts/**"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["E203"]
-per-file-ignores = {"__init__.py" = ["F401"], "scripts/**" = ["E501", "E702", "UP017"]}
+per-file-ignores = {"__init__.py" = ["F401"], "src/conf/eval/lm_eval_tasks/**/utils.py" = ["F401"], "scripts/**" = ["E501", "E702", "UP017"]}
 
 [tool.ty.environment]
 python-version = "3.12"

@@ -40,7 +40,7 @@ import hashlib  # noqa: E402
 for _a in R.ARCHS:
     _ids = [u["id"] for u in R.plan(_a, False)]
     assert len(_ids) == 96 and hashlib.sha256("\n".join(_ids).encode()).hexdigest().startswith("b6607d576414f317"), _a  # pre-extras plan
-    _all = R.plan(_a, False, extras=R.EXTRAS)
+    _all = R.plan(_a, False, extras=("posthoc", "seeds", "lrcheck"))
     assert [u["id"] for u in _all if not u.get("extra")] == _ids, _a  # extras append only, existing units untouched
     _new = [u["id"] for u in _all if u.get("extra")]
     _want = ([f"train-{f}-multi-s{s}" for f in ("news", "sib", "intent", "ner", "pos", "afrihg", "nchlt_ner") for s in (43, 44)]
@@ -58,4 +58,14 @@ _lc = next(u for u in R.plan("gdn", False, extras=("lrcheck",)) if u.get("varian
 assert R.run_id(_lc, "1e-4") == "general-general-lr1e-4-s42-lrcheck" != R.run_id({**_lc, "variant": None}, "1e-4")  # own run dir
 assert _lc["lr"] == "1e-4" and "lr_from" not in _lc  # fixed LR: transferred_lr() (LR_TRANSFER.json) is never called
 assert next(u for u in R.plan("gdn", False, extras=("seeds",)) if u["id"] == "train-sib-multi-s43")["lr"] is None  # selected_lr
+for _a in R.ARCHS:  # seeds_mt / seeds_mono (30 Sep): Multitask s43/s44 + every Mono cell (nchlt_pos excluded) x s43/s44
+    _base = [u["id"] for u in R.plan(_a, False, extras=("posthoc", "seeds", "lrcheck"))]
+    _full = R.plan(_a, False, extras=R.EXTRAS)
+    assert set(_base) <= {u["id"] for u in _full} and len({u["id"] for u in _full}) == len(_full)  # ids unique
+    _add = [u for u in _full if u["id"] not in set(_base)]
+    _mt = [u for u in _add if u["family"] == "general"]
+    assert sorted(u["id"] for u in _mt) == ["train-general-general-s43", "train-general-general-s44"]
+    _mono = [u for u in _add if u["family"] != "general"]
+    assert all(u["regime"] == "mono" and u["seed"] in (43, 44) and u["family"] != "nchlt_pos" for u in _mono)
+    assert len(_mono) == 2 * 29, (_a, len(_mono))  # 29 Mono cells outside nchlt_pos (t2x has its own seeds)
 print("selfcheck extras ok")

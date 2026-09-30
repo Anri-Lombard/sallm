@@ -103,7 +103,9 @@ def official_groups(unit: dict[str, Any]) -> list[tuple[str, list[str], bool, li
             )
         )
     if groups["raw"]:
-        output.append(("raw", groups["raw"], False, []))
+        # 30 Sep 2026: AfroBench ships no Setswana SIB-200 task; sib_tsn copies sib_ssw_prompt_5 with tsn_Latn
+        raw_paths = ["src/conf/eval/lm_eval_tasks/sib_tsn"] if any(t.startswith("sib_tsn_") for t in groups["raw"]) else []
+        output.append(("raw", groups["raw"], False, raw_paths))
     return output
 
 

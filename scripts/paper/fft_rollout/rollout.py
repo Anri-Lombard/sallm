@@ -213,7 +213,7 @@ def unit(uid, kind, deps=(), **kw):
     return {"id": uid, "kind": kind, "deps": list(deps), **kw}
 
 
-EXTRAS = ("posthoc", "seeds", "lrcheck")  # optional unit groups appended after the main plan (30 Sep 2026), see extra_units()
+EXTRAS = ("posthoc", "seeds", "lrcheck", "seeds_mt", "seeds_mono")  # optional unit groups appended after the main plan (30 Sep 2026), see extra_units()
 LRCHECK_ARCHS = ("mamba2", "gdn")
 LRCHECK_LR = "1e-4"
 POSTHOC_SIB_EXT = ("ssw", "tsn", "tso")  # zero-shot SIB-200 languages the original Base rows lack (prompt 5, as EXT_PROMPTS)
@@ -304,6 +304,18 @@ def extra_units(arch: str, families: dict, smoke: bool, extras: tuple[str, ...])
                 for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
                     out.append(unit(f"train-{fam}-multi-s{seed}", "train", [f"select-{fam}"], family=fam, regime="multi",
                                     langs=list(spec["langs"]), lr=None, seed=seed, keep=False, test=True, extra="seeds"))
+    if "seeds_mt" in extras and "general" in families:  # Multitask seeds 43/44 at the same transferred LR (30 Sep 2026)
+        multis = [f for f in families if FAMILIES[f]["sweep"] == "multi" and not f.startswith("nchlt_")]
+        for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
+            out.append(unit(f"train-general-general-s{seed}", "train", ["prep"] + [f"select-{f}" for f in multis], family="general",
+                            regime="general", langs=[], lr=None, seed=seed, keep=False, test=True, lr_from=multis, extra="seeds_mt"))
+    if "seeds_mono" in extras:  # Mono seeds 43/44 at the task's selected LR, every Mono cell except nchlt_pos (30 Sep 2026)
+        for fam, spec in FAMILIES.items():
+            if fam in families and spec["sweep"] == "multi" and fam != "nchlt_pos":
+                for lang in families[fam]:
+                    for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
+                        out.append(unit(f"train-{fam}-mono-{lang}-s{seed}", "train", [f"select-{fam}"], family=fam, regime="mono",
+                                        langs=[lang], lr=None, seed=seed, keep=False, test=True, extra="seeds_mono"))
     if "posthoc" in extras:
         out.append(unit("posthoc-zs-sib-ext", "posthoc", ["prep"], what="zs-sib-ext", extra="posthoc"))
         if "nchlt_ner" in families:
@@ -1306,7 +1318,8 @@ def do_posthoc(r: Run, u: dict) -> dict:
         return posthoc_record(r, u, "nchlt_ner", rec["per_lang"], rec["n"], Path(rec["raw"]), regime, str(model))
     assert what == "zs-sib-ext", what
     # the Base-prompt route: lm_eval_unit.py official run of the frozen Base unit's protocol (SIB raw, Belebele chat template)
-    tasks = [f"sib_{lang}_prompt_5" for lang in POSTHOC_SIB_EXT] + ["belebele_nso_prompt_1"]
+    # + one existing Base cell per route (sib_afr_prompt_4 raw, belebele_zul_prompt_1 chat): equivalence check vs base-prompt
+    tasks = [f"sib_{lang}_prompt_5" for lang in POSTHOC_SIB_EXT] + ["belebele_nso_prompt_1", "sib_afr_prompt_4", "belebele_zul_prompt_1"]
     raw = out / "official.json"
     if not raw.exists():
         official_base_unit(r, raw, r.out / "posthoc" / "inventory_sib_ext", tasks, r.logs / "posthoc_zs_sib_ext.log",
@@ -1317,13 +1330,15 @@ def do_posthoc(r: Run, u: dict) -> dict:
     missing = [t for t in tasks if t not in results]
     assert not missing, missing
     res = {}
-    for fam, names, key in (("sib", tasks[:3], "f1,none"), ("belebele", tasks[3:], "acc_norm,none")):
+    # the two equivalence-check tasks go into "metrics" only, never into per-language scores
+    for fam, names, key in (("sib", tasks[:3], "f1,none"), ("belebele", tasks[3:4], "acc_norm,none")):
         per, n = {}, {}
         for t in names:
             m = results[t]
             k = key if key in m else "acc,none"  # ponytail: SIB metric key not verifiable off-cluster; all metrics are kept in "metrics"
             per[t.split("_")[1]], n[t.split("_")[1]] = 100 * float(m[k]), len(samples[t])
-        res[fam] = posthoc_record(r, u, fam, per, n, raw, "Base", str(r.base), {"metrics": {t: results[t] for t in names}})
+        res[fam] = posthoc_record(r, u, fam, per, n, raw, "Base", str(r.base),
+                                  {"metrics": {t: results[t] for t in names + (tasks[4:] if fam == "belebele" else [])}})
     return res
 
 
