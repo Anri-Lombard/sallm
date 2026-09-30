@@ -1127,14 +1127,19 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
             done["test"] = test_scores(r, u, best_dir, r.out / "test" / rid)
             done["test_secs"] = round(time.time() - t0, 1)
         # best epoch kept (weights only). Sweep runs: until LR selection; every other run's best epoch is selected.
-        dest = r.out / "keep" / u["family"] / f"{rid}_e{best['epoch']}"
-        shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(best_dir, dest.with_name(dest.name + ".tmp"), ignore=shutil.ignore_patterns("BEST.json"))
-        os.replace(dest.with_name(dest.name + ".tmp"), dest)
-        write_manifest(dest)
-        done["kept"] = str(dest)
-        if not u.get("keep"):
-            mark_selected(dest, u["id"])
+        # Extra seed runs (43/44, added 30 Sep) keep no weights: nothing reads them, scratch quota (~0.5 GB each);
+        # best_tree_sha256 above records what was scored.
+        if u.get("extra") and u["seed"] != 42:
+            done["kept"] = None
+        else:
+            dest = r.out / "keep" / u["family"] / f"{rid}_e{best['epoch']}"
+            shutil.rmtree(dest, ignore_errors=True)
+            shutil.copytree(best_dir, dest.with_name(dest.name + ".tmp"), ignore=shutil.ignore_patterns("BEST.json"))
+            os.replace(dest.with_name(dest.name + ".tmp"), dest)
+            write_manifest(dest)
+            done["kept"] = str(dest)
+            if not u.get("keep"):
+                mark_selected(dest, u["id"])
         write_json(run / "RUN_DONE.json", done)
         shutil.rmtree(run / "best", ignore_errors=True)
         shutil.rmtree(run / "resume", ignore_errors=True)
