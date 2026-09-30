@@ -34,3 +34,28 @@ import val_subsample  # noqa: E402 - NCHLT languages agree between the rollout a
 assert all(set(R.FAMILIES[t]["langs"]) == set(val_subsample.SIZES[t]) for t in ("nchlt_ner", "nchlt_pos"))
 _g = next(u for u in R.plan("mzansilm", False) if u["id"] == "train-general-general-s42")
 assert _g["lr_from"] == ["news", "sib", "intent", "ner", "pos", "afrihg"], _g["lr_from"]  # NCHLT never gates/votes
+# opt-in extras (30 Sep 2026): the default plan is unchanged; extras only append the units listed here
+import hashlib  # noqa: E402
+
+for _a in R.ARCHS:
+    _ids = [u["id"] for u in R.plan(_a, False)]
+    assert len(_ids) == 96 and hashlib.sha256("\n".join(_ids).encode()).hexdigest().startswith("b6607d576414f317"), _a  # pre-extras plan
+    _all = R.plan(_a, False, extras=R.EXTRAS)
+    assert [u["id"] for u in _all if not u.get("extra")] == _ids, _a  # extras append only, existing units untouched
+    _new = [u["id"] for u in _all if u.get("extra")]
+    _want = ([f"train-{f}-multi-s{s}" for f in ("news", "sib", "intent", "ner", "pos", "afrihg", "nchlt_ner") for s in (43, 44)]
+             + ["posthoc-zs-sib-ext", "posthoc-zs-nchlt-ner", "posthoc-mt-nchlt-ner"]
+             + (["train-general-general-lr1e-4-s42-lrcheck"] if _a in ("mamba2", "gdn") else []))  # lrcheck only mamba2/gdn
+    assert _new == _want, (_a, _new)
+    assert not any("nchlt_pos" in i for i in _new)
+    _byid = {u["id"]: u for u in _all}
+    for _c in ("collect", "collect-beam"):  # never a dependency of the main collectors
+        assert not set(_byid[_c]["deps"]) & set(_new), _c
+    assert all(d in _byid for u in _all for d in u["deps"])
+    for _e in ("posthoc", "seeds", "lrcheck"):
+        assert {u["id"] for u in R.plan(_a, False, extras=(_e,)) if u.get("extra")} <= set(_new)
+_lc = next(u for u in R.plan("gdn", False, extras=("lrcheck",)) if u.get("variant") == "lrcheck")
+assert R.run_id(_lc, "1e-4") == "general-general-lr1e-4-s42-lrcheck" != R.run_id({**_lc, "variant": None}, "1e-4")  # own run dir
+assert _lc["lr"] == "1e-4" and "lr_from" not in _lc  # fixed LR: transferred_lr() (LR_TRANSFER.json) is never called
+assert next(u for u in R.plan("gdn", False, extras=("seeds",)) if u["id"] == "train-sib-multi-s43")["lr"] is None  # selected_lr
+print("selfcheck extras ok")

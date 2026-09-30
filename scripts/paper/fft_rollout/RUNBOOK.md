@@ -292,6 +292,29 @@ touch $R/runs/<name>/CROSS_EVAL
 The next lane appends `xeval-<family>-<lang>` units and `collect-xeval`; rows land in `results/cells.csv` with
 regime `Mono-crosslingual` and `train_language`, and `collect_fft.py` writes them to `data/fft-crosslingual.csv`.
 
+## 3c. Optional units: post-hoc scores, Multi seeds, LR check (30 Sep 2026)
+
+Off by default (`plan(..., extras=())` is unchanged; `selfcheck.py` pins the 96 default unit ids). None is a dependency of
+`collect` / `collect-beam`, and nchlt_pos gets none. Groups (`--extras`, comma list):
+
+| group | units | what |
+|---|---|---|
+| `posthoc` | `posthoc-zs-sib-ext` | zero-shot (Base) SIB-200 ssw/tsn/tso, prompt 5, and Belebele nso prompt 1: the frozen Base prompt unit's lm-eval route (`lm_eval_unit.py official`; SIB raw, Belebele chat template), test split |
+| | `posthoc-zs-nchlt-ner` | zero-shot (Base) NCHLT NER test, 6 languages, `score()` path (`seq_eval.py`, prompt 1) |
+| | `posthoc-mt-nchlt-ner` | the finished Multitask model (`RUN_DONE.kept` of `train-general-general-s42`) on NCHLT NER test, same path; depends on that train unit |
+| `seeds` | `train-<fam>-multi-s43`, `-s44` | fam in news, sib, intent, ner, pos, afrihg, nchlt_ner; selected LR (`lr=None`), keep=False, test=True, dep `select-<fam>` |
+| `lrcheck` | `train-general-general-lr1e-4-s42-lrcheck` | mamba2 and gdn only: Multitask exactly as the main run but lr 1e-4; run id `general-general-lr1e-4-s42-lrcheck` (own run/test/keep dirs; LR_TRANSFER.json untouched) |
+
+Results: `test/<unit>/<family>.score.json` and `runs/<unit>/POSTHOC_DONE.json` (post-hoc), RUN_DONE.json (train units).
+`collect` adds post-hoc rows (regime Base / General, note `posthoc`), seed rows (regime Multi, seed 43/44) and the LR-check
+rows under regime `General (lrcheck)`. Append to an existing run (units and states untouched; lanes read units.json at
+start, so start new lanes or restart idle ones afterwards):
+
+```bash
+python3 $R/code/fft_rollout/rollout.py append-extras $R/runs/<arch> --extras posthoc,seeds,lrcheck --dry-run   # then without --dry-run
+python3 rollout.py matrix --arch gdn --extras posthoc,seeds,lrcheck --csv /tmp/m.csv                          # dry list, no cluster
+```
+
 ## 4. Results into the paper
 
 The `collect` unit (last) writes `$R/runs/<name>/results/cells.csv` (one row per cell and run: score, n items,

@@ -97,7 +97,9 @@ def official_groups(unit: dict[str, Any]) -> list[tuple[str, list[str], bool, li
                 "chat",
                 groups["chat"],
                 True,
-                ["src/conf/eval/lm_eval_tasks/masakhanews_test"],
+                ["src/conf/eval/lm_eval_tasks/masakhanews_test"]
+                # 30 Sep 2026: post-hoc zero-shot Belebele Sepedi (task not in lm-eval; pack dir as in tasks/belebele_nso.yaml)
+                + (["src/conf/eval/lm_eval_tasks/belebele_nso"] if any(t.startswith("belebele_nso_") for t in groups["chat"]) else []),
             )
         )
     if groups["raw"]:

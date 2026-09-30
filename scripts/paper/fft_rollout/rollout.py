@@ -213,7 +213,15 @@ def unit(uid, kind, deps=(), **kw):
     return {"id": uid, "kind": kind, "deps": list(deps), **kw}
 
 
-def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | None = None) -> list[dict]:
+EXTRAS = ("posthoc", "seeds", "lrcheck")  # optional unit groups appended after the main plan (30 Sep 2026), see extra_units()
+LRCHECK_ARCHS = ("mamba2", "gdn")
+LRCHECK_LR = "1e-4"
+POSTHOC_SIB_EXT = ("ssw", "tsn", "tso")  # zero-shot SIB-200 languages the original Base rows lack (prompt 5, as EXT_PROMPTS)
+NCHLT_NER_LANGS = FAMILIES["nchlt_ner"]["langs"]
+
+
+def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | None = None, extras: tuple[str, ...] = ()) -> list[dict]:
+    assert set(extras) <= set(EXTRAS), extras
     units = [unit("prep", "prep")]
     if smoke and not only:
         units.append(unit("count", "count", ["prep"]))
@@ -260,6 +268,7 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
     units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"], light=True)] if beams else []
     if cross_eval:
         units += cross_eval_units(families)
+    units += extra_units(arch, families, smoke, extras)  # after collect/collect-beam: never a dependency of theirs
     for u in units:
         u["est_hours"] = round(estimate(arch, u, smoke), 3)
     return units
@@ -283,6 +292,29 @@ def beam_units(families: dict, smoke: bool) -> list[dict]:
     if "general" in families:  # seed 42 only
         out.append(unit("beam-general-s42", "beam", ["train-general-general-s42"], src="train-general-general-s42", family="general",
                         gen={"t2x": ["xho"], "afrihg": list(FAMILIES["afrihg"]["langs"])}, seed=42))
+    return out
+
+
+def extra_units(arch: str, families: dict, smoke: bool, extras: tuple[str, ...]) -> list[dict]:
+    """Opt-in units for results the main plan lacks; none is a dependency of collect/collect-beam. nchlt_pos never gets seeds."""
+    out = []
+    if "seeds" in extras:  # Multi seeds 43/44 at the selected LR, test only (the t2x seed mechanism: lr=None -> selected_lr)
+        for fam, spec in FAMILIES.items():
+            if fam in families and spec["sweep"] == "multi" and fam != "nchlt_pos":
+                for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
+                    out.append(unit(f"train-{fam}-multi-s{seed}", "train", [f"select-{fam}"], family=fam, regime="multi",
+                                    langs=list(spec["langs"]), lr=None, seed=seed, keep=False, test=True, extra="seeds"))
+    if "posthoc" in extras:
+        out.append(unit("posthoc-zs-sib-ext", "posthoc", ["prep"], what="zs-sib-ext", extra="posthoc"))
+        if "nchlt_ner" in families:
+            out.append(unit("posthoc-zs-nchlt-ner", "posthoc", ["prep"], what="zs-nchlt-ner", extra="posthoc"))
+        if "general" in families and "nchlt_ner" in families:
+            out.append(unit("posthoc-mt-nchlt-ner", "posthoc", ["train-general-general-s42"], what="mt-nchlt-ner", extra="posthoc"))
+    if "lrcheck" in extras and arch in LRCHECK_ARCHS and "general" in families:
+        # the Multitask run with a fixed LR instead of the transferred one; own run id (suffix), so it never touches the
+        # main Multitask run, LR_TRANSFER.json or SELECTED markers
+        out.append(unit(f"train-general-general-lr{LRCHECK_LR}-s42-lrcheck", "train", ["prep"], family="general", regime="general", langs=[],
+                        lr=LRCHECK_LR, seed=42, keep=False, test=True, variant="lrcheck", extra="lrcheck"))
     return out
 
 
@@ -322,7 +354,7 @@ def family_minutes(arch: str, u: dict, split: str) -> float:
 
 def estimate(arch: str, u: dict, smoke: bool) -> float:
     if smoke:
-        return {"prep": 0.05, "count": 0.3, "base": 0.15, "train": 0.2, "select": 0.05, "test": 0.2, "collect": 0.02, "xeval": 0.1, "beam": 0.1}[u["kind"]]
+        return {"prep": 0.05, "count": 0.3, "base": 0.15, "train": 0.2, "select": 0.05, "test": 0.2, "collect": 0.02, "xeval": 0.1, "beam": 0.1, "posthoc": 0.1}[u["kind"]]
     if u["kind"] == "prep":
         return 0.1
     if u["kind"] == "base":
@@ -346,6 +378,10 @@ def estimate(arch: str, u: dict, smoke: bool) -> float:
             return 0.01
         rows = sum(TEST_ROWS["t2x"] if f == "t2x" else TEST_ROWS["afrihg"] * len(ls) / 2 for f, ls in u["gen"].items())
         return rows * GEN_S_PER_ROW[arch] * BEAM_FACTOR[mode] / 3600 + 0.05
+    if u["kind"] == "posthoc":
+        return {"zs-sib-ext": score_minutes(arch, "sib", "test", 3 / 9) / 60 + score_minutes(arch, "belebele", "test", 1 / 9) / 60 + 0.2,
+                "zs-nchlt-ner": score_minutes(arch, "nchlt_ner", "test") / 60 + 0.1,
+                "mt-nchlt-ner": score_minutes(arch, "nchlt_ner", "test") / 60 + 0.1}[u["what"]]
     if u["kind"] == "xeval":
         return score_minutes(arch, u["family"], "test", len(u["targets"]) / len(FAMILIES[u["family"]]["langs"])) / 60 + 0.05
     return 0.05
@@ -355,7 +391,7 @@ def cmd_matrix(args) -> None:
     archs = [args.arch] if args.arch else list(ARCHS)
     rows = []
     for arch in archs:
-        for u in plan(arch, args.smoke, cross_eval=True):
+        for u in plan(arch, args.smoke, cross_eval=True, extras=tuple(args.extras.split(",")) if args.extras else ()):
             lr = u.get("lr") or ("selected" if u["kind"] == "train" else "")
             ep = epochs_for(rows_for(u), u["family"]) if u["kind"] == "train" else ""
             rows.append({"arch": arch, "unit": u["id"], "kind": u["kind"], "stage": stage_of(u), "family": u.get("family", u.get("group", "")),
@@ -427,6 +463,10 @@ def stage_of(u: dict) -> str:
         return "cross_eval (optional, off by default)"
     if u["kind"] == "beam":
         return "beam (test only, beside greedy)"
+    if u["kind"] == "posthoc":
+        return "posthoc (extra, test only)"
+    if u.get("variant"):
+        return f"extra: {u['variant']}"
     return "lr-sweep" if u.get("keep") else ("seed" if u.get("seed", 42) != 42 else "mono")
 
 
@@ -956,7 +996,7 @@ def test_scores(r: Run, u: dict, model: Path, out: Path) -> dict:
 # ---------------------------------------------------------------------------------------------------- training
 def run_id(u: dict, lr: str) -> str:
     tag = {"multi": "multi", "general": "general"}.get(u["regime"], "mono-" + "-".join(u["langs"]))
-    return f"{u['family']}-{tag}-lr{lr}-s{u['seed']}"
+    return f"{u['family']}-{tag}-lr{lr}-s{u['seed']}" + (f"-{u['variant']}" if u.get("variant") else "")
 
 
 def selected_lr(r: Run, family: str) -> str:
@@ -1068,6 +1108,8 @@ def train_run(r: Run, u: dict, lr: str) -> dict:
                 "stopped_early": es["stopped_early"], "stop_epoch": es["stop_epoch"], "epochs_run": ran, "planned_epochs": planned,
                 "patience": es["patience"], "train_wall_s": round(train_s, 1), "run_info": info, "gpu": gpu_name(),
                 "host": socket.gethostname(), "job": jid, "resumed": bool(resume)}
+        if u.get("variant"):
+            done["variant"] = u["variant"]
         if u.get("test"):
             t0 = time.time()
             done["test"] = test_scores(r, u, best_dir, r.out / "test" / rid)
@@ -1210,21 +1252,28 @@ def do_base(r: Run, u: dict) -> dict:
     # prompt: the frozen official Base unit of this architecture, rebound to the new base
     raw = out.with_suffix(".json")
     if not raw.exists():
-        inv = r.out / "base_eval" / "inventory"
-        units = json.loads((Path(BUNDLE) / "frozen-inventory/official_units.json").read_text())
-        index = next(i for i, x in enumerate(units) if x["architecture"] == arch and x["regime"] == "Base" and x["task_group"] == "prompt")
-        units[index]["binding"]["base"] = {"kind": "path", "path": str(r.base), "expected_tree_sha256": tree_sha256(r.base)}
-        write_json(inv / "official_units.json", units)
-        rid = lambda ref: hashlib.sha256(json.dumps(ref, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()  # noqa: E731
-        entries = {rid(units[index]["binding"]["base"]): {"path": str(r.base), "tree_sha256": tree_sha256(r.base)},
-                   rid({"kind": "none"}): {"path": None}}
-        write_json(inv / "BINDINGS.json", {"entries": entries})
-        write_json(inv / "RELEASE.json", {"authorized": True, "no_score_based_retry": True, "selected_bindings": {}})
-        env = r.env({"PYTHONPATH_PREPEND": BUNDLE, "LM_EVAL_BATCH": "1" if arch == "xlstm" else "8",
-                     **({"LM_EVAL_LIMIT": str(lim)} if lim else {})})
-        r.sh([py, hs / "lm_eval_unit.py", "--mode", "official", "--index", index, "--inventory", inv, "--bindings", inv / "BINDINGS.json",
-              "--source", SALLM, "--release", inv / "RELEASE.json", "--output", raw], r.logs / "base_prompt.log", env)
+        official_base_unit(r, raw, r.out / "base_eval" / "inventory", None, r.logs / "base_prompt.log", lim)
     return {"raw": str(raw)}
+
+
+def official_base_unit(r: Run, raw: Path, inv: Path, tasks: list[str] | None, log: Path, lim: int | None = None, cwd: str | None = None) -> None:
+    """lm_eval_unit.py official run of the frozen Base prompt unit; `tasks` replaces its task list (post-hoc units)."""
+    arch, py, hs = r.arch, r.a["py"], HERE / "runners"
+    units = json.loads((Path(BUNDLE) / "frozen-inventory/official_units.json").read_text())
+    index = next(i for i, x in enumerate(units) if x["architecture"] == arch and x["regime"] == "Base" and x["task_group"] == "prompt")
+    units[index]["binding"]["base"] = {"kind": "path", "path": str(r.base), "expected_tree_sha256": tree_sha256(r.base)}
+    if tasks is not None:
+        units[index]["task_names"] = tasks
+    write_json(inv / "official_units.json", units)
+    rid = lambda ref: hashlib.sha256(json.dumps(ref, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()  # noqa: E731
+    entries = {rid(units[index]["binding"]["base"]): {"path": str(r.base), "tree_sha256": tree_sha256(r.base)},
+               rid({"kind": "none"}): {"path": None}}
+    write_json(inv / "BINDINGS.json", {"entries": entries})
+    write_json(inv / "RELEASE.json", {"authorized": True, "no_score_based_retry": True, "selected_bindings": {}})
+    env = r.env({"PYTHONPATH_PREPEND": BUNDLE, "LM_EVAL_BATCH": "1" if arch == "xlstm" else "8",
+                 **({"LM_EVAL_LIMIT": str(lim)} if lim else {})})
+    r.sh([py, hs / "lm_eval_unit.py", "--mode", "official", "--index", index, "--inventory", inv, "--bindings", inv / "BINDINGS.json",
+          "--source", SALLM, "--release", inv / "RELEASE.json", "--output", raw], log, env, cwd=cwd)
 
 
 def score_base_gen(r: Run, out: Path) -> dict:
@@ -1232,6 +1281,50 @@ def score_base_gen(r: Run, out: Path) -> dict:
     t2x = score(r, "t2x", "test", r.base, ["xho"], out / "t2x")
     hg = score(r, "afrihg", "test", r.base, ["xho", "zul"], out / "afrihg")
     return {"t2x": t2x["per_lang"], "afrihg": hg["per_lang"]}
+
+
+def posthoc_record(r: Run, u: dict, fam: str, per: dict, n: dict, raw: Path, regime: str, model: str, extra: dict | None = None) -> dict:
+    """runs/<unit>/POSTHOC_DONE.json (read by collect) and test/<unit>/<fam>.score.json (score() format)."""
+    rec = {"family": fam, "split": "test", "model": model, "per_lang": per, "n": n, "raw": str(raw), "mean": sum(per.values()) / len(per),
+           "limit": r.limit("test"), "gpu": gpu_name(), **(extra or {})}
+    write_json(r.out / "test" / u["id"] / f"{fam}.score.json", rec)
+    write_json(r.out / "runs" / u["id"] / "POSTHOC_DONE.json", {"unit": u["id"], "regime": regime, "model": model})
+    return {"per_lang": per, "n": n, "raw": str(raw)}
+
+
+def do_posthoc(r: Run, u: dict) -> dict:
+    """Test-split scoring of a model that already exists (zero-shot Base, or the finished Multitask model)."""
+    out = r.out / "test" / u["id"]
+    what = u["what"]
+    if what in ("zs-nchlt-ner", "mt-nchlt-ner"):  # the score() path of the Multi NCHLT NER test (seq_eval.py, prompt 1)
+        if what == "zs-nchlt-ner":
+            model, regime = r.base, "Base"
+        else:
+            run = json.loads((r.state / "train-general-general-s42.json").read_text())["result"]["run"]
+            model, regime = Path(json.loads((r.out / "runs" / run / "RUN_DONE.json").read_text())["kept"]), "General"
+        rec = score(r, "nchlt_ner", "test", model, list(NCHLT_NER_LANGS), out / "nchlt_ner")
+        return posthoc_record(r, u, "nchlt_ner", rec["per_lang"], rec["n"], Path(rec["raw"]), regime, str(model))
+    assert what == "zs-sib-ext", what
+    # the Base-prompt route: lm_eval_unit.py official run of the frozen Base unit's protocol (SIB raw, Belebele chat template)
+    tasks = [f"sib_{lang}_prompt_5" for lang in POSTHOC_SIB_EXT] + ["belebele_nso_prompt_1"]
+    raw = out / "official.json"
+    if not raw.exists():
+        official_base_unit(r, raw, r.out / "posthoc" / "inventory_sib_ext", tasks, r.logs / "posthoc_zs_sib_ext.log",
+                           20 if r.smoke else None, cwd=str(SALLM))
+    calls = json.loads(raw.read_text())["calls"]
+    results = {t: v for c in calls.values() for t, v in c["results"].items()}
+    samples = {t: v for c in calls.values() for t, v in c["samples"].items()}
+    missing = [t for t in tasks if t not in results]
+    assert not missing, missing
+    res = {}
+    for fam, names, key in (("sib", tasks[:3], "f1,none"), ("belebele", tasks[3:], "acc_norm,none")):
+        per, n = {}, {}
+        for t in names:
+            m = results[t]
+            k = key if key in m else "acc,none"  # ponytail: SIB metric key not verifiable off-cluster; all metrics are kept in "metrics"
+            per[t.split("_")[1]], n[t.split("_")[1]] = 100 * float(m[k]), len(samples[t])
+        res[fam] = posthoc_record(r, u, fam, per, n, raw, "Base", str(r.base), {"metrics": {t: results[t] for t in names}})
+    return res
 
 
 def do_count(r: Run, u: dict) -> dict:
@@ -1263,7 +1356,7 @@ def do_count(r: Run, u: dict) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------- lane worker
-KINDS = {"prep": do_prep, "count": do_count, "base": do_base, "train": do_train, "select": do_select, "test": do_test, "xeval": do_xeval, "beam": do_beam}
+KINDS = {"prep": do_prep, "count": do_count, "base": do_base, "train": do_train, "select": do_select, "test": do_test, "xeval": do_xeval, "beam": do_beam, "posthoc": do_posthoc}
 
 
 class Lock:
@@ -1397,6 +1490,24 @@ def ensure_cross_eval(out: Path) -> None:
         cfg = json.loads((out / "config.json").read_text())
         extra = [u for u in plan(cfg["arch"], bool(cfg.get("smoke")), cross_eval=True, only=cfg.get("smoke_families")) if u.get("optional")]
         write_json(out / "units.json", units + extra)
+
+
+def cmd_append_extras(args) -> None:
+    """Append the opt-in units (posthoc, seeds, lrcheck) to an existing OUT/units.json; existing units and states are untouched."""
+    out = Path(args.out)
+    extras = tuple(args.extras.split(","))
+    with Lock(out / ".plan.lock"):
+        units = json.loads((out / "units.json").read_text())
+        cfg = json.loads((out / "config.json").read_text())
+        have = {u["id"] for u in units}
+        new = [u for u in plan(cfg["arch"], bool(cfg.get("smoke")), only=cfg.get("smoke_families"), extras=extras) if u.get("extra") and u["id"] not in have]
+        missing = {d for u in new for d in u["deps"]} - have - {u["id"] for u in new}
+        if missing:
+            raise SystemExit(f"dependencies missing from units.json: {sorted(missing)}")
+        print(f"{cfg['arch']}: +{len(new)} units ({len(units)} -> {len(units) + len(new)}):", " ".join(u["id"] for u in new))
+        if new and not args.dry_run:
+            write_json(out / "units.json", units + new)
+        print("dry run: units.json not written" if args.dry_run else "units.json written; lanes started earlier must be restarted to see them")
 
 
 def cmd_lane(args) -> None:
@@ -1552,6 +1663,8 @@ def collect(r: Run) -> dict:
             continue
         meta = json.loads((done.parent / "RUN_DONE.json").read_text())
         regime = {"mono": "Mono", "multi": "Multi", "general": "General"}[meta["regime"]]
+        if meta.get("variant"):  # e.g. the LR-check Multitask run: its own regime label, never mixed with the main General rows
+            regime += f" ({meta['variant']})"
         for fam in test:
             rec_path = r.out / "test" / done.parent.name / f"{fam}.score.json"
             rec = json.loads(rec_path.read_text())
@@ -1612,6 +1725,16 @@ def collect(r: Run) -> dict:
                          "score_points": f"{pts:.6f}", "ci95_low": "", "ci95_high": "", "n_items": rec["n"].get(lang), "lr": meta["lr"],
                          "seed": meta["seed"], "epoch": meta["best_epoch"], "run": x.parent.name, "gpu": rec.get("gpu"),
                          "limit": rec.get("limit"), "decoding": "greedy" if meta["family"] in ("t2x", "afrihg") else "", "note": ""})
+    for x in sorted((r.out / "runs").glob("posthoc-*/POSTHOC_DONE.json")):  # opt-in post-hoc units (extras=posthoc)
+        d = json.loads(x.read_text())
+        for sp in sorted((r.out / "test" / d["unit"]).glob("*.score.json")):
+            rec = json.loads(sp.read_text())
+            fam = rec["family"]
+            for lg, pts in rec["per_lang"].items():
+                rows.append({"model": model, "task": PAPER_TASK[fam], "language": lg, "family": LANG_FAMILY[lg], "regime": d["regime"],
+                             "train_language": "", "metric": METRIC[fam], "score_points": f"{pts:.6f}", "ci95_low": "", "ci95_high": "",
+                             "n_items": rec["n"].get(lg), "lr": "", "seed": "", "epoch": "", "run": d["unit"], "gpu": rec.get("gpu"),
+                             "limit": rec.get("limit"), "decoding": "", "note": "posthoc"})
     out = r.out / "results" / "cells.csv"
     if rows:
         with out.open("w", newline="") as fh:
@@ -1632,14 +1755,20 @@ def main() -> None:
     m.add_argument("--arch", choices=sorted(ARCHS))
     m.add_argument("--smoke", action="store_true")
     m.add_argument("--csv")
+    m.add_argument("--extras", help=f"comma list of {','.join(EXTRAS)}: also list these opt-in units")
     m.add_argument("--simulate", type=int, nargs="*", help="print list-scheduling wall-clock for these GPU counts")
     for name in ("lane", "status", "collect"):
         sub.add_parser(name).add_argument("out")
+    ax = sub.add_parser("append-extras")
+    ax.add_argument("out")
+    ax.add_argument("--extras", required=True, help=f"comma list of {','.join(EXTRAS)}")
+    ax.add_argument("--dry-run", action="store_true")
     rr = sub.add_parser("run")
     rr.add_argument("out")
     rr.add_argument("unit")
     args = ap.parse_args()
-    {"matrix": cmd_matrix, "lane": cmd_lane, "run": cmd_run, "status": cmd_status, "collect": cmd_collect}[args.cmd](args)
+    {"matrix": cmd_matrix, "lane": cmd_lane, "run": cmd_run, "status": cmd_status, "collect": cmd_collect,
+     "append-extras": cmd_append_extras}[args.cmd](args)
 
 
 if __name__ == "__main__":
