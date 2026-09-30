@@ -74,13 +74,8 @@ sbatch ops/slurm/launch_hpo.sh llama_t2x_xho 10      # sweep in src/conf/sweeps
 
 ## Reproducing the Papers
 
-- MzansiLM (LREC 2026): tag `mzansitext-mzansilm-lrec2026-v1`.
-- Architecture comparison: branch `paper/architecture-comparison-2026-09`, which
-  keeps the as-run runners (`scripts/paper/`), their environment lock and a
-  README mapping each result to its runner. It will be tagged once the runs
-  finish.
-
-`main` is maintained code and may differ from both snapshots.
+See [docs/reproducing.md](docs/reproducing.md): the MzansiLM tag, and the
+architecture-comparison branch with its pipeline from pretraining to tables.
 
 ## Releases
 
