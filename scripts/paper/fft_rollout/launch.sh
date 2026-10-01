@@ -11,6 +11,8 @@
 # env SMOKE=1              smoke matrix (tiny cells, ~20 scored items); SMOKE_FAMILIES="t2x" restricts it
 # env LANE_TIME=HH:MM:SS   lane wall time (default 48:00:00); lanes resubmit themselves before it runs out
 # env NICE=<n>             sbatch --nice for the lanes, so the same user's pretraining jobs (and their resubmits) go first
+# env FIXED_LRS='{"ner": "3e-4", ...}'  one learning rate per family instead of the sweep (no edge rule)
+# env MULTI_ONLY=1         no zero-shot base units, Mono models, extra seeds or Mono beams (epoch-extension runs)
 set -euo pipefail
 ARCH="${1:?ARCH}"; BASE="${2:?BASE_PATH}"; CAP="${3:-4}"; NAME="${4:-$ARCH}"
 R=/scratch/lmbanr001/masters/sallm/results/fft_rollout_20260926
@@ -41,8 +43,9 @@ mkdir -p "$OUT" "$R/logs"
 smoke=false; [[ "${SMOKE:-0}" == 1 ]] && smoke=true
 fix=false; [[ "${FIX_SPECIAL_IDS:-0}" == 1 ]] && fix=true
 sf=null; [[ -n "${SMOKE_FAMILIES:-}" ]] && sf="[\"${SMOKE_FAMILIES// /\", \"}\"]"
-printf '{"arch": "%s", "base_src": "%s", "smoke": %s, "fix_special_ids": %s, "cap": %s, "smoke_families": %s, "nice": %s, "lane_time": "%s", "launched": "%s", "code_manifest_sha256": "%s"}\n' \
-  "$ARCH" "$BASE" "$smoke" "$fix" "$CAP" "$sf" "${NICE:-0}" "${LANE_TIME:-48:00:00}" "$(date -Is)" "$(sha256sum "$R/code/CODE.sha256" | cut -d' ' -f1)" > "$OUT/config.json"
+mo=false; [[ "${MULTI_ONLY:-0}" == 1 ]] && mo=true
+printf '{"arch": "%s", "base_src": "%s", "smoke": %s, "fix_special_ids": %s, "cap": %s, "smoke_families": %s, "fixed_lrs": %s, "multi_only": %s, "nice": %s, "lane_time": "%s", "launched": "%s", "code_manifest_sha256": "%s"}\n' \
+  "$ARCH" "$BASE" "$smoke" "$fix" "$CAP" "$sf" "${FIXED_LRS:-null}" "$mo" "${NICE:-0}" "${LANE_TIME:-48:00:00}" "$(date -Is)" "$(sha256sum "$R/code/CODE.sha256" | cut -d' ' -f1)" > "$OUT/config.json"
 echo "$CAP" > "$OUT/MAX_LANES"
 dep=(); [[ -n "${AFTER:-}" ]] && dep=(--dependency="afterany:$AFTER")
 [[ -n "${NICE:-}" ]] && dep+=(--nice="$NICE")

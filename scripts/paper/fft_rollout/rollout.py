@@ -220,12 +220,16 @@ POSTHOC_SIB_EXT = ("ssw", "tsn", "tso")  # zero-shot SIB-200 languages the origi
 NCHLT_NER_LANGS = FAMILIES["nchlt_ner"]["langs"]
 
 
-def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | None = None, extras: tuple[str, ...] = ()) -> list[dict]:
+def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | None = None, extras: tuple[str, ...] = (),
+         fixed_lrs: dict | None = None, multi_only: bool = False) -> list[dict]:
+    """fixed_lrs {family: lr} replaces the sweep by that one rate (no edge rule); multi_only drops the zero-shot base units,
+    Mono models, extra seeds and Mono beams (epoch-extension runs: Multi regime plus T2X, seed 42, epoch-1 rates)."""
     assert set(extras) <= set(EXTRAS), extras
+    fixed_lrs = fixed_lrs or {}
     units = [unit("prep", "prep")]
     if smoke and not only:
         units.append(unit("count", "count", ["prep"]))
-    for group in ("gen", "prompt", "ner", "pos"):
+    for group in () if multi_only else ("gen", "prompt", "ner", "pos"):
         units.append(unit(f"base-{group}", "base", ["prep"], group=group))
     families = SMOKE["families"] if smoke else {f: FAMILIES[f]["langs"] for f in FAMILIES}
     if only:  # smoke of selected families only (e.g. the per-architecture T2X smoke)
@@ -235,6 +239,8 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
             continue  # one General model, below
         spec = FAMILIES[fam]
         lrs = (SMOKE["lrs"].get(fam, SMOKE["default_lrs"]) if smoke and not only else SMOKE["default_lrs"] if smoke else LRS)
+        if fam in fixed_lrs:
+            lrs = (fixed_lrs[fam],)
         sweep_regime = spec["sweep"]
         sweep_langs = list(spec["langs"]) if sweep_regime != "general" else []
         tag = {"multi": "multi", "mono": "mono-" + "-".join(spec["langs"]), "general": "general"}[sweep_regime]
@@ -245,13 +251,13 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
             units.append(unit(uid, "train", ["prep"], family=fam, regime=sweep_regime, langs=sweep_langs, lr=lr, seed=42,
                               keep=True, test=False))
         units.append(unit(f"select-{fam}", "select", sweep_ids, family=fam, regime=sweep_regime, langs=sweep_langs,
-                          lrs=list(lrs), tag=tag, edge=not smoke or fam == "t2x"))
+                          lrs=list(lrs), tag=tag, edge=(not smoke or fam == "t2x") and fam not in fixed_lrs))
         units.append(unit(f"test-{fam}-{tag}", "test", [f"select-{fam}"], family=fam, regime=sweep_regime, langs=sweep_langs))
-        if sweep_regime == "multi":
+        if sweep_regime == "multi" and not multi_only:
             for lang in mono_langs:
                 units.append(unit(f"train-{fam}-mono-{lang}-s42", "train", [f"select-{fam}"], family=fam, regime="mono",
                                   langs=[lang], lr=None, seed=42, keep=False, test=True))
-        if fam == "t2x":
+        if fam == "t2x" and not multi_only:
             for seed in (SMOKE["seeds"] if smoke else SEEDS_HEADLINE):
                 units.append(unit(f"train-{fam}-{tag}-s{seed}", "train", [f"select-{fam}"], family=fam, regime=sweep_regime,
                                   langs=sweep_langs, lr=None, seed=seed, keep=False, test=True))
@@ -264,7 +270,7 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
         units.append(unit("train-general-general-s42", "train", ["prep"] + [f"select-{f}" for f in multis], family="general",
                           regime="general", langs=[], lr=None, seed=42, keep=False, test=True, lr_from=multis))
     units.append(unit("collect", "collect", [u["id"] for u in units if u["kind"] != "count"], light=True))
-    beams = beam_units(families, smoke)  # after collect in the DAG: a failed beam unit never blocks the main results
+    beams = beam_units(families, smoke, multi_only)  # after collect in the DAG: a failed beam unit never blocks the main results
     units += beams + [unit("collect-beam", "collect", [u["id"] for u in beams] + ["collect"], light=True)] if beams else []
     if cross_eval:
         units += cross_eval_units(families)
@@ -274,10 +280,10 @@ def plan(arch: str, smoke: bool, cross_eval: bool = False, only: list[str] | Non
     return units
 
 
-def beam_units(families: dict, smoke: bool) -> list[dict]:
+def beam_units(families: dict, smoke: bool, multi_only: bool = False) -> list[dict]:
     """Test-only beam decoding of every selected generation checkpoint (T2X, AfriHG, and the General model's two)."""
     out = []
-    seeds = (42, *(SMOKE["seeds"] if smoke else SEEDS_HEADLINE))
+    seeds = (42,) if multi_only else (42, *(SMOKE["seeds"] if smoke else SEEDS_HEADLINE))
     if "t2x" in families:
         tag = "mono-" + "-".join(FAMILIES["t2x"]["langs"])
         for seed in seeds:
@@ -286,7 +292,7 @@ def beam_units(families: dict, smoke: bool) -> list[dict]:
     if "afrihg" in families:
         out.append(unit("beam-afrihg-multi", "beam", ["test-afrihg-multi"], src="test-afrihg-multi", family="afrihg",
                         gen={"afrihg": list(FAMILIES["afrihg"]["langs"])}, seed=42))
-        for lang in families["afrihg"]:
+        for lang in () if multi_only else families["afrihg"]:
             src = f"train-afrihg-mono-{lang}-s42"
             out.append(unit(f"beam-afrihg-mono-{lang}", "beam", [src], src=src, family="afrihg", gen={"afrihg": [lang]}, seed=42))
     if "general" in families:  # seed 42 only
@@ -1511,7 +1517,7 @@ def ensure_plan(out: Path) -> None:
         if (out / "units.json").exists():
             return
         cfg = json.loads((out / "config.json").read_text())
-        write_json(out / "units.json", plan(cfg["arch"], bool(cfg.get("smoke")), only=cfg.get("smoke_families")))
+        write_json(out / "units.json", plan(cfg["arch"], bool(cfg.get("smoke")), fixed_lrs=cfg.get("fixed_lrs"), multi_only=bool(cfg.get("multi_only")), only=cfg.get("smoke_families")))
 
 
 def ensure_cross_eval(out: Path) -> None:
@@ -1523,7 +1529,7 @@ def ensure_cross_eval(out: Path) -> None:
         if any(u["kind"] == "xeval" for u in units):
             return
         cfg = json.loads((out / "config.json").read_text())
-        extra = [u for u in plan(cfg["arch"], bool(cfg.get("smoke")), cross_eval=True, only=cfg.get("smoke_families")) if u.get("optional")]
+        extra = [u for u in plan(cfg["arch"], bool(cfg.get("smoke")), fixed_lrs=cfg.get("fixed_lrs"), multi_only=bool(cfg.get("multi_only")), cross_eval=True, only=cfg.get("smoke_families")) if u.get("optional")]
         write_json(out / "units.json", units + extra)
 
 
@@ -1535,7 +1541,7 @@ def cmd_append_extras(args) -> None:
         units = json.loads((out / "units.json").read_text())
         cfg = json.loads((out / "config.json").read_text())
         have = {u["id"] for u in units}
-        new = [u for u in plan(cfg["arch"], bool(cfg.get("smoke")), only=cfg.get("smoke_families"), extras=extras) if u.get("extra") and u["id"] not in have]
+        new = [u for u in plan(cfg["arch"], bool(cfg.get("smoke")), fixed_lrs=cfg.get("fixed_lrs"), multi_only=bool(cfg.get("multi_only")), only=cfg.get("smoke_families"), extras=extras) if u.get("extra") and u["id"] not in have]
         missing = {d for u in new for d in u["deps"]} - have - {u["id"] for u in new}
         if missing:
             raise SystemExit(f"dependencies missing from units.json: {sorted(missing)}")
