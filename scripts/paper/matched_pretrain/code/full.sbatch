@@ -7,7 +7,6 @@
 #SBATCH --mem=64G
 #SBATCH --time=30:00:00
 #SBATCH --nodes=1
-#SBATCH --exclude=srvrocgpu009
 #SBATCH --output=/scratch/lmbanr001/masters/sallm/results/matched_pretrain_20260926/logs/%x-%j.out
 # Full matched run: ARCH LR MB [extra]. WSD, 1 epoch of matched_pretrain_v1 (E = 2,839,511,040), fast stack,
 # global batch 192x2048 (GPU count from --gres; only micro-batch/accumulation change). Auto-resumes from resume_latest,
