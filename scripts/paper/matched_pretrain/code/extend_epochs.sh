@@ -6,7 +6,7 @@
 # all architectures (Blocks.phys). Stopping rule (fixed before any extension result): continue past epoch E unless every
 # architecture's clean held-out bits per byte at E is worse than at E-1 or improves by less than 0.5%; applied to all four
 # together, every epoch reported for every model. Cancel the remaining jobs by ID if the rule stops it.
-# HEX login node (sbatch only): bash extend_epochs.sh [ARCH ...]   (default: all four)
+# HEX login node (sbatch only): [AFTER=<jobid>] bash extend_epochs.sh [ARCH ...]   (default: all four)
 set -euo pipefail
 R=/scratch/lmbanr001/masters/sallm/results/matched_pretrain_20260926
 X=$R/runs/ext
@@ -22,7 +22,7 @@ ARCHS=("$@"); [ ${#ARCHS[@]} -gt 0 ] || ARCHS=(mzansilm xlstm gdn mamba2)
 for a in "${ARCHS[@]}"; do
   ck=$R/runs/full_${a}_wsd_lr${LR[$a]}/stable_step$(printf %06d "${START[1]}")
   [ -f "$ck/state.pt" ] || { echo "missing $ck" >&2; exit 2; }
-  dep=""
+  dep="${AFTER:-}"  # e.g. AFTER=<smoke job id>: the first trunk segment waits for it to succeed
   for E in 2 3 4; do
     t=$X/$a/trunk_e$E
     seg=$(sub "$a-t$E" "$dep" "$t" "$a" --budget-epochs "$E" --stop-before-decay --resume "$ck")
