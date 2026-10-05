@@ -315,6 +315,23 @@ python3 $R/code/fft_rollout/rollout.py append-extras $R/runs/<arch> --extras pos
 python3 rollout.py matrix --arch gdn --extras posthoc,seeds,lrcheck --csv /tmp/m.csv                          # dry list, no cluster
 ```
 
+## 3d. Epoch-4 learning-rate re-selection
+
+Epochs 2-4 first ran at the epoch-1 selected rates (`launch_epoch_ft.sh`). Epoch 4 is then re-selected with exactly the
+epoch-1 rule, pooled over one-rate-per-family run dirs: `<arch>_e4` (reused rate, plus Mono and Multitask),
+`<arch>_e4_lowlr` / `_lrcheck` (one step lower), `<arch>_e4_sweepA` / `_sweepB` (the remaining grid rates) and
+`<arch>_e4_edgeA` (edge-rule points). Each dir is `launch.sh` with `FIXED_LRS`, `MULTI_ONLY=1`, `SMOKE_FAMILIES`.
+Every (arch, family, rate) is trained once.
+
+`e4_select.py` (run on the Mac; reads RUN_DONE.json over ssh) applies the rule: base grid 3e-5/1e-4/3e-4 on Multi
+validation (T2X: isiXhosa Mono), ties to the smaller rate, edge rule with at most two extensions; rates outside the grid
+count only when the edge rule asks for them. Multitask: most frequent selected rate over the six Multitask families.
+
+When a family's winner differs from the reused rate, in `<arch>_e4`: back up `keep/<fam>/SELECTED.json` as
+`SELECTED.reused_<lr>.json`, set `.lr` to the winner, move the family's Mono (and T2X seed/beam) state files aside, and
+make sure a lane exists. The Multi test for the winner lives in the dir that trained that rate. Multitask stays `held`
+(state file) until its rate is fixed, then the state file is removed. Each step is logged in the dir's LAUNCH.log.
+
 ## 4. Results into the paper
 
 The `collect` unit (last) writes `$R/runs/<name>/results/cells.csv` (one row per cell and run: score, n items,
