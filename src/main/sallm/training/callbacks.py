@@ -1,4 +1,3 @@
-import hashlib
 import json
 import logging
 import os
@@ -22,6 +21,8 @@ from sallm.config import DecodingConfig, FinetuneTaskType
 from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 from sallm.evaluation.pos_metrics import PosEvaluator
+from sallm.models.registry import restore_mode, switch_to_inference_mode
+from sallm.training.validation_artifacts import write_validation_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +196,51 @@ class ShowCompletionsCallback(TrainerCallback):
         )
 
 
-class GenerationMetricsCallback(TrainerCallback):
+class _TaskMetricsCallback(TrainerCallback):
+    """Evaluate on rank 0 and broadcast metrics so ranks agree on early stopping."""
+
+    trainer_prefix = ""
+
+    def _evaluate(
+        self, model: PreTrainedModel, args: TrainingArguments, state: TrainerState
+    ) -> dict[str, float]:
+        raise NotImplementedError
+
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        metrics: dict[str, float] = {}
+        trainer_metrics: dict[str, float] = {}
+        model = cast(PreTrainedModel | None, kwargs.get("model"))
+        if model is None:
+            logger.warning(
+                "%s: `model` not found in kwargs. Skipping.", type(self).__name__
+            )
+        elif state.is_world_process_zero:
+            metrics = self._evaluate(model, args, state)
+            trainer_metrics = dict(metrics)
+            for key, value in metrics.items():
+                trainer_metrics[f"{self.trainer_prefix}{key}"] = value
+                if "/" in key:
+                    alias = key.replace("/", "_")
+                    trainer_metrics[f"{self.trainer_prefix}{alias}"] = value
+
+        trainer_metrics = _broadcast_metrics_from_rank0(
+            local_metrics=trainer_metrics,
+            is_world_process_zero=state.is_world_process_zero,
+        )
+        callback_metrics = kwargs.get("metrics")
+        if trainer_metrics and isinstance(callback_metrics, dict):
+            callback_metrics.update(trainer_metrics)
+        if state.is_world_process_zero and metrics:
+            wandb.log(metrics)
+
+
+class GenerationMetricsCallback(_TaskMetricsCallback):
     def __init__(
         self,
         eval_dataset: Dataset,
@@ -228,74 +273,27 @@ class GenerationMetricsCallback(TrainerCallback):
             task_type=task_type,
         )
 
-    def on_evaluate(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
-        **kwargs,
-    ):
-        trainer_metrics: dict[str, float] = {}
-        wandb_metrics: dict[str, float] = {}
-        model = cast(PreTrainedModel | None, kwargs.get("model"))
-        if model is None:
-            logger.warning(
-                "GenerationMetricsCallback: `model` not found in kwargs. Skipping."
+    def _evaluate(
+        self, model: PreTrainedModel, args: TrainingArguments, state: TrainerState
+    ) -> dict[str, float]:
+        world_size = getattr(args, "world_size", 1)
+        collect_debug_examples = self.debug_examples_per_lang > 0
+        config = getattr(model, "config", None)
+        saved_mode = switch_to_inference_mode(config)
+        try:
+            result = self.evaluator.evaluate(
+                model,
+                self.eval_dataset,
+                world_size=world_size,
+                metric_prefix="eval",
+                collect_examples=collect_debug_examples,
+                example_limit_per_lang=self.debug_examples_per_lang,
             )
-        elif state.is_world_process_zero:
-            world_size = getattr(args, "world_size", 1)
-            collect_debug_examples = self.debug_examples_per_lang > 0
-            config = getattr(model, "config", None)
-            restore_xlstm = None
-            if (
-                config is not None
-                and getattr(config, "model_type", None) == "xlstm"
-                and getattr(config, "mode", None) == "train"
-            ):
-                restore_xlstm = (
-                    config.mode,
-                    config.return_last_states,
-                    config.inference_state_dtype,
-                )
-                config.mode = "inference"
-                config.return_last_states = True
-                config.inference_state_dtype = str(config.dtype).removeprefix("torch.")
-            try:
-                result = self.evaluator.evaluate(
-                    model,
-                    self.eval_dataset,
-                    world_size=world_size,
-                    metric_prefix="eval",
-                    collect_examples=collect_debug_examples,
-                    example_limit_per_lang=self.debug_examples_per_lang,
-                )
-            finally:
-                if restore_xlstm is not None and config is not None:
-                    (
-                        config.mode,
-                        config.return_last_states,
-                        config.inference_state_dtype,
-                    ) = restore_xlstm
-
-            if result.metrics:
-                trainer_metrics = dict(result.metrics)
-                for key, value in list(result.metrics.items()):
-                    # Expose underscore aliases for Trainer metric selection.
-                    if "/" in key:
-                        trainer_metrics[key.replace("/", "_")] = value
-                wandb_metrics = dict(result.metrics)
-            if collect_debug_examples:
-                self._write_debug_examples(args=args, state=state, result=result)
-
-        trainer_metrics = _broadcast_metrics_from_rank0(
-            local_metrics=trainer_metrics,
-            is_world_process_zero=state.is_world_process_zero,
-        )
-        callback_metrics = kwargs.get("metrics")
-        if trainer_metrics and isinstance(callback_metrics, dict):
-            callback_metrics.update(trainer_metrics)
-        if state.is_world_process_zero and wandb_metrics:
-            wandb.log(wandb_metrics)
+        finally:
+            restore_mode(config, saved_mode)
+        if collect_debug_examples:
+            self._write_debug_examples(args=args, state=state, result=result)
+        return dict(result.metrics) if result.metrics else {}
 
     def _write_debug_examples(
         self,
@@ -349,8 +347,10 @@ class GenerationMetricsCallback(TrainerCallback):
                 logger.exception("Failed to save generation debug examples to W&B.")
 
 
-class ClassificationMetricsCallback(TrainerCallback):
-    """Callback that computes accuracy metrics for classification tasks."""
+class ClassificationMetricsCallback(_TaskMetricsCallback):
+    """Callback that computes accuracy and macro-F1 for classification tasks."""
+
+    trainer_prefix = "eval_"
 
     def __init__(
         self,
@@ -370,52 +370,22 @@ class ClassificationMetricsCallback(TrainerCallback):
             decoding=self.decoding_config,
         )
 
-    def on_evaluate(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
-        **kwargs,
-    ):
-        trainer_metrics: dict[str, float] = {}
-        wandb_metrics: dict[str, float] = {}
-        model = cast(PreTrainedModel | None, kwargs.get("model"))
-        if model is None:
-            logger.warning(
-                "ClassificationMetricsCallback: `model` not found in kwargs. Skipping."
+    def _evaluate(
+        self, model: PreTrainedModel, args: TrainingArguments, state: TrainerState
+    ) -> dict[str, float]:
+        del args, state
+        try:
+            return self.evaluator.evaluate(
+                model,
+                self.eval_dataset,
+                metric_prefix="classification",
             )
-        elif state.is_world_process_zero:
-            try:
-                metrics = self.evaluator.evaluate(
-                    model,
-                    self.eval_dataset,
-                    metric_prefix="classification",
-                )
-            finally:
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
-            if metrics:
-                trainer_metrics = dict(metrics)
-                for key, value in list(metrics.items()):
-                    # Trainer expects eval_* when selecting best model metrics.
-                    trainer_metrics[f"eval_{key}"] = value
-                    if "/" in key:
-                        trainer_metrics[f"eval_{key.replace('/', '_')}"] = value
-                wandb_metrics = dict(metrics)
-
-        trainer_metrics = _broadcast_metrics_from_rank0(
-            local_metrics=trainer_metrics,
-            is_world_process_zero=state.is_world_process_zero,
-        )
-        callback_metrics = kwargs.get("metrics")
-        if trainer_metrics and isinstance(callback_metrics, dict):
-            callback_metrics.update(trainer_metrics)
-        if state.is_world_process_zero and wandb_metrics:
-            wandb.log(wandb_metrics)
+        finally:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
-class PosMetricsCallback(TrainerCallback):
+class PosMetricsCallback(_TaskMetricsCallback):
     """Compute the frozen closed-label MasakhaPOS validation metric."""
 
     def __init__(
@@ -431,65 +401,26 @@ class PosMetricsCallback(TrainerCallback):
             strict_contract=True,
         )
 
-    def on_evaluate(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
-        **kwargs,
-    ):
-        trainer_metrics: dict[str, float] = {}
-        model = cast(PreTrainedModel | None, kwargs.get("model"))
-        if model is None:
-            logger.warning("PosMetricsCallback: `model` not found in kwargs. Skipping.")
-        elif state.is_world_process_zero:
-            try:
-                metrics = self.evaluator.evaluate(model, self.eval_dataset)
-            finally:
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-            trainer_metrics = dict(metrics)
-            for key, value in list(metrics.items()):
-                if "/" in key:
-                    trainer_metrics[key.replace("/", "_")] = value
-            self._write_artifact(args=args, state=state)
-            wandb.log(metrics)
-
-        trainer_metrics = _broadcast_metrics_from_rank0(
-            local_metrics=trainer_metrics,
-            is_world_process_zero=state.is_world_process_zero,
+    def _evaluate(
+        self, model: PreTrainedModel, args: TrainingArguments, state: TrainerState
+    ) -> dict[str, float]:
+        try:
+            metrics = self.evaluator.evaluate(model, self.eval_dataset)
+        finally:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        write_validation_artifact(
+            output_dir=str(args.output_dir),
+            subdir="pos",
+            step=int(state.global_step),
+            payload={
+                **self.evaluator.last_details,
+                "global_step": int(state.global_step),
+                "epoch": state.epoch,
+            },
+            label="constrained POS",
         )
-        callback_metrics = kwargs.get("metrics")
-        if trainer_metrics and isinstance(callback_metrics, dict):
-            callback_metrics.update(trainer_metrics)
-
-    def _write_artifact(
-        self,
-        *,
-        args: TrainingArguments,
-        state: TrainerState,
-    ) -> None:
-        payload = {
-            **self.evaluator.last_details,
-            "global_step": int(state.global_step),
-            "epoch": state.epoch,
-        }
-        encoded = json.dumps(
-            payload,
-            ensure_ascii=False,
-            sort_keys=True,
-            indent=2,
-        ).encode("utf-8")
-        artifact_dir = Path(str(args.output_dir)) / "validation_artifacts" / "pos"
-        artifact_dir.mkdir(parents=True, exist_ok=True)
-        path = artifact_dir / f"step-{int(state.global_step):08d}.json"
-        path.write_bytes(encoded + b"\n")
-        digest = hashlib.sha256(encoded + b"\n").hexdigest()
-        path.with_suffix(".json.sha256").write_text(
-            f"{digest}  {path.name}\n",
-            encoding="utf-8",
-        )
-        logger.info("Saved constrained POS validation artifact %s (%s)", path, digest)
+        return metrics
 
 
 class EnsureStaticGraphCallback(TrainerCallback):

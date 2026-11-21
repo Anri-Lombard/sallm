@@ -15,8 +15,16 @@ from sallm.config import (
     TokenizerConfig,
     to_resolved_dict,
 )
-from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY
-from sallm.utils import count_trainable_parameters
+from sallm.models.registry import (
+    MODEL_CLASS_REGISTRY,
+    MODEL_CONFIG_REGISTRY,
+    architecture_profile,
+    patch_mamba2_grouped_rmsnorm,
+    tie_xlstm_embeddings,
+    use_exact_xlstm_head_dims,
+    validate_xlstm_pretrain_kernels,
+)
+from sallm.utils import RunMode, count_trainable_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +122,14 @@ def build_model(
                 torch_dtype=torch_dtype,
             ),
         )
-        if model_conf.architecture == "gated_deltanet":
-            # FLA 0.5.1 ignores num_items_in_batch despite accepting **kwargs.
+        profile = architecture_profile(
+            model.config, architecture=model_conf.architecture
+        )
+        if not profile.accepts_loss_kwargs:
             cast(Any, model).accepts_loss_kwargs = False
+        if profile.needs_mamba2_grouped_norm_patch:
+            patch_mamba2_grouped_rmsnorm(model)
+        tie_xlstm_embeddings(model)
         _use_tokenizer_special_tokens(model.config, tokenizer)
         _use_tokenizer_special_tokens(
             getattr(model, "generation_config", None), tokenizer
@@ -130,7 +143,25 @@ def build_model(
         )
 
     model_config = to_resolved_dict(model_conf.config, name="model config")
+    # Pop Triton kernel overrides for xLSTM so transformers 5's @strict validator
+    # does not reject them before mlstm_kernels is loaded.
+    xlstm_kernel_overrides: dict[str, Any] = {}
+    if model_conf.architecture == "xlstm":
+        for key in ("chunkwise_kernel", "sequence_kernel", "step_kernel"):
+            if key in model_config:
+                xlstm_kernel_overrides[key] = model_config.pop(key)
     model_config_obj = config_class(**model_config)
+    for key, value in xlstm_kernel_overrides.items():
+        object.__setattr__(model_config_obj, key, value)
+    use_exact_xlstm_head_dims(model_config_obj)
+    if (
+        config.mode == RunMode.TRAIN
+        and architecture_profile(model_config_obj).has_train_and_inference_modes
+    ):
+        validate_xlstm_pretrain_kernels(
+            model_config_obj,
+            allow_native=not torch.cuda.is_available(),
+        )
     model_config_obj.vocab_size = len(tokenizer)
     _use_tokenizer_special_tokens(model_config_obj, tokenizer)
 
@@ -139,9 +170,12 @@ def build_model(
     logger.info(f"Creating model with torch_dtype={torch_dtype}")
     model = cast(PreTrainedModel, model_class(model_config_obj).to(torch_dtype))
 
-    if model_conf.architecture == "gated_deltanet":
-        # FLA 0.5.1 ignores num_items_in_batch despite accepting **kwargs.
+    profile = architecture_profile(model.config, architecture=model_conf.architecture)
+    if not profile.accepts_loss_kwargs:
         cast(Any, model).accepts_loss_kwargs = False
+    if profile.needs_mamba2_grouped_norm_patch:
+        patch_mamba2_grouped_rmsnorm(model)
+    tie_xlstm_embeddings(model)
 
     if model_conf.param_validation:
         num_params = count_trainable_parameters(model)

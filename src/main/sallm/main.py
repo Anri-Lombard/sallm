@@ -8,12 +8,12 @@ from typing import cast
 
 import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
-from transformers.trainer_utils import is_main_process
 from transformers.utils import logging as hf_logging
 
 from sallm.config import ExperimentConfig
 from sallm.evaluation.run import run as run_eval
 from sallm.fine_tune.run import run as run_fine_tune
+from sallm.runtime import is_main_process
 from sallm.training.run import run as run_train
 from sallm.utils import RunMode
 
@@ -33,8 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_main_process() -> bool:
-    local_rank = int(os.environ.get("LOCAL_RANK", "-1"))
-    return (local_rank == -1) or is_main_process(local_rank)
+    return is_main_process()
 
 
 def setup_logging(config: DictConfig) -> None:

@@ -3,16 +3,16 @@ from types import SimpleNamespace
 from lm_eval.tasks import TaskManager
 from sallm.evaluation import lm_eval_runner
 from sallm.evaluation.config import TaskPack
+from sallm.evaluation.harness import prepare_model_for_evaluation
 from sallm.evaluation.lm_eval_runner import (
     _format_model_args,
     _materialize_model_for_lm_eval,
     _resolve_include_paths,
     _run_pack,
-    _set_eval_safe_model_config,
     _to_serializable,
-    _use_exact_xlstm_head_dims,
 )
 from sallm.evaluation.registry import load_task_pack
+from sallm.models.registry import use_exact_xlstm_head_dims
 
 
 def test_format_model_args_appends_extra_values() -> None:
@@ -154,7 +154,7 @@ def test_xlstm_lm_eval_uses_inference_mode() -> None:
         )
     )
 
-    _set_eval_safe_model_config(model)
+    prepare_model_for_evaluation(model)
 
     assert model.config.mode == "inference"
     assert model.config.return_last_states is True
@@ -172,7 +172,7 @@ def test_xlstm_cache_dimensions_match_external_runtime() -> None:
         num_hidden_layers=1,
     )
 
-    _use_exact_xlstm_head_dims(config)
+    use_exact_xlstm_head_dims(config)
     cell_state, normalizer_state, _ = xLSTMCache(config, 2).rnn_state[0]
 
     assert config.qk_head_dim == 92

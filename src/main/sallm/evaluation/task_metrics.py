@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import collections
 import re
 import unicodedata
@@ -44,6 +45,7 @@ _NER_LABEL_ALIASES = {
     "org": "ORG",
     "time": "DATE",
     "date": "DATE",
+    "misc": "MISC",
 }
 
 
@@ -340,7 +342,25 @@ def _normalize_span_text(text: str) -> str:
 
 
 def _extract_pos_tags(text: str, fallback: list[str] | None = None) -> list[str]:
-    tags = [pos for _, pos in re.findall(r"\('([^']*)', '([^']*)'\)", text)]
+    try:
+        parsed = ast.literal_eval(text.strip())
+    except (SyntaxError, ValueError):
+        parsed = None
+    if isinstance(parsed, list) and parsed:
+        tuple_tags = [
+            str(item[1]).upper()
+            for item in parsed
+            if isinstance(item, tuple) and len(item) == 2
+        ]
+        if tuple_tags:
+            return tuple_tags
+
+    tags = [
+        pos
+        for _, _, pos in re.findall(
+            r"\((?:'([^']*)'|\"([^\"]*)\"),\s*['\"]([^'\"]*)['\"]\)", text
+        )
+    ]
     if tags:
         return tags
 

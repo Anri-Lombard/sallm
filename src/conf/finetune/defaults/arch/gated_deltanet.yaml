@@ -1,0 +1,3 @@
+model:
+  architecture: gated_deltanet
+  init_checkpoint: ???

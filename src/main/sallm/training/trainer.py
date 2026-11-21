@@ -1,5 +1,5 @@
-import hashlib
-import json
+from __future__ import annotations
+
 import logging
 import math
 import time
@@ -11,7 +11,6 @@ import datasets
 import torch
 import wandb
 from torch.utils.data import DataLoader
-from transformers import Trainer
 from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 from trl import SFTTrainer
 
@@ -22,243 +21,51 @@ from sallm.training.general_validation import (
     compute_equal_family_token_nll,
     validate_general_coverage,
 )
+from sallm.training.validation_artifacts import write_validation_artifact
 
 logger = logging.getLogger(__name__)
 
-
+# Transformers' Trainer.compute_loss inspects this mapping to apply causal label shift.
 MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.setdefault(
     "gated_deltanet",
     "GatedDeltaNetForCausalLM",
 )
 
-
-_MAMBA_NO_DECAY_SUFFIXES = ("A_log", "D")
+_NO_DECAY_SUFFIXES = ("A_log", "D")
 
 
 def _filter_decay_parameter_names(
-    model,
+    model: Any,
     decay_parameter_names: Iterable[str],
 ) -> list[str]:
-    """Exclude parameters that should not receive weight decay in Mamba blocks."""
+    """Exclude recurrent state parameters (A_log, D, _no_weight_decay) from decay."""
     decay_set = set(decay_parameter_names)
-    mamba_no_decay = set()
+    excluded = set()
     for name, parameter in model.named_parameters():
         if name not in decay_set:
             continue
         if getattr(parameter, "_no_weight_decay", False):
-            mamba_no_decay.add(name)
+            excluded.add(name)
             continue
         if any(
             name == suffix or name.endswith(f".{suffix}")
-            for suffix in _MAMBA_NO_DECAY_SUFFIXES
+            for suffix in _NO_DECAY_SUFFIXES
         ):
-            mamba_no_decay.add(name)
+            excluded.add(name)
 
-    filtered = sorted(decay_set - mamba_no_decay)
-    if mamba_no_decay:
+    filtered = sorted(decay_set - excluded)
+    if excluded:
         logger.info(
-            "Excluded %d Mamba parameters from weight decay.",
-            len(mamba_no_decay),
+            "Excluded %d recurrent parameters from weight decay.", len(excluded)
         )
     return filtered
 
 
-# TODO rename to something more appropriate since different models will use
-# different trainers
-class CustomTrainer(Trainer):
-    def get_decay_parameter_names(self, model) -> list[str]:
-        decay_parameter_names = super().get_decay_parameter_names(model)
-        return _filter_decay_parameter_names(model, decay_parameter_names)
-
-    def evaluate(
-        self,
-        eval_dataset: Any = None,
-        ignore_keys: list[str] | None = None,
-        metric_key_prefix: str = "eval",
-    ) -> dict[str, Any]:
-        resolved_eval_dataset: Any = (
-            eval_dataset if eval_dataset is not None else self.eval_dataset
-        )
-        if resolved_eval_dataset is None:
-            raise ValueError("Trainer: evaluation requires an eval_dataset.")
-
-        if not isinstance(resolved_eval_dataset, datasets.Dataset):
-            return super().evaluate(
-                eval_dataset=resolved_eval_dataset,
-                ignore_keys=ignore_keys,
-                metric_key_prefix=metric_key_prefix,
-            )
-        eval_dataset = resolved_eval_dataset
-
-        if "lang" not in eval_dataset.features:
-            logger.warning("Custom `evaluate` is exiting: 'lang' column not found.")
-            return super().evaluate(
-                eval_dataset=cast(Any, eval_dataset),
-                ignore_keys=ignore_keys,
-                metric_key_prefix=metric_key_prefix,
-            )
-
-        start_time = time.time()
-
-        unique_languages = sorted(
-            [lang for lang in set(eval_dataset["lang"]) if lang is not None]
-        )
-        per_language_metrics_for_wandb = {}
-        # TODO remove samples?
-        grand_total_loss = 0.0
-        grand_total_samples = 0
-
-        # Use the prepared model directly (same as super().evaluate())
-        model = self.model
-        if model is None:
-            raise ValueError("Trainer: evaluation requires a model.")
-        model_for_eval = cast(Any, model)
-        model_for_eval.eval()
-
-        if self._signature_columns is None:
-            raise RuntimeError("Could not find model signature columns.")
-        model_args = self._signature_columns
-
-        for lang in unique_languages:
-            lang_dataset = eval_dataset.filter(
-                lambda x, _lang=lang: x["lang"] == _lang, load_from_cache_file=False
-            )
-            if len(lang_dataset) == 0:
-                continue
-
-            dataloader: DataLoader = self.get_eval_dataloader(cast(Any, lang_dataset))
-            total_loss, num_samples = 0.0, 0
-            nan_count = 0
-
-            with torch.no_grad():
-                for batch_idx, batch in enumerate(dataloader):
-                    batch = self._prepare_inputs(batch)
-
-                    # Skip batches where all labels are masked (ignore_index = -100)
-                    if "labels" in batch:
-                        labels = batch["labels"]
-                        valid_labels = (labels != -100).any()
-                        if not valid_labels:
-                            # All labels are masked, skip this batch
-                            if self.is_world_process_zero():
-                                print(
-                                    f"DEBUG: lang={lang}, batch {batch_idx}: "
-                                    "all labels masked, skipping",
-                                    flush=True,
-                                )
-                            continue
-
-                    model_inputs = {k: v for k, v in batch.items() if k in model_args}
-                    model_inputs["use_cache"] = False  # Prevent Mamba2Cache in outputs
-                    outputs = model_for_eval(**model_inputs)
-                    loss = outputs.loss
-                    loss_val = loss.item()
-                    batch_size = batch["input_ids"].size(0)
-
-                    if math.isnan(loss_val):
-                        # This shouldn't happen now, but log if it does
-                        nan_count += 1
-                        if self.is_world_process_zero():
-                            print(
-                                f"WARNING: lang={lang}, batch {batch_idx}: "
-                                "NAN loss despite valid labels! Skipping.",
-                                flush=True,
-                            )
-                        continue
-
-                    total_loss += loss_val * batch_size
-                    num_samples += batch_size
-
-            if self.is_world_process_zero() and nan_count > 0:
-                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx + 1} "
-                msg += f"batches had nan loss, total_loss={total_loss}, "
-                msg += f"num_samples={num_samples}"
-                print(msg, flush=True)
-
-            all_losses = self.accelerator.gather(
-                torch.tensor(total_loss, device=self.args.device)
-            )
-            all_samples = self.accelerator.gather(
-                torch.tensor(num_samples, device=self.args.device)
-            )
-
-            total_loss_agg = torch.sum(all_losses).item()
-            total_samples_agg = torch.sum(all_samples).item()
-
-            grand_total_loss += total_loss_agg
-            grand_total_samples += total_samples_agg
-
-            if total_samples_agg > 0:
-                avg_loss = total_loss_agg / total_samples_agg
-                try:
-                    perplexity = math.exp(avg_loss)
-                except OverflowError:
-                    perplexity = float("inf")
-
-                per_language_metrics_for_wandb[f"eval/{lang}_loss"] = avg_loss
-                per_language_metrics_for_wandb[f"eval/{lang}_perplexity"] = perplexity
-                # Debug logging
-                if self.is_world_process_zero():
-                    msg = f"DEBUG: lang={lang}, avg_loss={avg_loss:.4f}, "
-                    msg += f"samples={total_samples_agg}, "
-                    msg += f"grand_total_loss_so_far={grand_total_loss:.4f}, "
-                    msg += f"grand_total_samples_so_far={grand_total_samples}"
-                    print(msg, flush=True)
-
-        if self.is_world_process_zero() and per_language_metrics_for_wandb:
-            wandb.log(per_language_metrics_for_wandb, step=self.state.global_step)
-            msg = f"DEBUG: Logged {len(per_language_metrics_for_wandb)} "
-            msg += "per-language metrics to wandb"
-            print(msg, flush=True)
-
-        metrics_to_return = {}
-        if grand_total_samples > 0:
-            overall_loss = grand_total_loss / grand_total_samples
-            if self.is_world_process_zero():
-                msg = "DEBUG: Computing overall eval_loss: "
-                msg += f"{grand_total_loss:.4f} / {grand_total_samples} = "
-                msg += f"{overall_loss}"
-                print(msg, flush=True)
-            metrics_to_return[f"{metric_key_prefix}_loss"] = overall_loss
-        else:
-            if self.is_world_process_zero():
-                print(
-                    "DEBUG: grand_total_samples is 0! Cannot compute eval_loss",
-                    flush=True,
-                )
-
-        runtime = time.time() - start_time
-        metrics_to_return[f"{metric_key_prefix}_runtime"] = runtime
-        metrics_to_return[f"{metric_key_prefix}_samples_per_second"] = (
-            grand_total_samples / runtime
-        )
-
-        self.log(metrics_to_return)
-        self.control = self.callback_handler.on_evaluate(
-            self.args, self.state, self.control, metrics_to_return
-        )
-
-        return metrics_to_return
-
-    def save_model(self, output_dir=None, _internal_call=False):
-        if not self.args.should_save:
-            return
-        out = str(output_dir or self.args.output_dir)
-        Path(out).mkdir(parents=True, exist_ok=True)
-
-        cast(Any, self.model).save_pretrained(out, safe_serialization=False)
-
-        processing_class = getattr(self, "processing_class", None)
-        if processing_class is not None:
-            cast(Any, processing_class).save_pretrained(out)
-
-
 class CustomSFTTrainer(SFTTrainer):
-    """SFTTrainer with per-language evaluation metrics for foundation model training."""
+    """SFTTrainer with per-language evaluation and General selection metrics."""
 
     def __init__(self, *args: Any, general_selection: bool = False, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        # Select checkpoints by equal-family assistant-token NLL on General data.
         self.general_selection = general_selection
 
     def get_decay_parameter_names(self, model) -> list[str]:
@@ -362,24 +169,16 @@ class CustomSFTTrainer(SFTTrainer):
             "family_nll": family_nll,
             "macro_nll": macro_nll,
         }
-        encoded = (
-            json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-        ).encode("utf-8")
-        artifact_dir = (
-            Path(str(self.args.output_dir)) / "validation_artifacts" / "general"
+        write_validation_artifact(
+            output_dir=str(self.args.output_dir),
+            subdir="general",
+            step=int(self.state.global_step),
+            payload=payload,
+            label="General",
+            save_to_wandb=self.is_world_process_zero(),
         )
-        artifact_dir.mkdir(parents=True, exist_ok=True)
-        path = artifact_dir / f"step-{int(self.state.global_step):08d}.json"
-        path.write_bytes(encoded)
-        digest = hashlib.sha256(encoded).hexdigest()
-        path.with_suffix(".json.sha256").write_text(
-            f"{digest}  {path.name}\n",
-            encoding="utf-8",
-        )
-        logger.info("Saved General validation artifact %s (%s)", path, digest)
         if self.is_world_process_zero() and getattr(wandb, "run", None) is not None:
             wandb.log(metrics, step=self.state.global_step)
-            wandb.save(str(path), policy="now")
 
         self.log(metrics)
         self.control = self.callback_handler.on_evaluate(
@@ -427,15 +226,13 @@ class CustomSFTTrainer(SFTTrainer):
             )
 
         start_time = time.time()
-
         unique_languages = sorted(
             [lang for lang in set(eval_dataset["lang"]) if lang is not None]
         )
-        per_language_metrics_for_wandb = {}
+        per_language_metrics_for_wandb: dict[str, float] = {}
         grand_total_loss = 0.0
         grand_total_samples = 0
 
-        # Use the prepared model directly (same as super().evaluate())
         model = self.model
         if model is None:
             raise ValueError("Trainer: evaluation requires a model.")
@@ -456,51 +253,46 @@ class CustomSFTTrainer(SFTTrainer):
             dataloader: DataLoader = self.get_eval_dataloader(cast(Any, lang_dataset))
             total_loss, num_samples = 0.0, 0
             nan_count = 0
+            last_batch_idx = -1
 
             with torch.no_grad():
                 for batch_idx, batch in enumerate(dataloader):
+                    last_batch_idx = batch_idx
                     batch = self._prepare_inputs(batch)
 
-                    # Skip batches where all labels are masked (ignore_index = -100)
-                    if "labels" in batch:
-                        labels = batch["labels"]
-                        valid_labels = (labels != -100).any()
-                        if not valid_labels:
-                            # All labels are masked, skip this batch
-                            if self.is_world_process_zero():
-                                print(
-                                    f"DEBUG: lang={lang}, batch {batch_idx}: "
-                                    "all labels masked, skipping",
-                                    flush=True,
-                                )
-                            continue
+                    if "labels" in batch and not (batch["labels"] != -100).any():
+                        logger.debug(
+                            "lang=%s batch=%d: all labels masked, skipping.",
+                            lang,
+                            batch_idx,
+                        )
+                        continue
 
                     model_inputs = {k: v for k, v in batch.items() if k in model_args}
-                    model_inputs["use_cache"] = False  # Prevent Mamba2Cache in outputs
-                    outputs = model_for_eval(**model_inputs)
-                    loss = outputs.loss
-                    loss_val = loss.item()
-                    batch_size = batch["input_ids"].size(0)
+                    model_inputs["use_cache"] = False
+                    loss_val = float(model_for_eval(**model_inputs).loss.item())
+                    batch_size = int(batch["input_ids"].size(0))
 
                     if math.isnan(loss_val):
-                        # This shouldn't happen now, but log if it does
                         nan_count += 1
-                        if self.is_world_process_zero():
-                            print(
-                                f"WARNING: lang={lang}, batch {batch_idx}: "
-                                "NAN loss despite valid labels! Skipping.",
-                                flush=True,
-                            )
+                        logger.warning(
+                            "lang=%s batch=%d: NaN loss despite valid labels; "
+                            "skipping.",
+                            lang,
+                            batch_idx,
+                        )
                         continue
 
                     total_loss += loss_val * batch_size
                     num_samples += batch_size
 
-            if self.is_world_process_zero() and nan_count > 0:
-                msg = f"DEBUG: lang={lang}: {nan_count}/{batch_idx + 1} "
-                msg += f"batches had nan loss, total_loss={total_loss}, "
-                msg += f"num_samples={num_samples}"
-                print(msg, flush=True)
+            if nan_count > 0:
+                logger.warning(
+                    "lang=%s: %d/%d batches had NaN loss.",
+                    lang,
+                    nan_count,
+                    last_batch_idx + 1,
+                )
 
             all_losses = self.accelerator.gather(
                 torch.tensor(total_loss, device=self.args.device)
@@ -509,11 +301,11 @@ class CustomSFTTrainer(SFTTrainer):
                 torch.tensor(num_samples, device=self.args.device)
             )
 
-            total_loss_agg = torch.sum(all_losses).item()
-            total_samples_agg = torch.sum(all_samples).item()
+            total_loss_agg = float(torch.sum(all_losses).item())
+            total_samples_agg = float(torch.sum(all_samples).item())
 
             grand_total_loss += total_loss_agg
-            grand_total_samples += total_samples_agg
+            grand_total_samples += int(total_samples_agg)
 
             if total_samples_agg > 0:
                 avg_loss = total_loss_agg / total_samples_agg
@@ -524,35 +316,23 @@ class CustomSFTTrainer(SFTTrainer):
 
                 per_language_metrics_for_wandb[f"eval/{lang}_loss"] = avg_loss
                 per_language_metrics_for_wandb[f"eval/{lang}_perplexity"] = perplexity
-                # Debug logging
-                if self.is_world_process_zero():
-                    msg = f"DEBUG: lang={lang}, avg_loss={avg_loss:.4f}, "
-                    msg += f"samples={total_samples_agg}, "
-                    msg += f"grand_total_loss_so_far={grand_total_loss:.4f}, "
-                    msg += f"grand_total_samples_so_far={grand_total_samples}"
-                    print(msg, flush=True)
+                logger.debug(
+                    "lang=%s avg_loss=%.4f samples=%d",
+                    lang,
+                    avg_loss,
+                    int(total_samples_agg),
+                )
 
         if self.is_world_process_zero() and per_language_metrics_for_wandb:
             wandb.log(per_language_metrics_for_wandb, step=self.state.global_step)
-            msg = f"DEBUG: Logged {len(per_language_metrics_for_wandb)} "
-            msg += "per-language metrics to wandb"
-            print(msg, flush=True)
 
-        metrics_to_return = {}
+        metrics_to_return: dict[str, Any] = {}
         if grand_total_samples > 0:
-            overall_loss = grand_total_loss / grand_total_samples
-            if self.is_world_process_zero():
-                msg = "DEBUG: Computing overall eval_loss: "
-                msg += f"{grand_total_loss:.4f} / {grand_total_samples} = "
-                msg += f"{overall_loss}"
-                print(msg, flush=True)
-            metrics_to_return[f"{metric_key_prefix}_loss"] = overall_loss
+            metrics_to_return[f"{metric_key_prefix}_loss"] = (
+                grand_total_loss / grand_total_samples
+            )
         else:
-            if self.is_world_process_zero():
-                print(
-                    "DEBUG: grand_total_samples is 0! Cannot compute eval_loss",
-                    flush=True,
-                )
+            logger.warning("No valid eval samples found; omitting eval_loss.")
 
         runtime = time.time() - start_time
         metrics_to_return[f"{metric_key_prefix}_runtime"] = runtime
@@ -564,7 +344,6 @@ class CustomSFTTrainer(SFTTrainer):
         self.control = self.callback_handler.on_evaluate(
             self.args, self.state, self.control, metrics_to_return
         )
-
         return metrics_to_return
 
     def save_model(self, output_dir=None, _internal_call=False):

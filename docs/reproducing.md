@@ -9,9 +9,9 @@ to run it.
 Check out the tag `mzansitext-mzansilm-lrec2026-v1`; its README covers the
 whole pipeline.
 
-## Architecture comparison (Transformer, Mamba-2, xLSTM, Gated DeltaNet)
+## Architecture comparison (Transformer, Mamba-2, xLSTM, Gated DeltaNet, GDN + Attention Hybrid)
 
-Code: branch `paper/architecture-comparison-2026-09`, tagged once the runs
+Code: branch `paper/architecture-comparison-2026-09`, tagged once all runs
 finish. It pins the environment (`uv.lock`, transformers 4.57.3) and keeps the
 as-run code under `scripts/paper/`; `scripts/paper/README.md` maps each result
 to its runner. Tables, figures and statistics are built in the paper repository
@@ -20,8 +20,10 @@ to its runner. Tables, figures and statistics are built in the paper repository
 
 Pipeline, in order:
 
-1. **Pretraining.** `scripts/paper/matched_pretrain/` trains the four
+1. **Pretraining.** `scripts/paper/matched_pretrain/` trains the five
    matched-budget base models (configs in `configs/`, launchers in `code/`).
+   The cleaned-up pretraining module is also available on `main` as
+   `python -m sallm.pretrain` with configs in `src/conf/pretrain/`.
 2. **Fine-tuning and scoring.** `scripts/paper/fft_rollout/` runs, per
    architecture, the learning-rate sweeps, Mono, Multi and Multitask training,
    test scoring and the extra seeds as one dependency graph. Launch and monitor

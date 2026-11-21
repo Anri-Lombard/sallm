@@ -56,8 +56,13 @@ def load_afrihg_from_github(
                 continue
             else:
                 resp = session.get(f"{GITHUB_RAW_BASE}/{filename}", stream=True)
-                if resp.status_code != 200:
+                if resp.status_code == 404:
                     continue
+                if resp.status_code != 200:
+                    raise RuntimeError(
+                        f"Failed to download AfriHG split {filename} "
+                        f"(HTTP {resp.status_code})."
+                    )
             dataset_split = (
                 "validation" if split_name in ("dev", "validation") else split_name
             )

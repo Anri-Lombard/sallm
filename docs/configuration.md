@@ -1,75 +1,96 @@
 # Configuration
 
-Runs are Hydra configs under `src/conf`. A target is a path there without
-`.yaml`, for example `finetune/mamba_sib_xho`, and runs with
-`python -m sallm.main --config-name <target>`.
+Hydra configs live under `src/conf`. Pass any target path without `.yaml` to
+`python -m sallm.main --config-name <target>`, and override any key on the
+command line.
+
+## Pretraining configs
+
+- **Matched-budget pretraining (`src/conf/pretrain/`):** Five matched ~125M WSD
+  JSON configs (`mzansilm_wsd.json`, `mamba2_wsd.json`, `xlstm_wsd.json`,
+  `gdn_wsd.json`, `hybrid_wsd.json`) consumed by `python -m sallm.pretrain`.
+- **Legacy Hydra pretraining (`src/conf/base/`):** Older per-architecture YAML
+  configs (`llama_125m`, `llama_400m`, `mamba_125m`, `xlstm_125m`,
+  `gated_deltanet_125m`) reading `uctnlp/mzansi-text-tokenized`.
 
 ## Fine-tuning configs
 
-Each `finetune/<arch>_<task>_<lang>.yaml` composes, in order:
+`finetune/run` composes any architecture and dataset dynamically from three
+shared building blocks:
 
-1. `finetune/defaults/datasets/<task>`: dataset, templates and splits.
-2. `finetune/defaults/common`: the full fine-tuning protocol shared by every
-   run (AdamW, cosine schedule, 10% warmup, effective batch 16, bf16 autocast).
-3. `finetune/defaults/arch/<arch>`: the base model to start from.
-4. The file itself: run names and paths, the selection metric, and any value
-   that differs from the defaults.
+1. `finetune/defaults/common`: full fine-tuning protocol (fused AdamW, cosine
+   schedule, 10% warmup, effective batch 16, bf16 autocast, TF32, Hub push
+   disabled by default).
+2. `finetune/defaults/datasets/<task>`: dataset source, prompt templates,
+   splits, and task-specific selection metrics (`sib`, `injongointent`,
+   `masakhanews`, `masakhaner`, `nchlt_ner`, `masakhapos`, `afrihg`, `t2x`,
+   `sa_multitask`).
+3. `finetune/defaults/arch/<arch>`: model architecture and default base
+   checkpoint (`llama`, `mamba2`, `xlstm`, `gated_deltanet`, `hybrid`).
 
-Later entries win. To change a default for every run of an architecture, edit
-its `arch/` file; to change one run, set the value in that run's file.
+Example:
 
-Fine-tuning updates every weight; the checkpoint loads in float32 and `bf16`
-means autocast. `num_train_epochs: auto` trains 10 epochs when the training set
-has fewer than 5,000 examples and 4 otherwise, with early stopping on the
-validation metric. The learning rate defaults to 1e-4; the paper picked it per
-task from {3e-5, 1e-4, 3e-4} with the sweep in `sweeps/llama_t2x_xho.yaml`.
+```bash
+uv run python -m sallm.main --config-name finetune/run \
+  finetune/defaults/arch@_global_=hybrid \
+  finetune/defaults/datasets@_global_=sib \
+  dataset.subset=xho_Latn \
+  model.init_checkpoint=/path/to/hybrid \
+  wandb.name=hybrid-sib-xho
+```
 
-Two more `training` options are handled by SALLM rather than passed to the
-Transformers trainer: `task_metrics` (default `true`) runs the task scorer on
-the validation set each evaluation, and `general_selection` (default `false`)
-selects checkpoints by equal-family assistant-token loss on General data.
+Three standalone recipe targets (`finetune/llama_t2x_xho`,
+`finetune/mamba_news_xho`, `finetune/xlstm_sib_xho`) remain for `recipes/registry.yaml`
+and `sweeps/llama_t2x_xho.yaml`.
+
+Fine-tuning updates all weights from float32 checkpoints under bf16 autocast.
+`num_train_epochs: auto` runs 10 epochs for datasets below 5,000 examples and 4
+otherwise, with early stopping on the task's validation metric. Two SALLM-only
+keys under `training` control validation behavior:
+
+- `task_metrics` (default `true`): runs the task evaluator on validation each
+  evaluation step. When `false`, early stopping falls back to `eval_loss` unless
+  `metric_for_best_model` is explicitly set.
+- `general_selection` (default `false`): selects multitask checkpoints by
+  equal-family assistant-token NLL.
 
 ## Evaluation configs
 
-`eval/run` evaluates one checkpoint on lm-eval task packs; name the checkpoint,
-the packs and the run on the command line:
+`eval/run` evaluates any full checkpoint (Hub id or local directory) on one or
+more `lm-eval` task packs:
 
 ```bash
 uv run python -m sallm.main --config-name eval/run \
-  eval_model.checkpoint=anrilombard/sallm-mamba-125m \
-  'evaluation.task_packs=[sib_xho]' wandb.name=eval-mamba-sib-xho
+  eval_model.checkpoint=uctnlp/mzansilm-125m \
+  'evaluation.task_packs=[sib_xho]' \
+  wandb.name=eval-mzansilm-sib-xho
 ```
 
-Results go to `$SCRATCH/masters/sallm/results/eval/<wandb.name>`. The
-checkpoint is a full model: a Hub id, a model directory, or a fine-tuning
-output directory (its `final_model` is used).
-
-`eval/generate_<task>` runs the generation tasks (AfriHG, T2X) the same way;
-the `_base` variants use the decoding settings for base models. The
-`eval/run_<recipe>` files are the evaluation targets of the recipes.
-
-A task pack in `eval/tasks/<name>.yaml` lists lm-eval tasks and their settings;
-packs for validation reranking live in `rerank/tasks/`. Task definitions
-maintained in this repository live in `eval/lm_eval_tasks/` and
-`rerank/lm_eval_tasks/`; a pack that uses them lists the directory under
-`task_manager_kwargs.include_path`.
+`eval/generate_<task>` runs generation tasks (AfriHG, T2X); the `_base` variants
+use base-model decoding settings. Task packs live in `eval/tasks/` and
+`rerank/tasks/`, with custom `lm-eval` task definitions under
+`eval/lm_eval_tasks/` and `rerank/lm_eval_tasks/`.
 
 ## Sweeps
 
-`sweeps/llama_t2x_xho.yaml` is a W&B sweep template. A sweep names its base
-fine-tuning config with `--base-config`; `ops/slurm/launch_hpo.sh` registers and
-runs it. The sweeps behind the paper results are on the paper branch.
+`sweeps/llama_t2x_xho.yaml` provides a W&B sweep template. Pass a base
+fine-tuning config via `--base-config`; `ops/slurm/launch_hpo.sh` registers and
+launches it.
 
 ## Checking changes
 
-`uv run pytest tests/test_config_imports.py` composes every base, fine-tuning
-and evaluation config against the schema and resolves every sweep's base
-config.
+```bash
+uv run pytest tests/test_config_imports.py
+```
 
-## Environment
+This verifies all 45 `(architecture x task)` combinations of `finetune/run`,
+every entry YAML under `base/`, `finetune/`, and `eval/`, and every sweep's base
+config against `ExperimentConfig`.
 
-Paths use `${oc.env:SCRATCH}` and `${oc.env:HOME}`. On SLURM, `ops/slurm/lib/env.sh`
-sets them from `SALLM_SCRATCH_DIR`, `SALLM_HOME_DIR` and `SALLM_REPO_DIR`;
-`SALLM_SLURM_ACCOUNT` and `SALLM_SLURM_MAIL_USER` are added to the `sbatch` calls the launchers make.
-`SALLM_SOURCE_CACHE_DIR`, `SALLM_AFRIHG_CACHE_DIR` and `SALLM_T2X_CACHE_DIR` move
-the dataset source caches, and `SALLM_AFRIHG_CACHE_ONLY=1` forbids downloads.
+## Environment variables
+
+Paths use `${oc.env:SCRATCH}` and `${oc.env:HOME}`. On SLURM,
+`ops/slurm/lib/env.sh` derives them from `SALLM_SCRATCH_DIR`, `SALLM_HOME_DIR`,
+and `SALLM_REPO_DIR`. Dataset download caches can be redirected via
+`SALLM_SOURCE_CACHE_DIR`, `SALLM_AFRIHG_CACHE_DIR`, and `SALLM_T2X_CACHE_DIR`;
+`SALLM_AFRIHG_CACHE_ONLY=1` disables network downloads for AfriHG.

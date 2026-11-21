@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 from sallm.training import run as training_run
-from sallm.training.trainer import CustomSFTTrainer, CustomTrainer
+from sallm.training.trainer import CustomSFTTrainer
 from transformers import Trainer
 from transformers.trainer_pt_utils import LabelSmoother
 
@@ -98,7 +98,7 @@ def test_run_saves_between_barriers(monkeypatch, tmp_path) -> None:
     assert events == ["train", "wait", "save", "wait"]
 
 
-@pytest.mark.parametrize("trainer_class", [CustomTrainer, CustomSFTTrainer])
+@pytest.mark.parametrize("trainer_class", [CustomSFTTrainer])
 def test_non_saving_trainer_rank_does_not_write_model_or_tokenizer(
     trainer_class,
     tmp_path,

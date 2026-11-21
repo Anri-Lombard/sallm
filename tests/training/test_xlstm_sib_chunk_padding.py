@@ -5,7 +5,9 @@ from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
 
 
 def test_xlstm_sib_padding_preserves_assistant_loss_mask() -> None:
-    config_path = Path(__file__).parents[2] / "src/conf/finetune/xlstm_sib_all.yaml"
+    config_path = (
+        Path(__file__).parents[2] / "src/conf/finetune/defaults/arch/xlstm.yaml"
+    )
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert config["training"]["pad_to_multiple_of"] == 64
 

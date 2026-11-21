@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 import sallm.config as legacy_config
 import sallm.configs as domain_config
 import yaml
@@ -11,10 +12,10 @@ from sallm.hpo.trial import load_base_config
 CONF_ROOT = Path(__file__).resolve().parents[1] / "src" / "conf"
 
 
-def compose_config_target(config_target: str):
+def compose_config_target(config_target: str, overrides: list[str] | None = None):
     GlobalHydra.instance().clear()
     with initialize_config_dir(config_dir=str(CONF_ROOT), version_base=None):
-        cfg = compose(config_name=config_target)
+        cfg = compose(config_name=config_target, overrides=overrides or [])
 
     keys_in_cfg = list(cfg.keys())
     if (
@@ -53,296 +54,94 @@ def test_experiment_schema_merges_representative_finetune_config() -> None:
     assert merged.generation_decoding.strategy == "beam"
 
 
-def test_representative_sib_finetune_configs_share_dataset_defaults() -> None:
+@pytest.mark.parametrize(
+    "arch", ["llama", "mamba2", "xlstm", "gated_deltanet", "hybrid"]
+)
+@pytest.mark.parametrize(
+    ("dataset", "expected_hf_name", "expected_task"),
+    [
+        ("sib", "Davlan/sib200", domain_config.FinetuneTaskType.CLASSIFICATION),
+        (
+            "injongointent",
+            "masakhane/InjongoIntent",
+            domain_config.FinetuneTaskType.CLASSIFICATION,
+        ),
+        (
+            "masakhanews",
+            "masakhane/masakhanews",
+            domain_config.FinetuneTaskType.CLASSIFICATION,
+        ),
+        (
+            "masakhaner",
+            "masakhane/masakhaner2",
+            domain_config.FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
+        ),
+        (
+            "nchlt_ner",
+            "anrilombard/nchlt-ner-sa4",
+            domain_config.FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
+        ),
+        (
+            "masakhapos",
+            "masakhane/masakhapos",
+            domain_config.FinetuneTaskType.POS_TAGGING,
+        ),
+        (
+            "afrihg",
+            "github:dadelani/AfriHG",
+            domain_config.FinetuneTaskType.INSTRUCTION,
+        ),
+        (
+            "t2x",
+            "github:francois-meyer/t2x",
+            domain_config.FinetuneTaskType.INSTRUCTION,
+        ),
+        (
+            "sa_multitask",
+            "mix:sa_multitask",
+            domain_config.FinetuneTaskType.INSTRUCTION,
+        ),
+    ],
+)
+def test_composable_finetune_run_covers_all_architectures_and_tasks(
+    arch: str,
+    dataset: str,
+    expected_hf_name: str,
+    expected_task: domain_config.FinetuneTaskType,
+) -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "finetune/llama_sib_xho": {
-            "architecture": "llama",
-            "subset": "xho_Latn",
-            "languages": None,
-            "max_seq_length": 2048,
-        },
-        "finetune/mamba_sib_all": {
-            "architecture": "mamba2",
-            "subset": None,
-            "languages": [
-                "afr_Latn",
-                "eng_Latn",
-                "nso_Latn",
-                "sot_Latn",
-                "xho_Latn",
-                "zul_Latn",
-            ],
-            "max_seq_length": 1024,
-        },
-        "finetune/xlstm_sib_xho": {
-            "architecture": "xlstm",
-            "subset": "xho_Latn",
-            "languages": None,
-            "max_seq_length": 1024,
-        },
-    }
+    overrides = [
+        f"finetune/defaults/arch@_global_={arch}",
+        f"finetune/defaults/datasets@_global_={dataset}",
+        f"wandb.name={arch}-{dataset}",
+    ]
+    if arch in ("gated_deltanet", "hybrid"):
+        overrides.append(f"model.init_checkpoint=/tmp/{arch}-base")
+    if dataset == "t2x":
+        overrides.append("dataset.subset=xho")
+    raw_cfg = compose_config_target("finetune/run", overrides=overrides)
+    merged = OmegaConf.merge(schema, raw_cfg)
 
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.FINETUNE
-        assert merged.model.architecture == expected["architecture"]
-        assert merged.dataset.hf_name == "Davlan/sib200"
-        assert merged.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
-        assert merged.dataset.splits == {"train": "train", "val": "validation"}
-        assert [template.id for template in merged.dataset.templates] == [
-            "sib_topic_classification/lm_eval_p1",
-            "sib_topic_classification/lm_eval_p2",
-            "sib_topic_classification/lm_eval_p3",
-            "sib_topic_classification/lm_eval_p4",
-            "sib_topic_classification/lm_eval_p5",
-        ]
-        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
-        assert merged.dataset.label_column == "category"
-        assert merged.dataset.packing is False
-        assert merged.dataset.assistant_only_loss is True
-        assert merged.dataset.subset == expected["subset"]
-        assert merged.dataset.languages == expected["languages"]
-        assert merged.dataset.max_seq_length == expected["max_seq_length"]
-
-
-def test_representative_injongointent_finetune_configs_share_dataset_defaults() -> None:
-    schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "finetune/llama_injongointent_xho": {
-            "architecture": "llama",
-            "subset": "xho",
-            "languages": None,
-            "max_seq_length": 2048,
-        },
-        "finetune/mamba_injongointent_xho": {
-            "architecture": "mamba2",
-            "subset": "xho",
-            "languages": None,
-            "max_seq_length": 1024,
-        },
-        "finetune/xlstm_injongointent_all": {
-            "architecture": "xlstm",
-            "subset": None,
-            "languages": ["eng", "sot", "xho", "zul"],
-            "max_seq_length": 2048,
-        },
-    }
-
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.FINETUNE
-        assert merged.model.architecture == expected["architecture"]
-        assert merged.dataset.hf_name == "masakhane/InjongoIntent"
-        assert merged.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
-        assert merged.dataset.splits == {"train": "train", "val": "validation"}
-        assert [template.id for template in merged.dataset.templates] == [
-            "injongointent_intent_classification/lm_eval_p1",
-            "injongointent_intent_classification/lm_eval_p2",
-            "injongointent_intent_classification/lm_eval_p3",
-            "injongointent_intent_classification/lm_eval_p4",
-            "injongointent_intent_classification/lm_eval_p5",
-        ]
-        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
-        assert merged.dataset.label_column == "intent"
-        assert merged.dataset.packing is False
-        assert merged.dataset.assistant_only_loss is True
-        assert merged.dataset.subset == expected["subset"]
-        assert merged.dataset.languages == expected["languages"]
-        assert merged.dataset.max_seq_length == expected["max_seq_length"]
-
-
-def test_representative_masakhaner_finetune_configs_share_dataset_defaults() -> None:
-    schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "finetune/llama_ner_xho": {
-            "architecture": "llama",
-            "subset": "xho",
-            "languages": None,
-        },
-        "finetune/mamba_ner_xho": {
-            "architecture": "mamba2",
-            "subset": None,
-            "languages": ["xho"],
-        },
-        "finetune/xlstm_ner_all": {
-            "architecture": "xlstm",
-            "subset": None,
-            "languages": ["tsn", "xho", "zul"],
-        },
-    }
-
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.FINETUNE
-        assert merged.model.architecture == expected["architecture"]
-        assert merged.dataset.hf_name == "masakhane/masakhaner2"
-        assert (
-            merged.dataset.task
-            == domain_config.FinetuneTaskType.NAMED_ENTITY_RECOGNITION
-        )
-        assert merged.dataset.splits == {"train": "train", "val": "validation"}
-        assert [template.id for template in merged.dataset.templates] == [
-            "masakhane_named_entity_recognition/lm_eval_p1",
-            "masakhane_named_entity_recognition/lm_eval_p2",
-            "masakhane_named_entity_recognition/lm_eval_p3",
-            "masakhane_named_entity_recognition/lm_eval_p4",
-            "masakhane_named_entity_recognition/lm_eval_p5",
-        ]
-        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
-        assert merged.dataset.packing is False
-        assert merged.dataset.assistant_only_loss is True
-        assert merged.dataset.subset == expected["subset"]
-        assert merged.dataset.languages == expected["languages"]
+    assert merged.mode == domain_config.RunMode.FINETUNE
+    assert merged.model.architecture == arch
+    assert merged.dataset.hf_name == expected_hf_name
+    assert merged.dataset.task == expected_task
+    assert merged.dataset.packing is False
+    assert merged.dataset.assistant_only_loss is True
+    assert merged.training["optim"] == "adamw_torch_fused"
+    assert merged.training["tf32"] is True
+    assert merged.hub.enabled is False
+    if dataset in ("afrihg", "masakhanews", "nchlt_ner", "sa_multitask"):
         assert merged.dataset.max_seq_length == 2048
-
-
-def test_representative_masakhapos_finetune_configs_share_dataset_defaults() -> None:
-    schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "finetune/llama_pos_xho": {
-            "architecture": "llama",
-            "subset": "xho",
-            "languages": None,
-            "max_seq_length": 2048,
-        },
-        "finetune/mamba_pos_xho": {
-            "architecture": "mamba2",
-            "subset": "xho",
-            "languages": None,
-            "max_seq_length": 1024,
-        },
-        "finetune/xlstm_pos_all": {
-            "architecture": "xlstm",
-            "subset": None,
-            "languages": ["tsn", "xho", "zul"],
-            "max_seq_length": 2048,
-        },
-    }
-
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.FINETUNE
-        assert merged.model.architecture == expected["architecture"]
-        assert merged.dataset.hf_name == "masakhane/masakhapos"
-        assert merged.dataset.task == domain_config.FinetuneTaskType.POS_TAGGING
-        assert merged.dataset.splits == {"train": "train", "val": "validation"}
-        assert [template.id for template in merged.dataset.templates] == [
-            "masakhane_pos_tagging/lm_eval_p1",
-            "masakhane_pos_tagging/lm_eval_p2",
-            "masakhane_pos_tagging/lm_eval_p3",
-            "masakhane_pos_tagging/lm_eval_p4",
-            "masakhane_pos_tagging/lm_eval_p5",
-        ]
-        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
-        assert merged.dataset.packing is False
-        assert merged.dataset.assistant_only_loss is True
-        assert merged.dataset.subset == expected["subset"]
-        assert merged.dataset.languages == expected["languages"]
-        assert merged.dataset.max_seq_length == expected["max_seq_length"]
-
-
-def test_representative_masakhanews_finetune_configs_share_dataset_defaults() -> None:
-    schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "finetune/llama_news_xho": {
-            "architecture": "llama",
-            "subset": "xho",
-            "languages": None,
-            "max_seq_length": 2048,
-        },
-        "finetune/mamba_news_eng": {
-            "architecture": "mamba2",
-            "subset": "eng",
-            "languages": None,
-            "max_seq_length": 1024,
-        },
-        "finetune/xlstm_news_all": {
-            "architecture": "xlstm",
-            "subset": None,
-            "languages": ["eng", "xho"],
-            "max_seq_length": 1024,
-        },
-    }
-
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.FINETUNE
-        assert merged.model.architecture == expected["architecture"]
-        assert merged.dataset.hf_name == "masakhane/masakhanews"
-        assert merged.dataset.task == domain_config.FinetuneTaskType.CLASSIFICATION
-        assert merged.dataset.splits == {"train": "train", "val": "validation"}
-        assert [template.id for template in merged.dataset.templates] == [
-            "masakhane_news_classification/lm_eval_p1",
-            "masakhane_news_classification/lm_eval_p2",
-            "masakhane_news_classification/lm_eval_p3",
-            "masakhane_news_classification/lm_eval_p4",
-            "masakhane_news_classification/lm_eval_p5",
-        ]
-        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
-        assert merged.dataset.label_column == "category"
-        assert merged.dataset.packing is False
-        assert merged.dataset.assistant_only_loss is True
-        assert merged.dataset.subset == expected["subset"]
-        assert merged.dataset.languages == expected["languages"]
-        assert merged.dataset.max_seq_length == expected["max_seq_length"]
-
-
-def test_representative_instruction_finetune_configs_share_dataset_defaults() -> None:
-    schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    expected_configs = {
-        "finetune/mamba_afrihg_xho": {
-            "architecture": "mamba2",
-            "hf_name": "github:dadelani/AfriHG",
-            "subset": "xho",
-            "max_seq_length": 1024,
-            "templates": ["afrihg_headline/v1"],
-        },
-        "finetune/mamba_t2x_xho": {
-            "architecture": "mamba2",
-            "hf_name": "github:francois-meyer/t2x",
-            "subset": "xho",
-            "max_seq_length": 2048,
-            "templates": ["t2x_verbalisation/v1"],
-        },
-        "finetune/llama_sa_multitask": {
-            "architecture": "llama",
-            "hf_name": "mix:sa_multitask",
-            "subset": None,
-            "max_seq_length": 2048,
-            "templates": [],
-        },
-    }
-
-    for config_target, expected in expected_configs.items():
-        raw_cfg = compose_config_target(config_target)
-        merged = OmegaConf.merge(schema, raw_cfg)
-
-        assert merged.mode == domain_config.RunMode.FINETUNE
-        assert merged.model.architecture == expected["architecture"]
-        assert merged.dataset.hf_name == expected["hf_name"]
-        assert merged.dataset.task == domain_config.FinetuneTaskType.INSTRUCTION
-        assert merged.dataset.splits == {"train": "train", "val": "validation"}
-        assert [template.id for template in merged.dataset.templates] == expected[
-            "templates"
-        ]
-        assert merged.dataset.template_choice == domain_config.TemplateChoice.CYCLE
-        assert merged.dataset.packing is False
-        if expected["hf_name"] == "mix:sa_multitask":
-            assert merged.dataset.mix_cap == 3000
-        assert merged.dataset.assistant_only_loss is True
-        assert merged.dataset.subset == expected["subset"]
-        assert merged.dataset.max_seq_length == expected["max_seq_length"]
+    if dataset == "afrihg":
+        assert merged.training["metric_for_best_model"] == "eval_all_chrf"
+        assert merged.generation_decoding.strategy == "beam"
+    if dataset == "t2x":
+        assert merged.dataset.subset == "xho"
+    if dataset == "sa_multitask":
+        assert merged.dataset.mix_cap == 3000
+        assert merged.training["general_selection"] is True
+        assert merged.training["num_train_epochs"] == 10
 
 
 def test_sweep_base_configs_resolve() -> None:
@@ -381,9 +180,9 @@ def test_generic_eval_config_takes_checkpoint_and_task_packs() -> None:
         cfg = compose(
             config_name="eval/run",
             overrides=[
-                "eval_model.checkpoint=anrilombard/sallm-mamba-125m",
+                "eval_model.checkpoint=uctnlp/mzansilm-125m",
                 "evaluation.task_packs=[sib_xho]",
-                "wandb.name=eval-mamba-sib-xho",
+                "wandb.name=eval-mzansilm-sib-xho",
             ],
         )
     merged = OmegaConf.merge(OmegaConf.structured(domain_config.ExperimentConfig), cfg)

@@ -15,6 +15,8 @@ from transformers import (
 from trl import SFTConfig
 
 from sallm.config import ExperimentConfig, FinetuneTaskType, RunMode, to_resolved_dict
+from sallm.models.registry import architecture_profile
+from sallm.tasks import TASK_SPECS
 from sallm.training.callbacks import (
     ClassificationMetricsCallback,
     EnsureStaticGraphCallback,
@@ -112,19 +114,13 @@ def build_trainer(
     if use_early_stopping:
         metric_name = training_args_dict.get("metric_for_best_model")
         if not isinstance(metric_name, str) or not metric_name.strip():
-            if task_type == FinetuneTaskType.CLASSIFICATION:
-                training_args_dict["metric_for_best_model"] = (
-                    "eval_classification/all_macro_f1"
-                )
-                training_args_dict.setdefault("greater_is_better", True)
-            elif task_type in (FinetuneTaskType.NAMED_ENTITY_RECOGNITION,):
-                training_args_dict["metric_for_best_model"] = "eval_all_f1"
-                training_args_dict.setdefault("greater_is_better", True)
-            elif task_type == FinetuneTaskType.POS_TAGGING:
-                training_args_dict["metric_for_best_model"] = "eval_all_token_accuracy"
-                training_args_dict.setdefault("greater_is_better", True)
-            elif task_type == FinetuneTaskType.INSTRUCTION:
-                training_args_dict["metric_for_best_model"] = "eval_all_rougeL"
+            spec = (
+                TASK_SPECS.get(task_type)
+                if (task_metrics and task_type is not None)
+                else None
+            )
+            if spec is not None:
+                training_args_dict["metric_for_best_model"] = spec.selection_metric
                 training_args_dict.setdefault("greater_is_better", True)
             else:
                 training_args_dict["metric_for_best_model"] = "eval_loss"
@@ -184,8 +180,9 @@ def build_trainer(
                 "Fine-tuning evaluation callbacks require a HuggingFace Dataset."
             )
         eval_hf_dataset = eval_dataset
-        model_type = getattr(getattr(model, "config", None), "model_type", None)
-        if model_type == "xlstm":
+        if architecture_profile(
+            getattr(model, "config", None)
+        ).skips_completions_callback:
             logger.info(
                 "Skipping representative free-generation callback for xLSTM "
                 "training-mode checkpoints; task metrics remain enabled."
