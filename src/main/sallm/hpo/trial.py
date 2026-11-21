@@ -11,9 +11,10 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 
 from sallm.config import ExperimentConfig, to_resolved_dict
 from sallm.fine_tune.run import run as run_finetune
+from sallm.paths import CONF_DIR, REPO_ROOT
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_CONF_ROOT = _REPO_ROOT / "src" / "conf"
+_REPO_ROOT = REPO_ROOT
+_CONF_ROOT = CONF_DIR
 _TOKENIZER_SUBDIR = Path("tokenizer") / "sallm_bpe_tokenizer"
 
 

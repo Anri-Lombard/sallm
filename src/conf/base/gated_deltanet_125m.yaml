@@ -27,7 +27,7 @@ model:
     max_params_m: 130.0
 
 data:
-  hf_name: "anrilombard/mzansi-text-tokenized"
+  hf_name: "uctnlp/mzansi-text-tokenized"
   streaming: true
   train_split: "train"
   eval_split: "validation"
@@ -76,5 +76,5 @@ training:
 
 hub:
   enabled: false
-  organization: "anrilombard"
+  organization: null
   private: true

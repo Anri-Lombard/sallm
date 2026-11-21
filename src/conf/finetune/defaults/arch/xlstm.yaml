@@ -3,3 +3,4 @@ model:
   init_checkpoint: anrilombard/sallm-xlstm-125m
 training:
   ddp_find_unused_parameters: true
+  pad_to_multiple_of: 64

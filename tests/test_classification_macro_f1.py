@@ -10,21 +10,19 @@ from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.training import factory as training_factory
 
 MULTILINGUAL_CLASSIFICATION_FAMILIES = (
-    "injongointent_all",
-    "news_all",
-    "sib_all",
+    "injongointent",
+    "masakhanews",
+    "sib",
 )
 
 
 @pytest.mark.parametrize("family", MULTILINGUAL_CLASSIFICATION_FAMILIES)
 def test_multilingual_classification_checkpoints_select_macro_f1(family) -> None:
-    path = f"src/conf/finetune/mamba_{family}.yaml"
+    path = f"src/conf/finetune/defaults/datasets/{family}.yaml"
     with open(path, encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
 
-    assert config["training"]["metric_for_best_model"] == (
-        "eval_classification/all_macro_f1"
-    )
+    assert config["dataset"]["task"] == "CLASSIFICATION"
 
 
 def test_classification_factory_defaults_to_macro_f1(monkeypatch, tmp_path) -> None:

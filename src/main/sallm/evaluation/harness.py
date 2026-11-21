@@ -29,41 +29,31 @@ from sallm.data.factory import build_conversation_dataset
 from sallm.data.t2x import load_t2x_from_github
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 from sallm.models.optional import register_fla_gated_deltanet
+from sallm.models.registry import (
+    architecture_profile,
+    install_mamba2_grouped_rmsnorm_patch,
+    patch_mamba2_grouped_rmsnorm,
+    switch_to_inference_mode,
+    use_exact_xlstm_head_dims,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def use_exact_xlstm_head_dims(config: Any) -> None:
-    config_class = type(config)
-    if (
-        getattr(config, "model_type", None) == "xlstm"
-        and hasattr(config_class, "qk_dim")
-        and hasattr(config_class, "v_dim")
-    ):
-        config_class.qk_dim = property(  # type: ignore[attr-defined]
-            lambda cfg: int(cfg.hidden_size * cfg.qk_dim_factor)
-        )
-        config_class.v_dim = property(  # type: ignore[attr-defined]
-            lambda cfg: int(cfg.hidden_size * cfg.v_dim_factor)
-        )
 
 
 def prepare_model_config_for_evaluation(config: Any) -> None:
     """Apply architecture-specific inference settings without changing weights."""
     use_exact_xlstm_head_dims(config)
-    if getattr(config, "model_type", None) in {"mamba", "mamba2"}:
+    profile = architecture_profile(config)
+    if profile.disable_cache_for_eval:
         config.use_cache = False
-    if (
-        getattr(config, "model_type", None) == "xlstm"
-        and getattr(config, "mode", None) == "train"
-    ):
-        config.mode = "inference"
-        config.return_last_states = True
-        config.inference_state_dtype = str(config.dtype).removeprefix("torch.")
+    switch_to_inference_mode(config)
 
 
 def prepare_model_for_evaluation(model: PreTrainedModel) -> None:
-    prepare_model_config_for_evaluation(getattr(model, "config", None))
+    config = getattr(model, "config", None)
+    prepare_model_config_for_evaluation(config)
+    if architecture_profile(config).needs_mamba2_grouped_norm_patch:
+        patch_mamba2_grouped_rmsnorm(model)
 
 
 def _prepare_tokenizer(
@@ -114,6 +104,7 @@ def load_model_and_tokenizer(
     # Registers FLA AutoConfig/AutoModel entries when the optional package exists.
     # This is deliberately before every model-load/retry path below.
     register_fla_gated_deltanet()
+    install_mamba2_grouped_rmsnorm_patch()
     tokenizer, pretrained_id = _load_tokenizer_and_pretrained(
         model_cfg.checkpoint,
         trust_remote_code=True,
@@ -145,12 +136,19 @@ def load_model_and_tokenizer(
     prepare_model_for_evaluation(model)
     device = torch.device(model_cfg.device)
     cast(Any, model).to(device)
-    generation_config = model.generation_config
-    if generation_config is not None:
-        generation_config.eos_token_id = tokenizer.eos_token_id
-        generation_config.pad_token_id = (
-            tokenizer.pad_token_id or tokenizer.eos_token_id
-        )
+    bos_id = getattr(tokenizer, "bos_token_id", None)
+    eos_id = getattr(tokenizer, "eos_token_id", None)
+    raw_pad = getattr(tokenizer, "pad_token_id", None)
+    pad_id = raw_pad if raw_pad is not None else eos_id
+    for target in (getattr(model, "config", None), model.generation_config):
+        if target is None:
+            continue
+        if bos_id is not None:
+            target.bos_token_id = bos_id
+        if eos_id is not None:
+            target.eos_token_id = eos_id
+        if pad_id is not None:
+            target.pad_token_id = pad_id
     return model, tokenizer
 
 

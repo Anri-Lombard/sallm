@@ -17,7 +17,7 @@ class WandbConfig:
 @dataclass
 class HubConfig:
     enabled: bool = False
-    organization: str = "anrilombard"
+    organization: str | None = None
     repo_id: str | None = None
     private: bool = True
-    collection_slug: str | None = "anrilombard/mzansilm-69635ca7b60efedb9dfcb09e"
+    collection_slug: str | None = None

@@ -6,8 +6,8 @@ import yaml
 from pydantic import ValidationError
 
 from sallm.evaluation.config import TaskPack
+from sallm.paths import CONF_DIR
 
-CONF_DIR = Path(__file__).resolve().parent.parent.parent.parent / "conf"
 TASK_DIR = CONF_DIR / "eval" / "tasks"
 RERANK_TASK_DIR = CONF_DIR / "rerank" / "tasks"
 RERANK_LM_EVAL_TASK_DIR = CONF_DIR / "rerank" / "lm_eval_tasks"

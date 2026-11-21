@@ -17,5 +17,10 @@ dataset:
       weight: 1.0
   template_choice: CYCLE
   label_column: category
+  max_seq_length: 2048
   packing: false
   assistant_only_loss: true
+training:
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  per_device_eval_batch_size: 4

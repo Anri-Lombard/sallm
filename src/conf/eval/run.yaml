@@ -6,7 +6,7 @@ eval_model:
   device: cuda:0
 evaluation:
   task_packs: []
-  output_dir: ${oc.env:SCRATCH}/masters/sallm/results/eval/${..wandb.name}
+  output_dir: ${oc.env:SCRATCH,outputs}/masters/sallm/results/eval/${..wandb.name}
 wandb:
   project: sallm-eval
   name: ???

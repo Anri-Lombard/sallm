@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 from collections import defaultdict
 from enum import Enum
 from typing import Any, cast
@@ -11,9 +12,11 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from sallm.chat_template import (
+    assistant_content_prefix,
     fallback_chat_template,
 )
 from sallm.config import DecodingConfig
+from sallm.models.registry import architecture_profile
 from sallm.templates import registry as tmpl
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,7 @@ class ClassificationEvaluator:
         self.max_samples_per_lang = max_samples_per_lang
         self.decoding_config = DecodingConfig.from_any(decoding)
         self.choice_score_mode = ChoiceScoreMode(choice_score_mode)
+        self._assistant_prefix_cache: dict[str | None, str] = {}
 
     def evaluate(
         self,
@@ -270,10 +274,12 @@ class ClassificationEvaluator:
                 continuation_mask[idx, start:seq_len] = True
 
         continuation_mask = continuation_mask[:, 1:] & attn[:, 1:].bool()
-        model_type = str(
-            getattr(getattr(model, "config", None), "model_type", "")
-        ).lower()
-        score_batch_size = 1 if "mamba" in model_type else len(label_choices)
+        profile = architecture_profile(getattr(model, "config", None))
+        score_batch_size = (
+            1
+            if profile.classification_scores_one_label_at_a_time
+            else len(label_choices)
+        )
         score_chunks: list[torch.Tensor] = []
         for start in range(0, len(label_choices), score_batch_size):
             stop = start + score_batch_size
@@ -348,7 +354,8 @@ class ClassificationEvaluator:
         generate_kwargs["max_new_tokens"] = min(self.max_new_tokens, avail_for_gen)
         generate_kwargs["pad_token_id"] = pad_token_id
         generate_kwargs["eos_token_id"] = eos_id
-        generate_kwargs.setdefault("use_cache", True)
+        profile = architecture_profile(getattr(model, "config", None))
+        generate_kwargs.setdefault("use_cache", not profile.disable_cache_for_eval)
 
         outputs = cast(Any, model).generate(
             input_ids=input_ids,
@@ -379,7 +386,7 @@ class ClassificationEvaluator:
         if isinstance(system_message, str) and system_message.strip():
             template_kwargs["system_message"] = system_message
             template_kwargs["system_prompt"] = system_message
-        return cast(
+        rendered = cast(
             str,
             cast(Any, self.tokenizer).apply_chat_template(
                 prompt_messages,
@@ -389,6 +396,17 @@ class ClassificationEvaluator:
                 **template_kwargs,
             ),
         )
+        cache = getattr(self, "_assistant_prefix_cache", None)
+        if cache is not None and fallback_template in cache:
+            prefix = cache[fallback_template]
+        else:
+            prefix = assistant_content_prefix(
+                self.tokenizer,
+                chat_template=fallback_template,
+            )
+            if cache is not None:
+                cache[fallback_template] = prefix
+        return rendered + prefix if prefix else rendered
 
     def _extract_label(self, text: str) -> str:
         """Extract the classification label from generated text."""
@@ -409,8 +427,8 @@ class ClassificationEvaluator:
         return cleaned
 
     def _labels_match(self, pred: str, gold: str) -> bool:
-        """Check if predicted and gold labels match (case-insensitive)."""
-        return pred.lower().strip() == gold.lower().strip()
+        """Check if predicted and gold labels match (NFC, case-insensitive)."""
+        return self._label_key(pred) == self._label_key(gold)
 
     def _compute_classification_metrics(
         self,
@@ -571,7 +589,7 @@ class ClassificationEvaluator:
     @staticmethod
     def _get_model_chunk_size(model: PreTrainedModel) -> int | None:
         config = getattr(model, "config", None)
-        if getattr(config, "model_type", None) != "xlstm":
+        if not architecture_profile(config).pads_to_chunk_size:
             return None
         chunk_size = getattr(config, "chunk_size", None)
         if isinstance(chunk_size, int) and not isinstance(chunk_size, bool):
@@ -584,21 +602,36 @@ class ClassificationEvaluator:
         continuation: str,
     ) -> tuple[list[int], list[int]]:
         trailing_spaces = len(context) - len(context.rstrip())
-        if trailing_spaces:
-            continuation = context[-trailing_spaces:] + continuation
-            context = context[:-trailing_spaces]
-        elif continuation and not continuation[0].isspace():
+        if not trailing_spaces and continuation and not continuation[0].isspace():
             continuation = f" {continuation}"
 
         whole_ids = self.tokenizer.encode(
             context + continuation,
             add_special_tokens=False,
         )
+        # Keep as much of the context prefix out of the scored continuation as
+        # possible while preserving exact BPE boundary tokenization (e.g. a
+        # trailing space merging into the first label token).
+        split_at = len(context)
+        min_split = len(context) - trailing_spaces
         context_ids = self.tokenizer.encode(
-            context,
+            context[:split_at],
             add_special_tokens=False,
         )
-        continuation_ids = whole_ids[len(context_ids) :]
+        while split_at > min_split and whole_ids[: len(context_ids)] != context_ids:
+            split_at -= 1
+            context_ids = self.tokenizer.encode(
+                context[:split_at],
+                add_special_tokens=False,
+            )
+
+        if whole_ids[: len(context_ids)] == context_ids:
+            continuation_ids = whole_ids[len(context_ids) :]
+        else:
+            continuation_ids = self.tokenizer.encode(
+                continuation,
+                add_special_tokens=False,
+            )
         if not continuation_ids:
             continuation_ids = self.tokenizer.encode(
                 continuation,
@@ -625,7 +658,7 @@ class ClassificationEvaluator:
 
     @staticmethod
     def _label_key(label: str) -> str:
-        return label.strip().lower()
+        return unicodedata.normalize("NFC", label).strip().lower()
 
     def _get_model_ctx_limit(self, model: PreTrainedModel) -> int:
         if hasattr(model, "config"):

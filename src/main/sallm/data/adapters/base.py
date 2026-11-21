@@ -25,16 +25,21 @@ class DatasetAdapter(Protocol):
 
 def extract_train_validation_splits(ds: Dataset | DatasetDict) -> RawDatasetSplits:
     if isinstance(ds, DatasetDict):
-        train = ds["train"] if "train" in ds else ds[next(iter(ds.keys()))]
+        if "train" not in ds:
+            raise ValueError(
+                f"Dataset is missing a 'train' split (found {sorted(ds.keys())})."
+            )
+        train = ds["train"]
 
         if "validation" in ds:
             validation = ds["validation"]
         elif "dev" in ds:
             validation = ds["dev"]
-        elif "test" in ds:
-            validation = ds["test"]
         else:
-            validation = train
+            raise ValueError(
+                "Dataset is missing a 'validation' or 'dev' split "
+                f"(found {sorted(ds.keys())}); refusing to fall back to test/train."
+            )
         return RawDatasetSplits(train=train, validation=validation)
 
     return RawDatasetSplits(train=ds, validation=ds)

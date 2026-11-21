@@ -18,21 +18,24 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TASK_MANAGER_KWARG_KEYS, TaskPack
-from sallm.evaluation.harness import (
-    prepare_model_for_evaluation,
-    use_exact_xlstm_head_dims,
-)
+from sallm.evaluation.harness import prepare_model_for_evaluation
 from sallm.evaluation.registry import (
-    CONF_DIR,
     RERANK_LM_EVAL_TASK_DIR,
     load_rerank_task_pack,
     load_task_pack,
 )
 from sallm.models.optional import register_fla_gated_deltanet
+from sallm.models.registry import (
+    architecture_profile,
+    install_mamba2_grouped_rmsnorm_patch,
+    use_exact_xlstm_head_dims,
+)
+from sallm.models.saving import save_pretrained, sync_weight_tying_flag
+from sallm.paths import REPO_ROOT
 from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 
 logger = logging.getLogger(__name__)
-PROJECT_ROOT = CONF_DIR.parent.parent
+PROJECT_ROOT = REPO_ROOT
 
 
 def _resolve_include_path(raw_path: str | Path) -> Path:
@@ -145,14 +148,15 @@ def _to_serializable(value: Any) -> Any:
 def _materialize_model_for_lm_eval(model_cfg: ModelEvalConfig, cache_root: Path) -> str:
     # This precedes the AutoConfig and every AutoModel retry/materialization below.
     register_fla_gated_deltanet()
+    install_mamba2_grouped_rmsnorm_patch()
     config = AutoConfig.from_pretrained(
         model_cfg.checkpoint,
         trust_remote_code=True,
     )
-    _use_exact_xlstm_head_dims(config)
-    if (
-        getattr(config, "model_type", None) != "xlstm"
-        or getattr(config, "mode", None) != "train"
+    use_exact_xlstm_head_dims(config)
+    if not (
+        architecture_profile(config).has_train_and_inference_modes
+        and getattr(config, "mode", None) == "train"
     ):
         return model_cfg.checkpoint
 
@@ -176,62 +180,12 @@ def _materialize_model_for_lm_eval(model_cfg: ModelEvalConfig, cache_root: Path)
                 trust_remote_code=True,
             ),
         )
-        _set_eval_safe_model_config(model)
-        _sync_weight_tying_flag(model)
+        prepare_model_for_evaluation(model)
+        sync_weight_tying_flag(model)
         base_dir.mkdir(parents=True, exist_ok=True)
         tokenizer.save_pretrained(base_dir)
-        try:
-            model.save_pretrained(base_dir)
-        except RuntimeError as exc:
-            if "shared tensors" not in str(exc):
-                raise
-            logger.warning(
-                "Retrying save_pretrained with safe_serialization=False due to "
-                "shared tensors."
-            )
-            model.save_pretrained(base_dir, safe_serialization=False)
+        save_pretrained(model, base_dir)
     return str(base_dir)
-
-
-def _set_eval_safe_model_config(model) -> None:
-    prepare_model_for_evaluation(model)
-
-
-def _use_exact_xlstm_head_dims(config) -> None:
-    use_exact_xlstm_head_dims(config)
-
-
-def _sync_weight_tying_flag(model) -> None:
-    config = getattr(model, "config", None)
-    if config is None or not hasattr(config, "tie_word_embeddings"):
-        return
-    get_input = getattr(model, "get_input_embeddings", None)
-    get_output = getattr(model, "get_output_embeddings", None)
-    if not callable(get_input) or not callable(get_output):
-        return
-    input_emb = get_input()
-    output_emb = get_output()
-    if input_emb is None or output_emb is None:
-        return
-    input_weight = getattr(input_emb, "weight", None)
-    output_weight = getattr(output_emb, "weight", None)
-    if input_weight is None or output_weight is None:
-        return
-    shared = input_weight is output_weight
-    if not shared:
-        shared = input_weight.data_ptr() == output_weight.data_ptr()
-    if shared and not bool(config.tie_word_embeddings):
-        logger.info(
-            "Detected tied embeddings; updating config.tie_word_embeddings to "
-            "True before saving."
-        )
-        config.tie_word_embeddings = True
-    if not shared and bool(config.tie_word_embeddings):
-        logger.info(
-            "Detected untied embeddings; updating config.tie_word_embeddings to "
-            "False before saving."
-        )
-        config.tie_word_embeddings = False
 
 
 def _resolve_ephemeral_eval_root() -> Path:

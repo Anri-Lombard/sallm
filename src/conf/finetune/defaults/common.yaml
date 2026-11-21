@@ -5,10 +5,14 @@ mode: FINETUNE
 wandb:
   project: sallm-ft
 tokenizer:
-  path: ${oc.env:HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer
+  path: ${oc.env:TOKENIZER_PATH,tokenizer/sallm_bpe_tokenizer}
+dataset:
+  subset: null
+  languages: null
+  max_seq_length: 1024
 training:
   learning_rate: 1.0e-4
-  optim: adamw_torch
+  optim: adamw_torch_fused
   adam_beta1: 0.9
   adam_beta2: 0.95
   adam_epsilon: 1.0e-8
@@ -22,6 +26,7 @@ training:
   per_device_eval_batch_size: 16
   num_train_epochs: auto
   bf16: true
+  tf32: true
   gradient_checkpointing: false
   eval_strategy: epoch
   save_strategy: epoch
@@ -34,6 +39,6 @@ training:
   ddp_find_unused_parameters: false
   report_to: wandb
 hub:
-  enabled: true
-  organization: anrilombard
+  enabled: false
+  organization: null
   private: true

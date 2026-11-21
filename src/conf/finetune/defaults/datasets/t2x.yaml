@@ -10,3 +10,11 @@ dataset:
   template_choice: CYCLE
   packing: false
   assistant_only_loss: true
+training:
+  metric_for_best_model: eval_all_chrf
+  greater_is_better: true
+generation_decoding:
+  early_stopping: true
+  length_penalty: 1.0
+  num_beams: 5
+  strategy: beam

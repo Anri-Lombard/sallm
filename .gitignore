@@ -13,6 +13,8 @@ slurm-*.out
 *.log
 *.csv
 *.json
+!src/conf/pretrain/
+!src/conf/pretrain/*.json
 
 # Paper tokenizer; download it with the command in the README
 tokenizer/sallm_bpe_tokenizer/

@@ -6,8 +6,10 @@ from typing import Any
 
 import yaml
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_CONF_ROOT = _REPO_ROOT / "src" / "conf"
+from sallm.paths import CONF_DIR, REPO_ROOT
+
+_REPO_ROOT = REPO_ROOT
+_CONF_ROOT = CONF_DIR
 _REGISTRY_PATH = _REPO_ROOT / "recipes" / "registry.yaml"
 
 

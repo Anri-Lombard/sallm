@@ -11,11 +11,13 @@ os.environ["TOKENIZERS_PARALLELISM"] = "true"
 import datasets
 from tokenizers import Tokenizer, decoders
 from tokenizers.models import BPE
-from tokenizers.normalizers import NFD, Sequence
+from tokenizers.normalizers import NFC, NFD, Sequence
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.processors import TemplateProcessing
 from tokenizers.trainers import BpeTrainer
 from transformers import PreTrainedTokenizerFast
+
+_NORMALIZERS = {"NFC": NFC, "NFD": NFD}
 
 
 # TODO restructure library to use pydantic models for loading configs
@@ -40,8 +42,15 @@ def train_tokenizer(config: dict) -> None:
     output_dir = Path(path_config["output_dir"])
 
     tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
-    # TODO these necessary/useful according to research?
-    tokenizer.normalizer = Sequence([NFD()])
+    # Default to NFC for new tokenizers so decoded text matches NFC references
+    # (#140). Set normalizer: NFD in config only to reproduce legacy MzansiLM.
+    normalizer_name = str(model_config.get("normalizer", "NFC")).upper()
+    if normalizer_name not in _NORMALIZERS:
+        raise ValueError(
+            f"Unsupported tokenizer normalizer {normalizer_name!r}; "
+            f"expected one of {sorted(_NORMALIZERS)}."
+        )
+    tokenizer.normalizer = Sequence([_NORMALIZERS[normalizer_name]()])
 
     # Sentencepiece is language agnostic, this is an attempt to mimic their behaviour
     # without needing to change libraries. Tokens will now be bytes which has been

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
+import logging
 
 import yaml
 from pydantic import BaseModel
+from sallm.paths import CONF_DIR
 
-_TEMPLATE_ROOT = (
-    Path(__file__).resolve().parent.parent.parent.parent / "conf" / "templates"
-)
+logger = logging.getLogger(__name__)
+
+_TEMPLATE_ROOT = CONF_DIR / "templates"
 _CACHE: dict[str, TemplateSpec] = {}
 _TASK_INDEX: dict[str, list[str]] = {}
 
@@ -22,7 +23,7 @@ class TemplateSpec(BaseModel):
 
 def _load_all() -> None:
     if not _TEMPLATE_ROOT.exists():
-        print(f"ERROR: Template directory not found at {_TEMPLATE_ROOT}")
+        logger.error("Template directory not found at %s", _TEMPLATE_ROOT)
         return
 
     for path in _TEMPLATE_ROOT.rglob("*.yaml"):

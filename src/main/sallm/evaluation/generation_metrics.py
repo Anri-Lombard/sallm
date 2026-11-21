@@ -723,7 +723,10 @@ class GenerationEvaluator:
             return build_pos_debug_record(reference, prediction)
         return {
             "empty_prediction": not bool(prediction.strip()),
-            "exact_match": prediction.strip() == reference.strip(),
+            "exact_match": (
+                unicodedata.normalize("NFC", prediction).strip()
+                == unicodedata.normalize("NFC", reference).strip()
+            ),
         }
 
     def _cap_dataset(

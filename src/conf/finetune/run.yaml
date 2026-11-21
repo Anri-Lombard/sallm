@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  - defaults/common@_here_
+  - defaults/datasets@_here_: sib
+  - defaults/arch@_here_: llama
+  - _self_
+
+wandb:
+  name: ${model.architecture}-ft
+
+training:
+  output_dir: ${oc.env:SCRATCH,outputs}/masters/sallm/checkpoints/ft_${wandb.name}
+  run_name: ${wandb.name}
