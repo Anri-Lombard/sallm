@@ -170,3 +170,54 @@ def span_f1_agg(items):
         sum(false_negatives.values()),
     )
     return f1_measure
+
+
+def format_span_misc(resps, docs):
+    """lm-eval's `format_span` filter with MISC kept (29 Sep 2026).
+
+    The stock filter only keeps PER/LOC/ORG/DATE (MasakhaNER's types), so every
+    NCHLT MISC entity the model produced was dropped and scored as a miss. Same
+    steps otherwise: label-word mapping on the lowercased text, then
+    `label: entity` extraction with comma-split values and 'none' removed.
+    """
+    label_dict = {
+        "person": "PER",
+        "location": "LOC",
+        "organization": "ORG",
+        "counties": "LOC",
+        "places": "LOC",
+        "people": "PER",
+        "persons": "PER",
+        "company": "ORG",
+        "country": "LOC",
+        "continent": "LOC",
+        "time": "DATE",
+        "date": "DATE",
+        "per": "PER",
+        "loc": "LOC",
+        "org": "ORG",
+        "misc": "MISC",
+    }
+
+    def format_ner_text(text):
+        text = text.lower()
+        for key, value in label_dict.items():
+            text = text.replace(key, value)
+        text = "$".join(i for i in text.split("$$"))
+        return text.rstrip("$")  # stock code: rstrip("$$"), same characters
+
+    def format_named_entities(text):
+        text = text.replace("\n", "$").strip()
+        out = []
+        for label, values in re.findall(r"\b(PER|LOC|ORG|DATE|MISC):\s*([^$]+)", text):
+            out += [
+                f"{label.lower()}: {v.strip()}"
+                for v in values.split(",")
+                if v.strip().lower() != "none"
+            ]
+        return " $ ".join(out)
+
+    return [
+        [format_named_entities(format_ner_text(r.lower())) for r in inst]
+        for inst in resps
+    ]

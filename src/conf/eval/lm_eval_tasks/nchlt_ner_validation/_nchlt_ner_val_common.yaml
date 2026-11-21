@@ -14,7 +14,8 @@ doc_to_target: target
 filter_list:
   - name: flexible-extract
     filter:
-      - function: format_span
+      - function: custom
+        filter_fn: !function utils.format_span_misc
 metric_list:
   - metric: f1
     aggregation: !function utils.span_f1_agg
