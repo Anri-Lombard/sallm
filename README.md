@@ -81,6 +81,8 @@ uv run hf download uctnlp/mzansilm-125m \
 
 The tokenizer files are hosted on Hugging Face rather than stored in git. Local configs look for them at `tokenizer/sallm_bpe_tokenizer` (or `${HOME}/masters/sallm/tokenizer/sallm_bpe_tokenizer` on SLURM).
 
+Tests and small evaluations run on CPU (macOS or Linux). Pretraining, full fine-tuning, and the fast kernel paths (Liger, Gated DeltaNet, Hybrid, Mamba-2 FLA, and xLSTM Triton) require a Linux machine with a CUDA GPU.
+
 ## Running experiments
 
 ### Pretraining
@@ -120,14 +122,7 @@ uv run python -m sallm.main --config-name finetune/run \
   wandb.name=hybrid-t2x-xho
 ```
 
-You can also inspect and dry-run saved shortcuts through the `sallm` CLI:
-
-```bash
-uv run sallm recipes list
-uv run sallm finetune llama_t2x_xho --dry-run
-```
-
-See [docs/configuration.md](docs/configuration.md) for all Hydra overrides, early-stopping options, and cache environment variables.
+See [docs/configuration.md](docs/configuration.md) for all Hydra overrides, early-stopping options, W&B sweeps, and cache environment variables.
 
 ### Evaluation
 
@@ -140,7 +135,7 @@ uv run python -m sallm.main --config-name eval/run \
   wandb.name=eval-mzansilm-sib-xho
 ```
 
-For generative benchmarks (AfriHG and T2X), use the `eval/generate_*` configs documented in [docs/configuration.md](docs/configuration.md).
+For generative benchmarks, use `eval/generate_t2x`, `eval/generate_t2x_base`, `eval/generate_afrihg`, or `eval/generate_afrihg_base` (see [docs/configuration.md](docs/configuration.md)).
 
 ### Corpus and tokenizer preparation
 
@@ -156,8 +151,8 @@ On SLURM clusters, the launch scripts under `ops/slurm/` wrap pretraining, fine-
 
 ```text
 sallm/
-├── src/main/sallm/       # Core library (pretrain.py, training/, fine_tune/, evaluation/, models/, data/, configs/, hpo/, cli.py)
-├── src/conf/             # Pretraining JSONs (pretrain/), composable Hydra configs (finetune/, eval/, rerank/, sweeps/, templates/)
+├── src/main/sallm/       # Core library (pretrain.py, training/, fine_tune/, evaluation/, models/, data/, configs/, hpo/)
+├── src/conf/             # Pretraining JSONs (pretrain/) and Hydra configs (finetune/, eval/, sweeps/, templates/)
 ├── data/                 # Datatrove cleaning pipeline and dataset split preparation
 ├── tokenizer/            # BPE tokenizer training and corpus tokenization scripts
 ├── ops/slurm/            # SLURM job launchers and cluster environment helpers

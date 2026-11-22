@@ -31,8 +31,7 @@ fi
 
 if [[ -z "$SWEEP_ARG" ]]; then
   echo "Usage: sbatch $0 <sweep_yaml_or_name_without_yaml> [count]" >&2
-  echo "Examples: sbatch $0 llama_afrihg_xho 20" >&2
-  echo "          sbatch $0 llama_t2x_xho 10" >&2
+  echo "Example: sbatch $0 lr_grid 3" >&2
   exit 1
 fi
 

@@ -44,7 +44,14 @@ def test_to_resolved_dict_available_from_both_import_paths() -> None:
 
 def test_experiment_schema_merges_representative_finetune_config() -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    raw_cfg = compose_config_target("finetune/llama_t2x_xho")
+    raw_cfg = compose_config_target(
+        "finetune/run",
+        overrides=[
+            "finetune/defaults/arch@_global_=llama",
+            "finetune/defaults/datasets@_global_=t2x",
+            "dataset.subset=xho",
+        ],
+    )
 
     merged = OmegaConf.merge(schema, raw_cfg)
 
@@ -154,7 +161,12 @@ def test_sweep_base_configs_resolve() -> None:
             continue
 
         base_config = command[command.index("--base-config") + 1]
-        cfg = load_base_config(base_config)
+        overrides = [
+            command[idx + 1]
+            for idx, token in enumerate(command)
+            if token == "--override" and idx + 1 < len(command)
+        ]
+        cfg = load_base_config(base_config, overrides=overrides)
 
         assert cfg.mode == domain_config.RunMode.FINETUNE
         assert cfg.dataset is not None
@@ -165,7 +177,7 @@ def test_sweep_base_configs_resolve() -> None:
 
 def test_experiment_schema_merges_representative_eval_config() -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
-    raw_cfg = compose_config_target("eval/run_llama_t2x_xho")
+    raw_cfg = compose_config_target("eval/generate_t2x")
 
     merged = OmegaConf.merge(schema, raw_cfg)
 
@@ -196,7 +208,14 @@ def test_generic_eval_config_takes_checkpoint_and_task_packs() -> None:
 
 
 def test_hpo_base_config_loader_composes_hydra_defaults() -> None:
-    cfg = load_base_config("finetune/xlstm_sib_xho")
+    cfg = load_base_config(
+        "finetune/run",
+        overrides=[
+            "finetune/defaults/arch@_global_=xlstm",
+            "finetune/defaults/datasets@_global_=sib",
+            "dataset.subset=xho_Latn",
+        ],
+    )
 
     assert cfg.mode == domain_config.RunMode.FINETUNE
     assert cfg.model.architecture == "xlstm"
@@ -214,7 +233,14 @@ def test_hpo_base_config_loader_composes_hydra_defaults() -> None:
 
 
 def test_hpo_base_config_loader_accepts_conf_file_paths() -> None:
-    cfg = load_base_config("src/conf/finetune/xlstm_sib_xho.yaml")
+    cfg = load_base_config(
+        "src/conf/finetune/run.yaml",
+        overrides=[
+            "finetune/defaults/arch@_global_=xlstm",
+            "finetune/defaults/datasets@_global_=sib",
+            "dataset.subset=xho_Latn",
+        ],
+    )
 
     assert cfg.mode == domain_config.RunMode.FINETUNE
     assert cfg.model.architecture == "xlstm"
@@ -226,7 +252,7 @@ def test_every_entry_config_merges_into_the_schema() -> None:
     schema = OmegaConf.structured(domain_config.ExperimentConfig)
     targets = [
         f"{group}/{path.stem}"
-        for group in ("base", "finetune", "eval")
+        for group in ("finetune", "eval")
         for path in sorted((CONF_ROOT / group).glob("*.yaml"))
     ]
 

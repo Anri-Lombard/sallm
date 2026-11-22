@@ -65,7 +65,9 @@ def _merge_experiment_config(cfg: DictConfig) -> DictConfig:
     return merged
 
 
-def _load_hydra_config_target(base_config: str) -> DictConfig | None:
+def _load_hydra_config_target(
+    base_config: str, overrides: list[str] | None = None
+) -> DictConfig | None:
     config_target = None
     for path in _candidate_base_config_paths(base_config):
         if not path.is_file():
@@ -79,15 +81,17 @@ def _load_hydra_config_target(base_config: str) -> DictConfig | None:
 
     GlobalHydra.instance().clear()
     with initialize_config_dir(config_dir=str(_CONF_ROOT), version_base=None):
-        cfg = compose(config_name=config_target)
+        cfg = compose(config_name=config_target, overrides=overrides or [])
     if not isinstance(cfg, DictConfig):
         raise TypeError("Base config must resolve to a mapping.")
     return _merge_experiment_config(cfg)
 
 
-def load_base_config(base_config: str) -> DictConfig:
+def load_base_config(
+    base_config: str, overrides: list[str] | None = None
+) -> DictConfig:
     _register_env_resolver()
-    hydra_cfg = _load_hydra_config_target(base_config)
+    hydra_cfg = _load_hydra_config_target(base_config, overrides=overrides)
     if hydra_cfg is not None:
         return hydra_cfg
 
@@ -193,8 +197,8 @@ def _to_experiment_config(cfg: DictConfig) -> ExperimentConfig:
     raise TypeError("Failed to build ExperimentConfig")
 
 
-def run_trial(base_config: str) -> None:
-    cfg = load_base_config(base_config)
+def run_trial(base_config: str, overrides: list[str] | None = None) -> None:
+    cfg = load_base_config(base_config, overrides=overrides)
     run = wandb.init()
     sweep_values = dict(wandb.config)
     run_id = run.id if run else None

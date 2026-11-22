@@ -1,5 +1,5 @@
-"""Repository locations. The library runs from a checkout: conf/, recipes/
-and tokenizer/ are not shipped in the wheel."""
+"""Repository locations. The library runs from a checkout: conf/ and tokenizer/
+are not shipped in the wheel."""
 
 from pathlib import Path
 

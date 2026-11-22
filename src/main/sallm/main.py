@@ -14,7 +14,6 @@ from sallm.config import ExperimentConfig
 from sallm.evaluation.run import run as run_eval
 from sallm.fine_tune.run import run as run_fine_tune
 from sallm.runtime import is_main_process
-from sallm.training.run import run as run_train
 from sallm.utils import RunMode
 
 # Suppress noisy torch.compile warnings
@@ -63,7 +62,7 @@ def setup_logging(config: DictConfig) -> None:
         os.environ.setdefault("TQDM_DISABLE", "1")
 
 
-@hydra.main(config_path="../../conf", config_name="config", version_base=None)
+@hydra.main(config_path="../../conf", config_name=None, version_base=None)
 def main(cfg: DictConfig) -> None:
     unwrapped_cfg = cfg
 
@@ -98,7 +97,10 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"Run mode: {config.mode.value}")
 
     if config.mode == RunMode.TRAIN:
-        run_train(cast(ExperimentConfig, config))
+        raise ValueError(
+            "Pretraining runs through `python -m sallm.pretrain "
+            "--config src/conf/pretrain/<arch>_wsd.json`."
+        )
     elif config.mode == RunMode.FINETUNE:
         run_fine_tune(cast(ExperimentConfig, config))
     elif config.mode == RunMode.EVALUATE:
