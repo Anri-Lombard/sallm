@@ -2,18 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 import torch
-from sallm.training import run as training_run
 from sallm.training.trainer import CustomSFTTrainer
 from transformers import Trainer
 from transformers.trainer_pt_utils import LabelSmoother
-
-
-class _FakeTrainer:
-    def __init__(self, length: int) -> None:
-        self._length = length
-
-    def get_train_dataloader(self):
-        return [{"input_ids": torch.zeros((1, self._length), dtype=torch.long)}]
 
 
 def test_fla_gated_deltanet_label_smoothing_uses_causal_shift() -> None:
@@ -51,51 +42,6 @@ def test_fla_gated_deltanet_label_smoothing_uses_causal_shift() -> None:
 
     assert torch.allclose(actual, expected)
     assert not torch.allclose(actual, unshifted)
-
-
-def test_run_saves_between_barriers(monkeypatch, tmp_path) -> None:
-    events: list[str] = []
-
-    class Trainer(_FakeTrainer):
-        args = type("Args", (), {"output_dir": tmp_path, "should_save": True})()
-        accelerator = type(
-            "Accelerator",
-            (),
-            {"wait_for_everyone": lambda _self: events.append("wait")},
-        )()
-
-        def train(self, **_kwargs) -> None:
-            events.append("train")
-
-        def save_model(self, _path) -> None:
-            events.append("save")
-
-    trainer = Trainer(2048)
-    config = type(
-        "Config",
-        (),
-        {
-            "wandb": type("Wandb", (), {"id": None, "project": None})(),
-            "training": {},
-            "hub": type("Hub", (), {"enabled": False})(),
-        },
-    )()
-    monkeypatch.setattr(training_run, "build_tokenizer", lambda _config: object())
-    monkeypatch.setattr(
-        training_run,
-        "build_model",
-        lambda *_args: type("Model", (), {})(),
-    )
-    monkeypatch.setattr(
-        training_run,
-        "build_datasets",
-        lambda *_args, **_kwargs: ([], [], None),
-    )
-    monkeypatch.setattr(training_run, "build_trainer", lambda *_args: trainer)
-
-    training_run.run(config)
-
-    assert events == ["train", "wait", "save", "wait"]
 
 
 @pytest.mark.parametrize("trainer_class", [CustomSFTTrainer])

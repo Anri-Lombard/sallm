@@ -8,11 +8,8 @@ import yaml
 from sallm.config import ModelEvalConfig
 from sallm.evaluation import lm_eval_runner
 from sallm.evaluation.config import TaskPack
-from sallm.evaluation.registry import (
-    RERANK_LM_EVAL_TASK_DIR,
-    load_rerank_task_pack,
-    load_task_pack,
-)
+from sallm.evaluation.registry import load_task_pack
+from sallm.paths import CONF_DIR
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.pre_tokenizers import Whitespace, WhitespaceSplit
@@ -194,8 +191,8 @@ def test_load_task_pack_rejects_validation_packs_from_final_eval_scope() -> None
         load_task_pack("sib_xho_val")
 
 
-def test_load_rerank_task_pack_loads_validation_pack() -> None:
-    pack = load_rerank_task_pack("masakhaner_xho_val")
+def test_load_validation_task_pack_with_allow_validation() -> None:
+    pack = load_task_pack("masakhaner_xho_val", allow_validation=True)
 
     assert pack.name == "masakhaner_xho_val"
     assert pack.tasks[0] == "sallm_masakhaner_xh_prompt_1_val"
@@ -238,15 +235,17 @@ def test_run_pack_passes_repo_task_paths_to_task_manager(
         tmp_path / "work",
         None,
         "org/model",
-        "rerank",
+        "validation",
     )
 
-    expected_path = str(RERANK_LM_EVAL_TASK_DIR.resolve())
+    expected_path = str(
+        (CONF_DIR / "eval" / "lm_eval_tasks" / "masakhaner_validation").resolve()
+    )
     assert calls["task_manager_kwargs"]["include_path"] == [expected_path]
     assert calls["eval_kwargs"]["task_manager"].include_path == [expected_path]
     assert ".venv" not in expected_path
     assert summary["type"] == "lm_eval"
-    assert summary["task_pack_scope"] == "rerank"
+    assert summary["task_pack_scope"] == "validation"
     assert (tmp_path / "out" / "masakhaner_xho_val" / "results.json").exists()
 
 
@@ -278,7 +277,7 @@ def test_run_pack_rejects_lm_eval_response_cache(
             tmp_path / "work",
             {"use_cache": str(tmp_path / "cache")},
             str(tmp_path),
-            "rerank",
+            "validation",
         )
 
 
@@ -319,7 +318,7 @@ def test_run_pack_resolves_raw_override_before_tokenizer_and_model_args(
         tmp_path / "work",
         {"apply_chat_template": False},
         "org/model",
-        "rerank",
+        "validation",
     )
 
     assert calls["require_chat_template"] is False
@@ -333,9 +332,7 @@ def test_run_pack_resolves_raw_override_before_tokenizer_and_model_args(
 def test_task_packs_skip_afrixnli_prompt_1() -> None:
     # lm-eval 0.4.12 writes {premise}/{hypothesis} in single braces for every
     # AfriXNLI prompt_1, so the prompt never contains the example (fixed in 0.4.13).
-    conf = Path(__file__).resolve().parents[1] / "src" / "conf"
-    packs = list((conf / "eval" / "tasks").glob("*.yaml"))
-    packs += list((conf / "rerank" / "tasks").glob("*.yaml"))
+    packs = list((CONF_DIR / "eval" / "tasks").glob("*.yaml"))
 
     offending = [
         f"{path.name}: {task}"

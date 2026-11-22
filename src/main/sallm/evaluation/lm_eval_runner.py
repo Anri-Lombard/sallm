@@ -19,11 +19,7 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.config import TASK_MANAGER_KWARG_KEYS, TaskPack
 from sallm.evaluation.harness import prepare_model_for_evaluation
-from sallm.evaluation.registry import (
-    RERANK_LM_EVAL_TASK_DIR,
-    load_rerank_task_pack,
-    load_task_pack,
-)
+from sallm.evaluation.registry import load_task_pack
 from sallm.models.optional import register_fla_gated_deltanet
 from sallm.models.registry import (
     architecture_profile,
@@ -69,16 +65,6 @@ def _resolve_include_paths(include_path: str | Path | list[str | Path]) -> list[
     return [str(_resolve_include_path(raw_path)) for raw_path in raw_paths]
 
 
-def _append_include_path(
-    include_path: str | Path | list[str | Path] | None,
-    extra_path: str | Path,
-) -> list[str | Path]:
-    include_paths = include_path if isinstance(include_path, list) else []
-    if include_path and not isinstance(include_path, list):
-        include_paths = [include_path]
-    return [*include_paths, extra_path]
-
-
 def _split_task_manager_kwargs(
     kwargs: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -90,7 +76,7 @@ def _split_task_manager_kwargs(
     return evaluator_kwargs, task_manager_kwargs
 
 
-TASK_PACK_SCOPES = {"eval", "rerank"}
+TASK_PACK_SCOPES = {"eval", "validation"}
 
 
 def _format_model_args(
@@ -290,9 +276,9 @@ def _is_xlstm_checkpoint(pretrained_path: str) -> bool:
 
 def _load_pack(pack_name: str, task_pack_scope: str) -> TaskPack:
     if task_pack_scope == "eval":
-        return load_task_pack(pack_name)
-    if task_pack_scope == "rerank":
-        return load_rerank_task_pack(pack_name)
+        return load_task_pack(pack_name, allow_validation=False)
+    if task_pack_scope == "validation":
+        return load_task_pack(pack_name, allow_validation=True)
     supported = ", ".join(sorted(TASK_PACK_SCOPES))
     raise ValueError(
         f"Unsupported task_pack_scope '{task_pack_scope}'. "
@@ -366,12 +352,6 @@ def _run_pack(
         raise ValueError("lm-eval response caching is disabled")
 
     effective_fewshot = int(eval_kwargs.get("num_fewshot", pack.fewshot))
-
-    if task_pack_scope == "rerank":
-        task_manager_kwargs["include_path"] = _append_include_path(
-            task_manager_kwargs.get("include_path"),
-            RERANK_LM_EVAL_TASK_DIR,
-        )
 
     if task_manager_kwargs:
         include_path = task_manager_kwargs.get("include_path")

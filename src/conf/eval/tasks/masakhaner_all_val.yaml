@@ -16,6 +16,8 @@ tasks:
   - sallm_masakhaner_zu_prompt_5_val
 fewshot: 0
 batch_size: 1
+max_batch_size: 1
 apply_chat_template: true
-lm_eval_kwargs:
-  max_batch_size: 1
+task_manager_kwargs:
+  include_path:
+    - src/conf/eval/lm_eval_tasks/masakhaner_validation

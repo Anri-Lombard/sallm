@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-  - generate_t2x_xho@_here_
-  - _self_
-eval_model:
-  # the output of this recipe's fine-tuning run
-  checkpoint: ${oc.env:SCRATCH}/masters/sallm/checkpoints/ft_llama_125m_t2x_xho/final_model
-wandb:
-  name: eval-llama-125m-t2x-xho

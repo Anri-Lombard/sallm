@@ -8,6 +8,12 @@ from sallm.hpo.trial import resolve_tokenizer_path, run_trial
 def main() -> None:
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument("--base-config")
+    parser.add_argument(
+        "--override",
+        action="append",
+        default=[],
+        help="Hydra override forwarded when composing --base-config (repeatable).",
+    )
     parser.add_argument("--tokenizer-path", action="store_true")
     args = parser.parse_args()
     if args.tokenizer_path:
@@ -20,7 +26,7 @@ def main() -> None:
         return
     if not args.base_config:
         parser.error("--base-config is required unless --tokenizer-path is supplied")
-    run_trial(args.base_config)
+    run_trial(args.base_config, overrides=args.override)
 
 
 if __name__ == "__main__":

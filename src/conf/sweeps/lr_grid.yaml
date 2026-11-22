@@ -1,4 +1,4 @@
-name: hpo-t2x-xho
+name: hpo-lr-grid
 project: sallm-ft
 # The paper's learning-rate sweep: each task picks the best (lr, epoch) on validation.
 method: grid
@@ -18,4 +18,10 @@ command:
   - -m
   - sallm.hpo.run
   - --base-config
-  - finetune/llama_t2x_xho
+  - finetune/run
+  - --override
+  - finetune/defaults/arch@_global_=llama
+  - --override
+  - finetune/defaults/datasets@_global_=t2x
+  - --override
+  - dataset.subset=xho

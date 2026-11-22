@@ -1,6 +1,6 @@
 # Full fine-tuning protocol of the architecture-comparison paper. The paper
 # selected the learning rate per task from {3e-5, 1e-4, 3e-4} (see
-# sweeps/llama_t2x_xho.yaml); 1e-4 is the middle of that grid.
+# sweeps/lr_grid.yaml); 1e-4 is the middle of that grid.
 mode: FINETUNE
 wandb:
   project: sallm-ft

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=l40s
-#SBATCH --gres=gpu:l40s:4
+#SBATCH --gres=gpu:l40s:2
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
@@ -9,25 +9,40 @@
 
 set -euo pipefail
 
-CONFIG_NAME="${1:-base/llama_125m}"
-if [[ "$#" -gt 0 ]]; then
-  shift
+CONFIG_PATH="${1:-src/conf/pretrain/mzansilm_wsd.json}"
+DATA_DIR="${2:-${MP_DATA_DIR:-}}"
+OUT_DIR="${3:-${MP_OUT_DIR:-}}"
+if [[ "$#" -ge 3 ]]; then
+  shift 3
+elif [[ "$#" -gt 0 ]]; then
+  shift "$#"
 fi
+
+if [[ -z "$DATA_DIR" || -z "$OUT_DIR" ]]; then
+  echo "Usage: sbatch $0 <config_json> <packed_data_dir> <output_dir> [extra sallm.pretrain args...]" >&2
+  echo "Example: sbatch $0 src/conf/pretrain/gdn_wsd.json \$SCRATCH/data/packed_bin \$SCRATCH/runs/gdn" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
 set_sallm_cluster_env
 
-echo "Using Hydra config: ${CONFIG_NAME}"
+echo "Using pretrain config: ${CONFIG_PATH}"
 
-export PYTHONPATH="$SCRATCH/.local/lib/python3.12/site-packages:${PYTHONPATH:-}"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
+export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
+mkdir -p "$TRITON_CACHE_DIR"
 load_hf_token || true
 export HF_HOME="$SCRATCH/hf"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"
 mkdir -p "$HF_DATASETS_CACHE" "$HUGGINGFACE_HUB_CACHE"
+
+export MP_TOKENIZER="${MP_TOKENIZER:-$SALLM_REPO_DIR/tokenizer/sallm_bpe_tokenizer}"
+export MP_VAL_PARQUET="${MP_VAL_PARQUET:-$SCRATCH/data/validation.parquet}"
 
 echo "Setting up environment..."
 module load python/miniconda3-py3.12
@@ -43,20 +58,18 @@ fi
 
 export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
 cd "$SALLM_REPO_DIR"
-if [[ "$CONFIG_NAME" == *gated_deltanet* ]]; then
-  uv sync --frozen --extra pure-gdn
-else
-  uv sync --frozen
-fi
+uv sync --frozen --extra gpu --extra pure-gdn
 source .venv/bin/activate
 echo "Environment ready."
 
-export HYDRA_FULL_ERROR=1
+echo "Launching matched pretraining..."
 
-echo "Launching pretraining..."
-
-NUM_PROCESSES="${SLURM_GPUS_ON_NODE:-4}"
-accelerate launch --num_processes "$NUM_PROCESSES" --num_machines 1 --mixed_precision bf16 --dynamo_backend no \
-  -m sallm.main --config-name "$CONFIG_NAME" "$@"
+NUM_PROCESSES="${SLURM_GPUS_ON_NODE:-2}"
+torchrun --nproc_per_node="$NUM_PROCESSES" -m sallm.pretrain \
+  --config "$CONFIG_PATH" \
+  --data "$DATA_DIR" \
+  --out "$OUT_DIR" \
+  --stack fast \
+  "$@"
 
 echo "Pretraining finished."

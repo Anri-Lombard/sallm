@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import yaml
 from pydantic import ValidationError
 
@@ -9,19 +7,22 @@ from sallm.evaluation.config import TaskPack
 from sallm.paths import CONF_DIR
 
 TASK_DIR = CONF_DIR / "eval" / "tasks"
-RERANK_TASK_DIR = CONF_DIR / "rerank" / "tasks"
-RERANK_LM_EVAL_TASK_DIR = CONF_DIR / "rerank" / "lm_eval_tasks"
 
-_CACHE: dict[tuple[str, str], TaskPack] = {}
+_CACHE: dict[str, TaskPack] = {}
 
 
-def _load_task_pack_from_dir(key: str, task_dir: Path, scope: str) -> TaskPack:
-    """Load a task pack by name from an explicit config namespace."""
-    cache_key = (scope, key)
-    if cache_key in _CACHE:
-        return _CACHE[cache_key]
+def load_task_pack(key: str, *, allow_validation: bool = False) -> TaskPack:
+    """Load an evaluation task pack from `src/conf/eval/tasks`."""
+    if key.endswith("_val") and not allow_validation:
+        raise ValueError(
+            f"Task pack '{key}' is validation-scoped. Set "
+            "`evaluation.task_pack_scope=validation` (or pass "
+            "`allow_validation=True`) to run validation packs."
+        )
+    if key in _CACHE:
+        return _CACHE[key]
 
-    yaml_path = task_dir / f"{key}.yaml"
+    yaml_path = TASK_DIR / f"{key}.yaml"
     if not yaml_path.exists():
         raise FileNotFoundError(f"Task-pack YAML '{yaml_path}' not found.")
 
@@ -38,21 +39,5 @@ def _load_task_pack_from_dir(key: str, task_dir: Path, scope: str) -> TaskPack:
     except ValidationError as e:
         raise ValueError(f"Invalid Task-pack YAML '{yaml_path}': {e}") from e
 
-    _CACHE[cache_key] = pack
+    _CACHE[key] = pack
     return pack
-
-
-def load_task_pack(key: str) -> TaskPack:
-    """Load a final/test evaluation task pack by name."""
-    if key.endswith("_val"):
-        raise ValueError(
-            f"Task pack '{key}' is validation-scoped. Final evaluation may only "
-            "load test/final packs from src/conf/eval/tasks; use "
-            "load_rerank_task_pack() for validation reranking."
-        )
-    return _load_task_pack_from_dir(key, TASK_DIR, "eval")
-
-
-def load_rerank_task_pack(key: str) -> TaskPack:
-    """Load a validation/rerank task pack by name."""
-    return _load_task_pack_from_dir(key, RERANK_TASK_DIR, "rerank")

@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 import torch
-import yaml
 from huggingface_hub.errors import StrictDataclassClassValidationError
 from sallm.config import ModelEvalConfig
 from sallm.evaluation.harness import load_model_and_tokenizer
@@ -17,16 +16,15 @@ from tokenizers.pre_tokenizers import Whitespace
 from transformers import AutoModelForCausalLM, PreTrainedTokenizerFast
 
 CONF_ROOT = Path(__file__).resolve().parents[1] / "src" / "conf"
-BASE_CONFIG_PATHS = sorted((CONF_ROOT / "base").glob("*.yaml"))
 
 
-def _checked_in_llama_config(name: str) -> dict[str, object]:
-    document = yaml.safe_load((CONF_ROOT / "base" / name).read_text())
-    return document["model"]["config"]
+def _checked_in_mzansilm_config() -> dict[str, object]:
+    document = json.loads((CONF_ROOT / "pretrain" / "mzansilm_wsd.json").read_text())
+    return dict(document["model_config"])
 
 
 def _tiny_legacy_model():
-    config_values = _checked_in_llama_config("llama_125m.yaml")
+    config_values = _checked_in_mzansilm_config()
     config_values.update(
         vocab_size=4,
         intermediate_size=32,
@@ -54,21 +52,8 @@ def _save_tokenizer(checkpoint: Path) -> PreTrainedTokenizerFast:
     return tokenizer
 
 
-@pytest.mark.parametrize("config_path", BASE_CONFIG_PATHS, ids=lambda path: path.stem)
-def test_checked_in_base_model_config_constructs(config_path: Path) -> None:
-    document = yaml.safe_load(config_path.read_text())
-    model_values = document["model"]
-    if model_values["architecture"] == "gated_deltanet":
-        pytest.importorskip(
-            "fla", reason="pure GDN needs the Linux-only pure-gdn extra"
-        )
-
-    config_class = MODEL_CONFIG_REGISTRY[model_values["architecture"]]
-    config_class(**model_values["config"])
-
-
-def test_checked_in_llama_configs_construct_with_frozen_projection_shapes() -> None:
-    legacy_values = _checked_in_llama_config("llama_125m.yaml")
+def test_checked_in_llama_config_constructs_with_frozen_projection_shapes() -> None:
+    legacy_values = _checked_in_mzansilm_config()
     legacy_config = MODEL_CONFIG_REGISTRY["llama"](**legacy_values)
 
     assert legacy_config.head_dim == 56
@@ -79,10 +64,6 @@ def test_checked_in_llama_configs_construct_with_frozen_projection_shapes() -> N
     assert attention.k_proj.weight.shape == (168, 512)
     assert attention.v_proj.weight.shape == (168, 512)
     assert attention.o_proj.weight.shape == (512, 504)
-
-    standard_values = _checked_in_llama_config("llama_400m.yaml")
-    standard_config = MODEL_CONFIG_REGISTRY["llama"](**standard_values)
-    assert standard_config.head_dim == 128
 
 
 def test_legacy_llama_checkpoint_saves_and_reloads_through_auto_model(
