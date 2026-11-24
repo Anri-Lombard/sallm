@@ -2,7 +2,7 @@ import inspect
 import logging
 from typing import Any, cast
 
-from datasets import Dataset, IterableDataset
+from datasets import Dataset
 from torch.utils.data import Dataset as TorchDataset
 from transformers import (
     EarlyStoppingCallback,
@@ -14,7 +14,7 @@ from transformers import (
 )
 from trl import SFTConfig
 
-from sallm.config import ExperimentConfig, FinetuneTaskType, RunMode, to_resolved_dict
+from sallm.configs import ExperimentConfig, FinetuneTaskType, to_resolved_dict
 from sallm.models.registry import architecture_profile
 from sallm.tasks import TASK_SPECS
 from sallm.training.callbacks import (
@@ -61,9 +61,12 @@ def build_trainer(
     config: ExperimentConfig,
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerBase,
-    train_dataset: Dataset | IterableDataset | TorchDataset,
-    eval_dataset: Dataset | IterableDataset | TorchDataset,
+    train_dataset: Dataset | TorchDataset,
+    eval_dataset: Dataset,
 ) -> CustomSFTTrainer:
+    if config.dataset is None:
+        raise ValueError("`dataset` config block must be provided for fine-tuning.")
+
     training_args_dict = (
         {}
         if config.training is None
@@ -87,29 +90,10 @@ def build_trainer(
     if use_early_stopping:
         training_args_dict.setdefault("load_best_model_at_end", True)
 
-    task_type = None
-    # TODO implement cleaner logic for this
-    if config.mode == RunMode.FINETUNE:
-        if config.dataset is None:
-            raise ValueError("`dataset` config block must be provided for fine-tuning.")
-        task_type = getattr(config.dataset, "task", None)
-        max_length = config.dataset.max_seq_length
-        packing = bool(getattr(config.dataset, "packing", False))
-        assistant_only_loss = bool(getattr(config.dataset, "assistant_only_loss", True))
-    else:
-        if "max_seq_length" in training_args_dict:
-            max_length = training_args_dict.pop("max_seq_length")
-        elif "max_length" in training_args_dict:
-            max_length = training_args_dict.pop("max_length")
-        else:
-            max_length = 2048
-            logger.warning(
-                "SFTConfig `max_length` not found. Falling back to %s. "
-                "Please add `max_length` to your training config.",
-                max_length,
-            )
-        packing = bool(training_args_dict.get("packing", False))
-        assistant_only_loss = False
+    task_type = getattr(config.dataset, "task", None)
+    max_length = config.dataset.max_seq_length
+    packing = bool(getattr(config.dataset, "packing", False))
+    assistant_only_loss = bool(getattr(config.dataset, "assistant_only_loss", True))
 
     if use_early_stopping:
         metric_name = training_args_dict.get("metric_for_best_model")
@@ -128,7 +112,6 @@ def build_trainer(
         elif "greater_is_better" not in training_args_dict:
             training_args_dict["greater_is_better"] = not metric_name.endswith("loss")
 
-    # Ensure we don't accidentally pass duplicates for values we set explicitly
     for _k in ("max_seq_length", "max_length", "packing", "assistant_only_loss"):
         training_args_dict.pop(_k, None)
 
@@ -153,16 +136,6 @@ def build_trainer(
         assistant_only_loss=assistant_only_loss,
     )
 
-    if isinstance(train_dataset, IterableDataset) or isinstance(
-        eval_dataset, IterableDataset
-    ):
-        accelerator_config = cast(Any, training_args.accelerator_config)
-        if (
-            accelerator_config is not None
-            and accelerator_config.dispatch_batches is None
-        ):
-            accelerator_config.dispatch_batches = False
-
     if getattr(training_args, "gradient_checkpointing", False) and not getattr(
         training_args, "gradient_checkpointing_kwargs", None
     ):
@@ -173,60 +146,58 @@ def build_trainer(
         logger.info(training_args)
         logger.info("------------------------------------")
 
-    callbacks = []
-    if config.mode == RunMode.FINETUNE:
-        if not isinstance(eval_dataset, Dataset):
-            raise TypeError(
-                "Fine-tuning evaluation callbacks require a HuggingFace Dataset."
-            )
-        eval_hf_dataset = eval_dataset
-        if architecture_profile(
-            getattr(model, "config", None)
-        ).skips_completions_callback:
-            logger.info(
-                "Skipping representative free-generation callback for xLSTM "
-                "training-mode checkpoints; task metrics remain enabled."
-            )
-        else:
-            completions_callback = ShowCompletionsCallback(
-                eval_dataset=eval_hf_dataset,
+    if not isinstance(eval_dataset, Dataset):
+        raise TypeError(
+            "Fine-tuning evaluation callbacks require a HuggingFace Dataset."
+        )
+
+    callbacks: list[TrainerCallback] = []
+    if architecture_profile(getattr(model, "config", None)).skips_completions_callback:
+        logger.info(
+            "Skipping representative free-generation callback for xLSTM "
+            "training-mode checkpoints; task metrics remain enabled."
+        )
+    else:
+        callbacks.append(
+            ShowCompletionsCallback(
+                eval_dataset=eval_dataset,
                 tokenizer=tokenizer,
                 num_samples=5,
                 decoding=config.generation_decoding,
             )
-            callbacks.append(completions_callback)
+        )
 
-        if task_metrics and task_type == FinetuneTaskType.CLASSIFICATION:
-            callbacks.append(
-                ClassificationMetricsCallback(
-                    eval_dataset=eval_hf_dataset,
-                    tokenizer=tokenizer,
-                    max_new_tokens=32,
-                    max_samples_per_lang=None,
-                    decoding=config.generation_decoding,
-                )
+    if task_metrics and task_type == FinetuneTaskType.CLASSIFICATION:
+        callbacks.append(
+            ClassificationMetricsCallback(
+                eval_dataset=eval_dataset,
+                tokenizer=tokenizer,
+                max_new_tokens=32,
+                max_samples_per_lang=None,
+                decoding=config.generation_decoding,
             )
-        if task_metrics and task_type in (
-            FinetuneTaskType.INSTRUCTION,
-            FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
-        ):
-            callbacks.append(
-                GenerationMetricsCallback(
-                    eval_dataset=eval_hf_dataset,
-                    tokenizer=tokenizer,
-                    max_new_tokens=64,
-                    max_samples_per_lang=None,
-                    decoding=config.generation_decoding,
-                    task_type=task_type,
-                )
+        )
+    if task_metrics and task_type in (
+        FinetuneTaskType.INSTRUCTION,
+        FinetuneTaskType.NAMED_ENTITY_RECOGNITION,
+    ):
+        callbacks.append(
+            GenerationMetricsCallback(
+                eval_dataset=eval_dataset,
+                tokenizer=tokenizer,
+                max_new_tokens=64,
+                max_samples_per_lang=None,
+                decoding=config.generation_decoding,
+                task_type=task_type,
             )
-        if task_metrics and task_type == FinetuneTaskType.POS_TAGGING:
-            callbacks.append(
-                PosMetricsCallback(
-                    eval_dataset=eval_hf_dataset,
-                    tokenizer=tokenizer,
-                )
+        )
+    if task_metrics and task_type == FinetuneTaskType.POS_TAGGING:
+        callbacks.append(
+            PosMetricsCallback(
+                eval_dataset=eval_dataset,
+                tokenizer=tokenizer,
             )
+        )
 
     if training_args.gradient_checkpointing and training_args.world_size > 1:
         callbacks.append(EnsureStaticGraphCallback())

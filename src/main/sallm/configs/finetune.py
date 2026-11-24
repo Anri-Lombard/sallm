@@ -18,11 +18,6 @@ class FewshotTemplateMode(str, Enum):
     CYCLE = "cycle"
 
 
-class TaskType(str, Enum):
-    CAUSAL_LM = "causal_lm"
-    CLASSIFICATION = "classification"
-
-
 class FinetuneTaskType(str, Enum):
     INSTRUCTION = "instruction"
     CLASSIFICATION = "classification"
@@ -104,9 +99,3 @@ class FinetuneDatasetConfig:
             raise ValueError(
                 "Mixture datasets require dataset.mix_weights to be specified"
             )
-
-
-@dataclass
-class TemplateConfig:
-    prompt: str = MISSING
-    label_mapping: dict[int | str, str] = field(default_factory=dict)

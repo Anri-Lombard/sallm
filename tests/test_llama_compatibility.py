@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import torch
 from huggingface_hub.errors import StrictDataclassClassValidationError
-from sallm.config import ModelEvalConfig
+from sallm.configs import ModelEvalConfig
 from sallm.evaluation.harness import load_model_and_tokenizer
 from sallm.evaluation.lm_eval_runner import _materialize_model_for_lm_eval
 from sallm.models.registry import MODEL_CLASS_REGISTRY, MODEL_CONFIG_REGISTRY

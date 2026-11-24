@@ -15,7 +15,7 @@ from sallm.chat_template import (
     assistant_content_prefix,
     fallback_chat_template,
 )
-from sallm.config import DecodingConfig
+from sallm.configs import DecodingConfig
 from sallm.models.registry import architecture_profile
 from sallm.templates import registry as tmpl
 

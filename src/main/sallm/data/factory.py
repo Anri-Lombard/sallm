@@ -4,20 +4,17 @@ import logging
 from dataclasses import is_dataclass, replace
 from typing import Protocol, cast
 
-from datasets import Dataset, IterableDataset
+from datasets import Dataset
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import Dataset as TorchDataset
-from transformers import PreTrainedTokenizerBase
 
-from sallm.config import (
+from sallm.configs import (
     ExperimentConfig,
     FinetuneDatasetConfig,
     FinetuneTaskType,
-    RunMode,
     TemplateChoice,
 )
 from sallm.data.adapters.registry import load_raw_dataset
-from sallm.data.loaders.disk import load_pretrain_datasets
 from sallm.data.loaders.mix import load_mix_dataset
 from sallm.data.transforms.template_strategies import apply_templates
 
@@ -31,8 +28,8 @@ class HasDatasetConfig(Protocol):
 def resolve_eval_template_choice(ds_cfg: FinetuneDatasetConfig) -> TemplateChoice:
     """Resolve validation template coverage for fine-tuning datasets.
 
-    Classification tasks should validate across every prompt template so HPO
-    and early stopping see the same prompt coverage as rerank/test.
+    Classification tasks validate across every prompt template so early stopping
+    sees the same prompt coverage as test evaluation.
     """
     if ds_cfg.eval_template_choice is not None:
         return ds_cfg.eval_template_choice
@@ -60,35 +57,13 @@ def _dataset_config_with_template_choice(
 
 
 def build_datasets(
-    config: ExperimentConfig, tokenizer: PreTrainedTokenizerBase, is_hpo: bool
-) -> tuple[
-    Dataset | IterableDataset | TorchDataset,
-    Dataset | IterableDataset,
-    Dataset | IterableDataset | None,
-]:
-    """Build train, validation, and optional test datasets.
-
-    Args:
-        config: Experiment configuration
-        tokenizer: Tokenizer (unused but kept for API compatibility)
-        is_hpo: Whether this is a hyperparameter optimization run
-
-    Returns:
-        Tuple of (train_ds, val_ds, test_ds)
-    """
-    if config.mode == RunMode.FINETUNE:
-        return _build_finetune_datasets(config)
-    return load_pretrain_datasets(config, is_hpo)
-
-
-def _build_finetune_datasets(
     config: ExperimentConfig,
 ) -> tuple[Dataset | TorchDataset, Dataset, None]:
-    """Build datasets for fine-tuning mode."""
-    assert config.dataset, "Finetune mode requires a `dataset` block."
+    """Build train and validation datasets for fine-tuning."""
+    if config.dataset is None:
+        raise ValueError("Fine-tuning requires a `dataset` config block.")
     ds_cfg = config.dataset
 
-    # Handle mix datasets
     if isinstance(ds_cfg.hf_name, str) and ds_cfg.hf_name.startswith("mix:"):
         return load_mix_dataset(config)
 
@@ -107,16 +82,7 @@ def build_conversation_dataset(
     cfg: HasDatasetConfig,
     template_choice_override: TemplateChoice | None = None,
 ) -> Dataset:
-    """Format a raw dataset into conversation format with messages.
-
-    Args:
-        raw_ds: Raw dataset to format
-        cfg: Experiment configuration
-        template_choice_override: Optional template expansion override
-
-    Returns:
-        Dataset with 'messages' column
-    """
+    """Format a raw dataset into conversation format with messages."""
     ds_cfg = cfg.dataset
     if ds_cfg is None:
         raise ValueError("Fine-tuning dataset config is required.")

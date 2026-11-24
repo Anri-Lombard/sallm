@@ -4,7 +4,7 @@ import json
 import logging
 from pathlib import Path
 
-from sallm.config import ExperimentConfig, ModelEvalConfig, to_resolved_dict
+from sallm.configs import ExperimentConfig, ModelEvalConfig, to_resolved_dict
 from sallm.evaluation.harness import load_model_and_tokenizer, run_generation_task
 from sallm.evaluation.lm_eval_runner import run_task_pack_evaluations
 

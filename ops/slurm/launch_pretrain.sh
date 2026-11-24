@@ -25,51 +25,20 @@ if [[ -z "$DATA_DIR" || -z "$OUT_DIR" ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/env.sh"
 source "$SCRIPT_DIR/lib/auth.sh"
+source "$SCRIPT_DIR/lib/env.sh"
 set_sallm_cluster_env
-
-echo "Using pretrain config: ${CONFIG_PATH}"
-
-export UV_CACHE_DIR="$SCRATCH/.cache/uv"
-export PIP_CACHE_DIR="$SCRATCH/.cache/pip"
-export TRITON_CACHE_DIR="$SCRATCH/.triton/cache"
-mkdir -p "$TRITON_CACHE_DIR"
-load_hf_token || true
-export HF_HOME="$SCRATCH/hf"
-export HF_DATASETS_CACHE="$HF_HOME/datasets"
-export HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"
-mkdir -p "$HF_DATASETS_CACHE" "$HUGGINGFACE_HUB_CACHE"
+setup_sallm_runtime "$CONFIG_PATH" all
 
 export MP_TOKENIZER="${MP_TOKENIZER:-$SALLM_REPO_DIR/tokenizer/sallm_bpe_tokenizer}"
 export MP_VAL_PARQUET="${MP_VAL_PARQUET:-$SCRATCH/data/validation.parquet}"
 
-echo "Setting up environment..."
-module load python/miniconda3-py3.12
-CONDA_BASE=$(conda info --base)
-source "${CONDA_BASE}/etc/profile.d/conda.sh"
-if conda env list | awk '{print $1}' | grep -qx sallm-uv; then
-  set +u
-  conda activate sallm-uv
-  set -u
-else
-  echo "Conda environment sallm-uv is unavailable; using the repository .venv."
-fi
+NUM_PROCESSES="$(detect_gpu_count)"
+echo "Launching matched pretraining with ${CONFIG_PATH} on ${NUM_PROCESSES} GPUs..."
 
-export PATH="$SALLM_HOME_DIR/.local/bin:$PATH"
-cd "$SALLM_REPO_DIR"
-uv sync --frozen --extra gpu --extra pure-gdn
-source .venv/bin/activate
-echo "Environment ready."
-
-echo "Launching matched pretraining..."
-
-NUM_PROCESSES="${SLURM_GPUS_ON_NODE:-2}"
 torchrun --nproc_per_node="$NUM_PROCESSES" -m sallm.pretrain \
   --config "$CONFIG_PATH" \
   --data "$DATA_DIR" \
   --out "$OUT_DIR" \
   --stack fast \
   "$@"
-
-echo "Pretraining finished."

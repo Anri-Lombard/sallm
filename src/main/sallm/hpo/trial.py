@@ -9,7 +9,7 @@ from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, OmegaConf, open_dict
 
-from sallm.config import ExperimentConfig, to_resolved_dict
+from sallm.configs import ExperimentConfig, to_resolved_dict
 from sallm.fine_tune.run import run as run_finetune
 from sallm.paths import CONF_DIR, REPO_ROOT
 

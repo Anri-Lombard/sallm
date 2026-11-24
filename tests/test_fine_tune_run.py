@@ -1,23 +1,23 @@
 import pytest
-from sallm.config import (
+from sallm.configs import (
     ExperimentConfig,
     FinetuneDatasetConfig,
     FinetuneTaskType,
     HubConfig,
     ModelConfig,
+    RunMode,
 )
 from sallm.fine_tune.run import (
     _build_hub_repo_id,
     _configure_task_truncation,
 )
-from sallm.utils import RunMode
 
 
 def _experiment(*, repo_id: str) -> ExperimentConfig:
     return ExperimentConfig(
         mode=RunMode.FINETUNE,
         wandb=None,
-        model=ModelConfig(architecture="llama", config={}),
+        model=ModelConfig(architecture="llama", init_checkpoint="checkpoint"),
         dataset=FinetuneDatasetConfig(
             hf_name="mix:sa_multitask",
             max_seq_length=1024,
@@ -46,7 +46,7 @@ def test_build_hub_repo_id_derives_a_safe_name_from_the_run() -> None:
     config = ExperimentConfig(
         mode=RunMode.FINETUNE,
         wandb=None,
-        model=ModelConfig(architecture="mamba2", config={}),
+        model=ModelConfig(architecture="mamba2", init_checkpoint="checkpoint"),
         dataset=FinetuneDatasetConfig(
             hf_name="github:dadelani/AfriHG",
             languages=["xho", "zul"],

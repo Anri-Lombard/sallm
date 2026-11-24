@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-import sallm.config as legacy_config
 import sallm.configs as domain_config
 import yaml
 from hydra import compose, initialize_config_dir
@@ -26,19 +25,9 @@ def compose_config_target(config_target: str, overrides: list[str] | None = None
     return cfg
 
 
-def test_legacy_config_reexports_domain_config_types() -> None:
-    assert legacy_config.ExperimentConfig is domain_config.ExperimentConfig
-    assert legacy_config.ModelConfig is domain_config.ModelConfig
-    assert legacy_config.FinetuneDatasetConfig is domain_config.FinetuneDatasetConfig
-    assert legacy_config.ModelEvalConfig is domain_config.ModelEvalConfig
-    assert legacy_config.DecodingConfig is domain_config.DecodingConfig
-    assert legacy_config.RunMode is domain_config.RunMode
-
-
-def test_to_resolved_dict_available_from_both_import_paths() -> None:
+def test_to_resolved_dict_resolves_omegaconf_mapping() -> None:
     cfg = OmegaConf.create({"answer": 42})
 
-    assert legacy_config.to_resolved_dict(cfg) == {"answer": 42}
     assert domain_config.to_resolved_dict(cfg) == {"answer": 42}
 
 

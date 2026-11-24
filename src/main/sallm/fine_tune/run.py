@@ -6,9 +6,9 @@ import re
 from typing import Any, cast
 
 import torch
-from datasets import Dataset, IterableDataset
+from datasets import Dataset
 from sallm.chat_template import install_canonical_chat_template
-from sallm.config import ExperimentConfig
+from sallm.configs import ExperimentConfig
 from sallm.data.factory import (
     build_conversation_dataset,
     build_datasets,
@@ -41,9 +41,6 @@ def _configure_task_truncation(*, tokenizer, task_type) -> None:
     spec = TASK_SPECS.get(task_type) if task_type is not None else None
     if spec is not None and spec.truncate_left:
         tokenizer.truncation_side = "left"
-
-
-_sync_weight_tying_flag = sync_weight_tying_flag
 
 
 def _sanitize_hf_repo_component(value: str) -> str:
@@ -110,12 +107,11 @@ def run(config: ExperimentConfig) -> None:
     set_local_cuda_device()
     init_wandb(config)
 
-    logger.info("Tokenizer …")
+    logger.info("Tokenizer ...")
     tokenizer = build_tokenizer(config)
-    task_type = config.dataset.task if config.dataset is not None else None
-    _configure_task_truncation(tokenizer=tokenizer, task_type=task_type)
+    _configure_task_truncation(tokenizer=tokenizer, task_type=config.dataset.task)
 
-    logger.info("Model …")
+    logger.info("Model ...")
     model = build_model(config, tokenizer)
 
     logger.info("Adding special tokens and resizing model embeddings.")
@@ -127,30 +123,8 @@ def run(config: ExperimentConfig) -> None:
         ]
     }
     num_added_tokens = tokenizer.add_special_tokens(cast(Any, special_tokens_dict))
-
     if num_added_tokens > 0:
         model.resize_token_embeddings(len(tokenizer))
-
-        # TEMP FIX: Mamba2 resize bug - lm_head not resized
-        # See: https://github.com/huggingface/transformers/issues/43206
-        # TODO: Remove once transformers fix is released
-        if hasattr(model, "lm_head") and hasattr(model, "backbone"):
-            model_any = cast(Any, model)
-            expected_vocab = len(tokenizer)
-            actual_vocab = int(model_any.lm_head.weight.shape[0])
-            if actual_vocab != expected_vocab:
-                import torch.nn as nn
-
-                logger.warning(
-                    "Mamba2 resize bug: lm_head has %d, expected %d. Fixing...",
-                    actual_vocab,
-                    expected_vocab,
-                )
-                model_any.lm_head = nn.Linear(
-                    model_any.config.hidden_size, expected_vocab, bias=False
-                )
-                if hasattr(model_any.backbone, "embeddings"):
-                    model_any.lm_head.weight = model_any.backbone.embeddings.weight
 
     _configure_chat_template(tokenizer)
 
@@ -161,10 +135,8 @@ def run(config: ExperimentConfig) -> None:
             tokenizer.eos_token,
         )
 
-    logger.info("Datasets …")
-    train_ds, val_ds, _ = build_datasets(config, tokenizer, is_hpo=False)
-    if isinstance(train_ds, IterableDataset) or isinstance(val_ds, IterableDataset):
-        raise TypeError("Fine-tuning requires map-style HuggingFace datasets.")
+    logger.info("Datasets ...")
+    train_ds, val_ds, _ = build_datasets(config)
 
     def _has_messages(ds) -> bool:
         if hasattr(ds, "column_names"):
@@ -224,7 +196,7 @@ def run(config: ExperimentConfig) -> None:
             sample = None
     if sample:
         logger.info("--- Inspecting a single training sample ---")
-        logger.info(f"Messages:\n{sample['messages']}")
+        logger.info("Messages:\n%s", sample["messages"])
         logger.info("-------------------------------------------")
 
     cast(Any, model).tokenizer = tokenizer
@@ -232,7 +204,7 @@ def run(config: ExperimentConfig) -> None:
     trainer = build_trainer(config, model, tokenizer, train_ds, val_ds)
     resume_ckpt = (config.training or {}).get("resume_from_checkpoint")
 
-    logger.info("Fine-tuning start …")
+    logger.info("Fine-tuning start ...")
     trainer.train(resume_from_checkpoint=resume_ckpt)
     logger.info("Fine-tuning done.")
 
@@ -250,12 +222,12 @@ def run(config: ExperimentConfig) -> None:
         os.makedirs(output_dir, exist_ok=True)
         torch.save(model.state_dict(), os.path.join(output_dir, "pytorch_model.bin"))
     tokenizer.save_pretrained(output_dir)
-    logger.info(f"Saved final model to → {output_dir}")
+    logger.info("Saved final model to %s", output_dir)
 
     if config.hub and config.hub.enabled and i_am_main:
         repo_id = _build_hub_repo_id(config)
         try:
-            logger.info(f"Pushing model to HuggingFace Hub: {repo_id}")
+            logger.info("Pushing model to HuggingFace Hub: %s", repo_id)
             cast(Any, model).push_to_hub(repo_id, private=config.hub.private)
             tokenizer.push_to_hub(repo_id, private=config.hub.private)
             if config.hub.collection_slug:
@@ -268,4 +240,4 @@ def run(config: ExperimentConfig) -> None:
                     exists_ok=True,
                 )
         except Exception as e:
-            logger.warning(f"Hub push failed, keeping the local model: {e}")
+            logger.warning("Hub push failed, keeping the local model: %s", e)

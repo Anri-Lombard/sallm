@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datasets import Dataset
 
-from sallm.config import FinetuneDatasetConfig
+from sallm.configs import FinetuneDatasetConfig
 from sallm.data.adapters.base import DatasetAdapter
 from sallm.data.adapters.github import GitHubAfriHGAdapter, GitHubT2XAdapter
 from sallm.data.adapters.huggingface import (

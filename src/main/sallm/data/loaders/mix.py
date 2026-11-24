@@ -12,7 +12,7 @@ from datasets import (
 )
 from torch.utils.data import Dataset as TorchDataset
 
-from sallm.config import (
+from sallm.configs import (
     ExperimentConfig,
     FinetuneDatasetConfig,
     FinetuneTaskType,

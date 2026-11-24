@@ -1,5 +1,5 @@
 from omegaconf import OmegaConf
-from sallm.config import HubConfig, ModelEvalConfig, to_resolved_dict
+from sallm.configs import HubConfig, ModelEvalConfig, to_resolved_dict
 
 
 def test_to_resolved_dict_converts_nested_omegaconf_containers() -> None:

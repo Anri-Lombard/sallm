@@ -16,7 +16,8 @@ from lm_eval.tasks import TaskManager
 from tokenizers.processors import TemplateProcessing
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from sallm.config import ModelEvalConfig
+from sallm.chat_template import CANONICAL_CHAT_TEMPLATE
+from sallm.configs import ModelEvalConfig
 from sallm.evaluation.config import TASK_MANAGER_KWARG_KEYS, TaskPack
 from sallm.evaluation.harness import prepare_model_for_evaluation
 from sallm.evaluation.registry import load_task_pack
@@ -28,7 +29,6 @@ from sallm.models.registry import (
 )
 from sallm.models.saving import save_pretrained, sync_weight_tying_flag
 from sallm.paths import REPO_ROOT
-from sallm.templates.chat import DEFAULT_CHAT_TEMPLATE
 
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = REPO_ROOT
@@ -155,7 +155,7 @@ def _materialize_model_for_lm_eval(model_cfg: ModelEvalConfig, cache_root: Path)
         dtype = getattr(torch, str(model_cfg.dtype), None)
         model = AutoModelForCausalLM.from_pretrained(
             model_cfg.checkpoint,
-            torch_dtype=dtype,
+            dtype=dtype,
             trust_remote_code=True,
             low_cpu_mem_usage=True,
         )
@@ -193,7 +193,7 @@ def _resolve_ephemeral_eval_root() -> Path:
 
 
 def _fallback_chat_template() -> str:
-    return DEFAULT_CHAT_TEMPLATE
+    return CANONICAL_CHAT_TEMPLATE
 
 
 def _prepare_tokenizer_for_lm_eval(

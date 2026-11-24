@@ -4,7 +4,7 @@ from urllib.request import Request
 
 from datasets import Dataset, concatenate_datasets
 
-from sallm.config import FinetuneDatasetConfig
+from sallm.configs import FinetuneDatasetConfig
 from sallm.data.adapters.base import RawDatasetSplits, required_languages
 from sallm.data.adapters.sources import read_url
 from sallm.data.loaders.base import VALIDATION_ALIASES

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datasets import Dataset, concatenate_datasets, load_dataset
 
-from sallm.config import FinetuneDatasetConfig
+from sallm.configs import FinetuneDatasetConfig
 from sallm.data.adapters.base import RawDatasetSplits
 from sallm.data.loaders.base import load_split_with_fallback
 from sallm.data.transforms.language_filter import (

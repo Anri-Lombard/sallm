@@ -10,9 +10,3 @@ evaluation:
 wandb:
   project: sallm-eval
   name: ???
-model: null
-data: null
-tokenizer: null
-training: null
-dataset: null
-template: null
