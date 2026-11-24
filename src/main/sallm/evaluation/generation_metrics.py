@@ -20,7 +20,7 @@ from sallm.chat_template import (
     fallback_chat_template,
     install_canonical_chat_template,
 )
-from sallm.config import (
+from sallm.configs import (
     DecodingConfig,
     FinetuneTaskType,
     GeneratedExample,

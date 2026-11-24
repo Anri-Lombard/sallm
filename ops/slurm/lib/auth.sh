@@ -16,13 +16,3 @@ load_hf_token() {
 
   return 1
 }
-
-require_hf_token() {
-  if load_hf_token; then
-    return 0
-  fi
-
-  echo "ERROR: Hugging Face token not found." >&2
-  echo "Set HF_TOKEN or create ${SALLM_HOME_DIR:-$HOME}/.huggingface/token." >&2
-  return 1
-}

@@ -17,7 +17,7 @@ from transformers import (
     TrainingArguments,
 )
 
-from sallm.config import DecodingConfig, FinetuneTaskType
+from sallm.configs import DecodingConfig, FinetuneTaskType
 from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.evaluation.generation_metrics import GenerationEvaluator
 from sallm.evaluation.pos_metrics import PosEvaluator
@@ -43,7 +43,6 @@ def _safe_path_component(value: str) -> str:
     return safe.strip("._") or "run"
 
 
-# TODO: add models to model.py
 def _broadcast_metrics_from_rank0(
     *,
     local_metrics: dict[str, float],

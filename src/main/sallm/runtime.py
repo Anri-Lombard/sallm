@@ -10,7 +10,7 @@ import torch
 import wandb
 from omegaconf import OmegaConf
 
-from sallm.config import to_resolved_dict
+from sallm.configs import to_resolved_dict
 
 logger = logging.getLogger(__name__)
 

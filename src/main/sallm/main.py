@@ -10,11 +10,10 @@ import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
 from transformers.utils import logging as hf_logging
 
-from sallm.config import ExperimentConfig
+from sallm.configs import ExperimentConfig, RunMode
 from sallm.evaluation.run import run as run_eval
 from sallm.fine_tune.run import run as run_fine_tune
 from sallm.runtime import is_main_process
-from sallm.utils import RunMode
 
 # Suppress noisy torch.compile warnings
 warnings.filterwarnings(
@@ -49,7 +48,7 @@ def setup_logging(config: DictConfig) -> None:
 
         logging.basicConfig(
             level=logging.INFO,
-            format="%(asctime)s — %(levelname)s — %(message)s",
+            format="%(asctime)s - %(levelname)s - %(message)s",
             handlers=handlers,
             force=True,
         )
@@ -94,14 +93,9 @@ def main(cfg: DictConfig) -> None:
             keys_in_cfg[0],
         )
 
-    logger.info(f"Run mode: {config.mode.value}")
+    logger.info("Run mode: %s", config.mode.value)
 
-    if config.mode == RunMode.TRAIN:
-        raise ValueError(
-            "Pretraining runs through `python -m sallm.pretrain "
-            "--config src/conf/pretrain/<arch>_wsd.json`."
-        )
-    elif config.mode == RunMode.FINETUNE:
+    if config.mode == RunMode.FINETUNE:
         run_fine_tune(cast(ExperimentConfig, config))
     elif config.mode == RunMode.EVALUATE:
         run_eval(cast(ExperimentConfig, config))

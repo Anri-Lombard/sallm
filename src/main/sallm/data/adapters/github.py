@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sallm.config import FinetuneDatasetConfig
+from sallm.configs import FinetuneDatasetConfig
 from sallm.data.adapters.base import RawDatasetSplits, extract_train_validation_splits
 from sallm.data.afrihg import load_afrihg_from_github
 from sallm.data.t2x import load_t2x_from_github

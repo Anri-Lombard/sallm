@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from sallm.config import FinetuneTaskType
+from sallm.configs import FinetuneTaskType
 
 
 @dataclass(frozen=True)

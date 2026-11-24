@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 from datasets import Dataset
-from sallm.config import (
+from sallm.configs import (
     FinetuneDatasetConfig,
     FinetuneTaskType,
     TemplateChoice,

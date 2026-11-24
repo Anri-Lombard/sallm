@@ -5,7 +5,7 @@ import pytest
 import torch
 import yaml
 from datasets import Dataset
-from sallm.config import FinetuneTaskType, RunMode
+from sallm.configs import FinetuneTaskType, RunMode
 from sallm.evaluation.classification_metrics import ClassificationEvaluator
 from sallm.training import factory as training_factory
 

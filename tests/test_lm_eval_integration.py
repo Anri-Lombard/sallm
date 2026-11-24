@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 import yaml
-from sallm.config import ModelEvalConfig
+from sallm.configs import ModelEvalConfig
 from sallm.evaluation import lm_eval_runner
 from sallm.evaluation.config import TaskPack
 from sallm.evaluation.registry import load_task_pack

@@ -5,7 +5,7 @@ from typing import Any
 
 from datasets import Dataset
 
-from sallm.config import FinetuneDatasetConfig, FinetuneTaskType, TemplateChoice
+from sallm.configs import FinetuneDatasetConfig, FinetuneTaskType, TemplateChoice
 from sallm.data.formatters.classification import format_classification
 from sallm.data.formatters.instruction import format_instruction
 from sallm.data.formatters.ner import format_ner

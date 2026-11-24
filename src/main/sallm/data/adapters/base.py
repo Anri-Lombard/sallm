@@ -5,7 +5,7 @@ from typing import Protocol
 
 from datasets import Dataset, DatasetDict
 
-from sallm.config import FinetuneDatasetConfig
+from sallm.configs import FinetuneDatasetConfig
 
 
 @dataclass(frozen=True)

@@ -19,7 +19,7 @@ from transformers import (
 )
 
 from sallm.chat_template import install_canonical_chat_template
-from sallm.config import (
+from sallm.configs import (
     FewshotTemplateMode,
     GenerationEvalTaskConfig,
     ModelEvalConfig,
@@ -111,13 +111,13 @@ def load_model_and_tokenizer(
     )
     tokenizer = _prepare_tokenizer(tokenizer)
 
-    torch_dtype = _resolve_dtype(model_cfg.dtype)
+    dtype = _resolve_dtype(model_cfg.dtype)
     logger.info("Loading model weights from %s", pretrained_id)
     model = cast(
         PreTrainedModel,
         AutoModelForCausalLM.from_pretrained(
             pretrained_id,
-            torch_dtype=torch_dtype,
+            dtype=dtype,
             trust_remote_code=True,
             low_cpu_mem_usage=True,
         ),

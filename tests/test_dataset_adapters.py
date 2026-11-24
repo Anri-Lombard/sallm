@@ -4,7 +4,7 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 from datasets import Dataset, DatasetDict
-from sallm.config import FinetuneDatasetConfig, FinetuneTaskType
+from sallm.configs import FinetuneDatasetConfig, FinetuneTaskType
 from sallm.data.adapters import (
     github,
     huggingface,
